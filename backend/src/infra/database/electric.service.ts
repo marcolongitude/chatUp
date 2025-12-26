@@ -14,20 +14,32 @@ export class ElectricService {
 
   /**
    * Get Electric service URL
+   * Supports Railway service references: ${{Electric.ELECTRIC_URL}}
    */
   getElectricUrl(): string {
+    // Railway service reference or direct URL
+    if (process.env.ELECTRIC_URL) {
+      return process.env.ELECTRIC_URL;
+    }
     const host = process.env.ELECTRIC_HOST || 'localhost';
     const port = process.env.ELECTRIC_PORT || '5133';
-    return `http://${host}:${port}`;
+    const protocol = process.env.ELECTRIC_PROTOCOL || 'http';
+    return `${protocol}://${host}:${port}`;
   }
 
   /**
    * Get WebSocket URL for Electric client connections
+   * Supports Railway service references: ${{Electric.ELECTRIC_WS_URL}}
    */
   getElectricWsUrl(): string {
+    // Railway service reference or direct URL
+    if (process.env.ELECTRIC_WS_URL) {
+      return process.env.ELECTRIC_WS_URL;
+    }
     const host = process.env.ELECTRIC_HOST || 'localhost';
     const port = process.env.ELECTRIC_PORT || '5133';
-    return `ws://${host}:${port}`;
+    const protocol = process.env.ELECTRIC_PROTOCOL === 'https' ? 'wss' : 'ws';
+    return `${protocol}://${host}:${port}`;
   }
 
   /**

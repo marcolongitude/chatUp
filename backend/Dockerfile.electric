@@ -1,0 +1,6 @@
+# Dockerfile para Electric SQL no Railway
+FROM electricsql/electric:latest
+
+# Electric SQL usa variáveis de ambiente para configuração
+# Não precisa de build customizado, apenas configuração via env vars
+
