@@ -12,6 +12,38 @@ services:
       - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./electric/init-postgres.sql:/docker-entrypoint-initdb.d/init-electric.sql
+    command: >
+      postgres
+      -c wal_level=logical
+      -c max_replication_slots=10
+      -c max_wal_senders=10
+      -c shared_preload_libraries=pgoutput
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d chatup"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  electric:
+    image: electricsql/electric:latest
+    container_name: chatup_electric
+    restart: always
+    ports:
+      - '5133:5133'
+    environment:
+      DATABASE_URL: postgresql://admin:password@postgres:5432/chatup
+      AUTH_MODE: insecure
+      LOGICAL_PUBLISHER_HOST: postgres
+      LOGICAL_PUBLISHER_PORT: 5432
+      LOGICAL_PUBLISHER_USER: admin
+      LOGICAL_PUBLISHER_PASSWORD: password
+      LOGICAL_PUBLISHER_DATABASE: chatup
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./electric/migrations:/migrations
 
 volumes:
   postgres_data:

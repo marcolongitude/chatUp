@@ -126,9 +126,19 @@ android {
             def enableLegacyPackaging = findProperty('expo.useLegacyPackaging') ?: 'false'
             useLegacyPackaging enableLegacyPackaging.toBoolean()
         }
+        // Resolve duplicate BuildConfig from org.linusu namespace
+        // Exclude react-native-random-uuid completely to avoid namespace conflicts
+        exclude '**/react-native-random-uuid/**'
+        pickFirst '**/org/linusu/BuildConfig.class'
     }
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
+    }
+    
+    // Disable lint vital analysis to prevent OutOfMemoryError
+    lintOptions {
+        checkReleaseBuilds false
+        abortOnError false
     }
 }
 

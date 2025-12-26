@@ -5,21 +5,21 @@ export class TypeOrmMessageEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('uuid')
+  @Column({ name: 'sender_id', type: 'uuid' })
   senderId: string;
 
-  @Column('uuid')
+  @Column({ name: 'receiver_id', type: 'uuid' })
   receiverId: string;
 
   @Column('text')
   content: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'timestamp' })
   timestamp: Date;
 
-  @Column({ default: false })
+  @Column({ name: 'is_delivered', default: false })
   isDelivered: boolean;
 
-  @Column({ default: false })
+  @Column({ name: 'is_read', default: false })
   isRead: boolean;
 }

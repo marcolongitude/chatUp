@@ -25,7 +25,7 @@ interface UseNearbyUsersReturn {
  * Retorna apenas usuários dentro de um raio de 2km
  */
 export function useNearbyUsers(): UseNearbyUsersReturn {
-	const { firebaseUser, userProfile } = useAuth();
+	const { user, userProfile } = useAuth();
 	const {
 		location: userLocation,
 		permissionStatus,
@@ -45,7 +45,7 @@ export function useNearbyUsers(): UseNearbyUsersReturn {
 		}
 
 		// Verificar condições básicas
-		if (!firebaseUser) {
+		if (!user) {
             setError("Usuário não autenticado");
 			setIsLoading(false);
 			setNearbyUsers([]);
@@ -146,7 +146,7 @@ export function useNearbyUsers(): UseNearbyUsersReturn {
 			setIsLoading(false);
 		}
 	}, [
-		firebaseUser?.uid,
+		user?.id,
 		userLocation?.latitude,
 		userLocation?.longitude,
 		permissionStatus?.granted,

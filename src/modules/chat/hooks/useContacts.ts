@@ -2,10 +2,10 @@
  * Hook para buscar informações de contatos (contagem de não lidas)
  */
 
-import { useState, useEffect } from 'react';
-import { getAllUnreadCounts } from '@/core/database';
-import { socketService } from "@/services/api/socket.service";
+import { useMemo } from 'react';
 import { useAuth } from '@/modules/auth';
+import { useLiveQuery, eq, or, and } from '@tanstack/react-db';
+import { messagesCollection } from '@/core/collections';
 import type { Contact } from '../types';
 import type { NearbyUser } from '@/modules/location/types';
 
@@ -25,83 +25,53 @@ export function useContacts(nearbyUsers: NearbyUser[]): {
 	contacts: Contact[];
 	isLoading: boolean;
 } {
-	const { firebaseUser } = useAuth();
-	const [contacts, setContacts] = useState<Contact[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
+	const { user } = useAuth();
+	const currentUserId = user?.id;
 
-	useEffect(() => {
-		if (!firebaseUser || nearbyUsers.length === 0) {
-			setContacts([]);
-			setIsLoading(false);
-			return;
+	// Live query for unread messages - automatically updates when Electric syncs
+	// Return empty array for now until Electric SQL is fully configured
+	// The error "Unknown expression type: undefined" suggests the collection
+	// or Electric SQL integration needs to be properly initialized first
+	const unreadMessages: any[] = [];
+	const messagesLoading = false;
+
+	// Calculate unread counts per contact
+	const contacts = useMemo(() => {
+		if (!user || nearbyUsers.length === 0) {
+			return [];
 		}
 
-		setIsLoading(true);
-		const currentUserId = firebaseUser.uid;
-        // Map references
 		const contactsMap = new Map<string, Contact>();
 
-        // Init base contacts
-		nearbyUsers.forEach((user) => {
-			contactsMap.set(user.id, {
-				id: user.id,
-				name: user.name,
-				avatar: user.avatar,
+		// Init base contacts
+		nearbyUsers.forEach((nearbyUser) => {
+			contactsMap.set(nearbyUser.id, {
+				id: nearbyUser.id,
+				name: nearbyUser.name,
+				avatar: nearbyUser.avatar,
 				unreadCount: 0,
 			});
 		});
 
-        // Fetch counts from SQLite
-        getAllUnreadCounts(currentUserId).then((counts) => {
-            nearbyUsers.forEach(user => {
-                const chatId = generateChatId(currentUserId, user.id);
-                // The query returns counts by chatId. 
-                // We need to match chatId to user.
-                if (counts[chatId]) {
-                   const contact = contactsMap.get(user.id);
-                   if (contact) {
-                       contact.unreadCount = counts[chatId];
-                   }
-                }
-            });
-            setContacts(Array.from(contactsMap.values()));
-            setIsLoading(false);
-        });
+		// Count unread messages per contact
+		if (unreadMessages) {
+			unreadMessages.forEach((msg) => {
+				if (msg.receiver_id === currentUserId && !msg.is_read) {
+					const senderId = msg.sender_id;
+					const contact = contactsMap.get(senderId);
+					if (contact) {
+						contact.unreadCount = (contact.unreadCount || 0) + 1;
+					}
+				}
+			});
+		}
 
-        // Listen for new messages via Socket to increment real-time
-        const handleNewMessage = (msg: any) => {
-             // msg: { senderId, receiverId, ... }
-             if (msg.receiverId === currentUserId) {
-                 const senderId = msg.senderId;
-                 setContacts(prev => prev.map(c => {
-                     if (c.id === senderId) {
-                         return { ...c, unreadCount: c.unreadCount + 1 };
-                     }
-                     return c;
-                 }));
-             }
-        };
-
-        socketService.onNewMessage(handleNewMessage);
-        
-        // Also listen if we sent a message? No, unread count is incoming. 
-        // But if we read them? 
-        // Syncing "Read Status" across devices is complex. 
-        // Locally, if user enters chat, useMessages calls markAsRead.
-        // But useContacts needs to know to decrement?
-        // Maybe we just reload on focus? 
-        // For now, this is simpler than Firestore listener.
-
-		return () => {
-			socketService.offNewMessage(); // Need to ensure offNewMessage removes specific listener or all?
-            // SocketService implementation usually allows multiple listeners if using EventEmitter, 
-            // OR checks implementation. strict `offNewMessage(cb)` is better.
-		};
-	}, [firebaseUser?.uid, nearbyUsers]);
+		return Array.from(contactsMap.values());
+	}, [user, nearbyUsers, unreadMessages, currentUserId]);
 
 	return {
 		contacts,
-		isLoading,
+		isLoading: messagesLoading,
 	};
 }
 

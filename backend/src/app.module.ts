@@ -12,6 +12,8 @@ import { Key } from './core/entities/key.entity';
 import { PreKey } from './core/entities/pre-key.entity';
 import { LocationModule } from './presentation/modules/location.module';
 import { FilesModule } from './presentation/modules/files.module';
+import { ElectricModule } from './infra/database/electric.module';
+import { AppController } from './app.controller';
 
 @Module({
   imports: [
@@ -24,9 +26,12 @@ import { FilesModule } from './presentation/modules/files.module';
       password: process.env.DB_PASSWORD || 'password',
       database: process.env.DB_NAME || 'chatup',
       entities: [TypeOrmUserEntity, TypeOrmMessageEntity, Key, PreKey], // Add Entities
-      synchronize: true, // Auto-create tables (Dev only)
-      logging: true, // Enable SQL logging for debugging
+      synchronize: process.env.NODE_ENV !== 'production', // Disable in production, use migrations
+      migrations: ['dist/infra/database/migrations/*.js'],
+      migrationsRun: process.env.NODE_ENV === 'production', // Run migrations automatically in production
+      logging: process.env.NODE_ENV !== 'production', // Disable SQL logging in production
     }),
+    ElectricModule,
     AuthModule,
     UsersModule,
     ChatModule,
@@ -34,7 +39,7 @@ import { FilesModule } from './presentation/modules/files.module';
     LocationModule,
     FilesModule,
   ],
-  controllers: [],
+  controllers: [AppController],
   providers: [],
 })
 export class AppModule {}

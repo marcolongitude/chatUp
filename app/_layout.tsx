@@ -1,14 +1,30 @@
+// Polyfill for crypto.randomUUID() required by TanStack DB
+// Using expo-crypto which is already installed
+import * as Crypto from "expo-crypto";
+
+// Polyfill crypto.randomUUID if not available
+if (typeof global.crypto === "undefined") {
+  (global as any).crypto = {};
+}
+if (typeof (global as any).crypto.randomUUID !== "function") {
+  // expo-crypto.randomUUID() is synchronous
+  (global as any).crypto.randomUUID = () => {
+    return Crypto.randomUUID().toLowerCase();
+  };
+}
+
 import { Stack } from "expo-router";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/core/queryClient";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider } from "@/core/theme/ThemeProvider";
 import { I18nProvider } from "@/core/i18n/I18nProvider";
+import { ElectricProvider } from "@/core/electric";
 import { UpdateDialog, CryptoLoadingProvider } from "@/shared/components";
 import React, { Suspense, useEffect } from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 // import "@/core/firebase";
-import { initDatabase } from "@/core/database";
+// Database initialization removed - Electric SQL handles data storage
 import { requestNotificationPermissions } from "@/services/notifications";
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {
@@ -88,11 +104,11 @@ function AppContent() {
 	useEffect(() => {
 		(async () => {
 			try {
-				await initDatabase();
+				// Electric SQL handles database initialization automatically
 				// Solicitar permissões de notificação
 				await requestNotificationPermissions();
 			} catch (error) {
-				console.error("❌ Erro ao inicializar banco de dados:", error);
+				console.error("❌ Erro ao inicializar app:", error);
 			}
 		})();
 	}, []);
@@ -141,8 +157,10 @@ export default function RootLayout() {
 					<ThemeProvider>
 						<CryptoLoadingProvider>
 							<QueryClientProvider client={queryClient}>
-								<AppContent />
-								<UpdateDialog />
+								<ElectricProvider>
+									<AppContent />
+									<UpdateDialog />
+								</ElectricProvider>
 							</QueryClientProvider>
 						</CryptoLoadingProvider>
 					</ThemeProvider>

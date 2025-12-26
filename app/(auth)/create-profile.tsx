@@ -49,29 +49,29 @@ const Slogan = styled.Text`
 
 export default function CreateProfileScreen() {
 	const router = useRouter();
-	const { firebaseUser, userProfile, createProfile, isLoading, error, refreshProfile } = useAuth();
+	const { user, userProfile, createProfile, isLoading, error, refreshProfile } = useAuth();
 
 	// Garantir que temos os dados do usuário
-	const userEmail = firebaseUser?.email || userProfile?.email || "";
-	const userName = firebaseUser?.displayName || userProfile?.displayName || "";
+	const userEmail = user?.email || userProfile?.email || "";
+	const userName = user?.displayName || userProfile?.displayName || "";
 	const userPhoneNumber = userProfile?.phoneNumber || "";
 	const userBio = userProfile?.bio || "";
 
 	// Atualizar perfil quando a tela for montada para garantir que temos os dados mais recentes
 	React.useEffect(() => {
-		if (firebaseUser && refreshProfile) {
+		if (user && refreshProfile) {
 			refreshProfile();
 		}
-	}, [firebaseUser]);
+	}, [user]);
 
 	const handleCreateProfile = async (data: CreateProfileData) => {
-		if (!firebaseUser?.uid) {
+		if (!user?.id) {
 			Alert.alert("Erro", "Usuário não autenticado");
 			return;
 		}
 
 		try {
-			await createProfile(firebaseUser.uid, data);
+			await createProfile(user.id, data);
 			// Após criar perfil, redirecionar para a tela principal
 			router.replace("/(tabs)");
 		} catch (err: any) {

@@ -9,7 +9,7 @@ const STORAGE_KEY_TOKEN = "auth.token";
 const STORAGE_KEY_USER = "auth.user";
 
 interface BackendUser {
-  uid: string; // Mapped from backend ID
+  id: string; // Mapped from backend ID
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
@@ -36,7 +36,7 @@ export function useBackendAuth() {
           // TODO: Fetch fresh profile from backend
           // For now, reconstruct profile from saved user
           setUserProfile({
-             id: savedUser.uid,
+             id: savedUser.id,
              email: savedUser.email || "",
              displayName: savedUser.displayName || "",
              hasProfile: true, // Assume true if logged in for MVP
@@ -60,7 +60,7 @@ export function useBackendAuth() {
       const response = await authService.login({ email, password });
       
       const backendUser: BackendUser = {
-        uid: response.user.id,
+        id: response.user.id,
         email: response.user.email,
         displayName: response.user.name,
         photoURL: null, // Backend needs to return this
@@ -72,7 +72,7 @@ export function useBackendAuth() {
 
       setUser(backendUser);
       setUserProfile({
-         id: backendUser.uid,
+         id: backendUser.id,
          email: backendUser.email || "",
          displayName: backendUser.displayName || "",
          hasProfile: true,
@@ -80,8 +80,8 @@ export function useBackendAuth() {
 
       // Initialize Crypto
       try {
-          await getOrCreateKeyPair(backendUser.uid);
-          await bootstrapSignalAccount(backendUser.uid);
+          await getOrCreateKeyPair(backendUser.id);
+          await bootstrapSignalAccount(backendUser.id);
       } catch(e) {
           console.warn("Crypto init failed", e);
       }
@@ -135,7 +135,7 @@ export function useBackendAuth() {
         setUser(updatedUser);
         
         setUserProfile({
-          id: user.uid,
+          id: user.id,
           email: user.email || "",
           displayName: data.displayName,
           photoURL: data.photoURL,

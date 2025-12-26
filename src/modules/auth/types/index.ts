@@ -32,7 +32,7 @@ export interface AuthState {
 }
 
 /**
- * Tipos para Firebase Auth
+ * Tipos de Perfil de Usuário
  */
 export interface UserProfile {
 	id: string;
@@ -44,8 +44,8 @@ export interface UserProfile {
 	bio?: string;
 	location?: Location;
 	isLocationEnabled?: boolean; // sempre true (obrigatório)
-	createdAt?: any; // Firestore Timestamp
-	updatedAt?: any; // Firestore Timestamp
+	createdAt?: any; // Backend Timestamp
+	updatedAt?: any; // Backend Timestamp
 }
 
 export interface CreateProfileData {

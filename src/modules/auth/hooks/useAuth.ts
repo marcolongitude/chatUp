@@ -19,6 +19,7 @@ export function useAuth() {
 		createProfile,
 		logout,
 		syncPhotoURL,
+		refreshProfile,
 	} = useBackendAuth(); // Switched to Backend Auth
 
 	const login = async (credentials: LoginCredentials) => {
@@ -34,14 +35,7 @@ export function useAuth() {
 	};
 
 	return {
-		user: userProfile
-			? {
-					id: userProfile.id,
-					email: userProfile.email,
-					name: userProfile.displayName,
-				}
-			: null,
-		firebaseUser: user, // Usuário do Firebase (com uid)
+		user, // O usuário autenticado (anteriormente firebaseUser)
 		userProfile,
 		isAuthenticated,
 		hasCompleteProfile,
@@ -51,6 +45,7 @@ export function useAuth() {
 		createProfile,
 		logout,
 		syncPhotoURL,
+		refreshProfile,
 		isLoading,
 		error,
 	};

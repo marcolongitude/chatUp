@@ -20,13 +20,13 @@ export interface UseKeyPairReturn {
  * Hook para gerenciar par de chaves E2EE do usuário
  */
 export function useKeyPair(): UseKeyPairReturn {
-	const { firebaseUser } = useAuth();
+	const { user } = useAuth();
 	const [isLoading, setIsLoading] = useState(true);
 	const [hasKeyPair, setHasKeyPair] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
 	const initializeKeyPair = async () => {
-		if (!firebaseUser) {
+		if (!user) {
 			setIsLoading(false);
 			setHasKeyPair(false);
 			return;
@@ -36,8 +36,8 @@ export function useKeyPair(): UseKeyPairReturn {
 			setIsLoading(true);
 			setError(null);
 
-			// Verificar se já tem chave pública no Firestore
-			const hasPublic = await hasPublicKey(firebaseUser.uid);
+			// Verificar se já tem chave pública no Backend
+			const hasPublic = await hasPublicKey(user.id);
 			
 			if (hasPublic) {
 				// Chave pública existe, verificar se chave privada existe localmente
@@ -47,7 +47,7 @@ export function useKeyPair(): UseKeyPairReturn {
 			} else {
 				// Não tem chave pública, gerar par de chaves
 				console.log("🔄 Gerando par de chaves para usuário...");
-				await getOrCreateKeyPair(firebaseUser.uid);
+				await getOrCreateKeyPair(user.id);
 				setHasKeyPair(true);
 			}
 		} catch (err: any) {
@@ -61,7 +61,7 @@ export function useKeyPair(): UseKeyPairReturn {
 
 	useEffect(() => {
 		initializeKeyPair();
-	}, [firebaseUser?.uid]);
+	}, [user?.id]);
 
 	return {
 		isLoading,

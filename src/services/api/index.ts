@@ -7,16 +7,21 @@ const STORAGE_KEY_TOKEN = 'auth.token';
 
 // Determine API URL based on environment
 const getApiUrl = () => {
+  // Priority 1: Environment variable
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+
+  // Priority 2: app.config.js extra config
   if (Constants.expoConfig?.extra?.apiUrl) {
     return Constants.expoConfig.extra.apiUrl;
   }
 
-  // Fallback for development
+  // Priority 3: Platform-specific fallback
   if (Platform.OS === 'android') {
-    // 192.168.0.14 is your computer's LAN IP. 
+    // For physical devices: use LAN IP (default 192.168.0.14)
     // This allows physical devices on the same WiFi to connect.
-    // (Genymotion can also use this if it's in 'Bridge' mode, 
-    // otherwise 10.0.3.2 is only for the emulator itself)
+    // Update this IP if your computer's IP changes.
     return 'http://192.168.0.14:3000'; 
   }
   

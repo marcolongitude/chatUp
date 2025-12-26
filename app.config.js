@@ -87,6 +87,17 @@ module.exports = () => {
 					projectId: "d662ef19-e2a8-4cf3-b18a-564a4faa4a3d",
 				},
 				firebase,
+				// API and Electric SQL URLs
+				// Priority: 1) Environment variable, 2) Production URL, 3) Local IP, 4) undefined
+				apiUrl: process.env.EXPO_PUBLIC_API_URL || 
+					(process.env.NODE_ENV === 'production' ? process.env.EXPO_PUBLIC_PRODUCTION_API_URL : undefined) ||
+					(process.env.LOCAL_IP ? `http://${process.env.LOCAL_IP}:3000` : undefined),
+				electricUrl: process.env.EXPO_PUBLIC_ELECTRIC_URL || 
+					(process.env.NODE_ENV === 'production' ? process.env.EXPO_PUBLIC_PRODUCTION_ELECTRIC_URL : undefined) ||
+					(process.env.LOCAL_IP ? `ws://${process.env.LOCAL_IP}:5133` : undefined),
+				electricApiUrl: process.env.EXPO_PUBLIC_ELECTRIC_API_URL || 
+					(process.env.NODE_ENV === 'production' ? process.env.EXPO_PUBLIC_PRODUCTION_ELECTRIC_API_URL : undefined) ||
+					(process.env.LOCAL_IP ? `http://${process.env.LOCAL_IP}:5133` : undefined),
 			},
 		},
 	};

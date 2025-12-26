@@ -70,14 +70,14 @@ function formatDate(date: Date | null, locale: string): string {
 }
 
 export default function ProfileScreen() {
-	const { userProfile, firebaseUser, isLoading, error, syncPhotoURL } = useAuth();
+	const { userProfile, user, isLoading, error, syncPhotoURL } = useAuth();
 	const theme = useTheme();
 	const { t, currentLanguage } = useTranslation();
 	const [imageLoaded, setImageLoaded] = useState(false);
 
-	// Priorizar photoURL do Firebase Auth (mais atualizado) sobre o do Firestore
-	const photoURL = firebaseUser?.photoURL || userProfile?.photoURL;
-	const displayName = userProfile?.displayName || firebaseUser?.displayName || t("profile.user");
+	// Priorizar photoURL do Backend Auth (mais atualizado) sobre o do Firestore
+	const photoURL = user?.photoURL || userProfile?.photoURL;
+	const displayName = userProfile?.displayName || user?.displayName || t("profile.user");
 	const avatarInitial = displayName.charAt(0).toUpperCase();
 	const createdAt = timestampToDate(userProfile?.createdAt);
 	const updatedAt = timestampToDate(userProfile?.updatedAt);
@@ -89,29 +89,29 @@ export default function ProfileScreen() {
 
 	// Sincronizar photoURL quando a página carregar se necessário
 	React.useEffect(() => {
-		if (firebaseUser) {
-			if (firebaseUser.photoURL && (!userProfile || !userProfile.photoURL)) {
-				console.log("🔄 Detectado photoURL no Firebase Auth mas não no Firestore. Sincronizando...");
+		if (user) {
+			if (user.photoURL && (!userProfile || !userProfile.photoURL)) {
+				console.log("🔄 Detectado photoURL no Backend Auth mas não no Firestore. Sincronizando...");
 				syncPhotoURL();
-			} else if (!firebaseUser.photoURL) {
+			} else if (!user.photoURL) {
 				console.warn(
-					"⚠️ Firebase Auth não tem photoURL. O usuário pode precisar fazer login com Google novamente."
+					"⚠️ Backend Auth não tem photoURL."
 				);
 			}
 		}
-	}, [firebaseUser?.photoURL, userProfile?.photoURL]);
+	}, [user?.photoURL, userProfile?.photoURL]);
 
 	// Debug: Log para verificar os valores (deve estar antes dos early returns)
 	React.useEffect(() => {
-		if (userProfile || firebaseUser) {
+		if (userProfile || user) {
 			console.log("📸 Profile Debug:", {
-				firebaseUserPhotoURL: firebaseUser?.photoURL,
+				userPhotoURL: user?.photoURL,
 				userProfilePhotoURL: userProfile?.photoURL,
 				finalPhotoURL: photoURL,
 				displayName,
 			});
 		}
-	}, [firebaseUser?.photoURL, userProfile?.photoURL, photoURL, displayName]);
+	}, [user?.photoURL, userProfile?.photoURL, photoURL, displayName]);
 
 	if (isLoading) {
 		return (

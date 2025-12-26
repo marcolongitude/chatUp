@@ -18,7 +18,14 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "seed": "ts-node src/seed.ts"
+    "seed": "ts-node src/seed.ts",
+    "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/infra/database/data-source.ts",
+    "migration:run": "typeorm-ts-node-commonjs migration:run -d src/infra/database/data-source.ts",
+    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/infra/database/data-source.ts",
+    "db:reset": "./scripts/reset-db.sh",
+    "db:reset:force": "PGPASSWORD=password psql -h localhost -p 5432 -U admin -d chatup -f electric/reset-database.sql",
+    "audit:fix": "./npm-audit-fix.sh",
+    "audit:check": "npm audit --production"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
