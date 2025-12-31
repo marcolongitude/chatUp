@@ -1,0 +1,10 @@
+FROM postgres:15-alpine
+
+# O comando CMD abaixo configura o Postgres com tudo o que o Electric SQL precisa
+CMD ["postgres", \
+     "-c", "wal_level=logical", \
+     "-c", "max_replication_slots=10", \
+     "-c", "max_wal_senders=10", \
+     "-c", "logging_collector=on", \
+     "-c", "log_directory=pg_log", \
+     "-c", "shared_preload_libraries=pgoutput"]
