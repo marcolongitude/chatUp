@@ -20,11 +20,23 @@ import { AppController } from './app.controller';
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '5432', 10),
-      username: process.env.DB_USERNAME || 'admin',
-      password: process.env.DB_PASSWORD || 'password',
-      database: process.env.DB_NAME || 'chatup',
+      // Suporta DATABASE_URL (Railway) ou variáveis individuais
+      url: process.env.DATABASE_URL,
+      host: process.env.DATABASE_URL 
+        ? undefined 
+        : (process.env.DB_HOST || process.env.PGHOST || 'localhost'),
+      port: process.env.DATABASE_URL 
+        ? undefined 
+        : parseInt(process.env.DB_PORT || process.env.PGPORT || '5432', 10),
+      username: process.env.DATABASE_URL 
+        ? undefined 
+        : (process.env.DB_USERNAME || process.env.PGUSER || 'admin'),
+      password: process.env.DATABASE_URL 
+        ? undefined 
+        : (process.env.DB_PASSWORD || process.env.PGPASSWORD || 'password'),
+      database: process.env.DATABASE_URL 
+        ? undefined 
+        : (process.env.DB_NAME || process.env.PGDATABASE || 'chatup'),
       entities: [TypeOrmUserEntity, TypeOrmMessageEntity, Key, PreKey], // Add Entities
       synchronize: process.env.NODE_ENV !== 'production', // Disable in production, use migrations
       migrations: ['dist/infra/database/migrations/*.js'],

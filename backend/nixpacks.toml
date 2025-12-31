@@ -1,0 +1,11 @@
+[setup]
+pkgs = ["nodejs_20"]
+
+[install]
+cmds = ["npm ci --production=false"]
+
+[build]
+cmds = ["npm run build"]
+
+[deploy]
+startCommand = "npm run start:prod"
