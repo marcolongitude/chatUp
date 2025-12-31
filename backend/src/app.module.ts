@@ -1,5 +1,5 @@
-import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { Module, Logger } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthModule } from './presentation/modules/auth.module';
 import { UsersModule } from './presentation/modules/users.module';
 import { ChatModule } from './presentation/modules/chat.module'; // Added ChatModule
@@ -18,30 +18,44 @@ import { AppController } from './app.controller';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      // Suporta DATABASE_URL (Railway) ou variáveis individuais
-      url: process.env.DATABASE_URL,
-      host: process.env.DATABASE_URL 
-        ? undefined 
-        : (process.env.DB_HOST || process.env.PGHOST || 'localhost'),
-      port: process.env.DATABASE_URL 
-        ? undefined 
-        : parseInt(process.env.DB_PORT || process.env.PGPORT || '5432', 10),
-      username: process.env.DATABASE_URL 
-        ? undefined 
-        : (process.env.DB_USERNAME || process.env.PGUSER || 'admin'),
-      password: process.env.DATABASE_URL 
-        ? undefined 
-        : (process.env.DB_PASSWORD || process.env.PGPASSWORD || 'password'),
-      database: process.env.DATABASE_URL 
-        ? undefined 
-        : (process.env.DB_NAME || process.env.PGDATABASE || 'chatup'),
-      entities: [TypeOrmUserEntity, TypeOrmMessageEntity, Key, PreKey], // Add Entities
-      synchronize: process.env.NODE_ENV !== 'production', // Disable in production, use migrations
-      migrations: ['dist/infra/database/migrations/*.js'],
-      migrationsRun: process.env.NODE_ENV === 'production', // Run migrations automatically in production
-      logging: process.env.NODE_ENV !== 'production', // Disable SQL logging in production
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const databaseUrl = configService.get<string>('DATABASE_URL');
+        const nodeEnv = configService.get<string>('NODE_ENV');
+        
+        const logger = new Logger('DatabaseConfig');
+        if (databaseUrl) {
+          logger.log('DATABASE_URL detectada! Conectando ao banco remoto...');
+        } else {
+          logger.warn('DATABASE_URL NÃO encontrada. Usando configurações padrão (localhost).');
+        }
+
+        return {
+          type: 'postgres',
+          url: databaseUrl,
+          host: databaseUrl 
+            ? undefined 
+            : configService.get<string>('DB_HOST') || configService.get<string>('PGHOST') || 'localhost',
+          port: databaseUrl 
+            ? undefined 
+            : parseInt(configService.get<string>('DB_PORT') || configService.get<string>('PGPORT') || '5432', 10),
+          username: databaseUrl 
+            ? undefined 
+            : configService.get<string>('DB_USERNAME') || configService.get<string>('PGUSER') || 'admin',
+          password: databaseUrl 
+            ? undefined 
+            : configService.get<string>('DB_PASSWORD') || configService.get<string>('PGPASSWORD') || 'password',
+          database: databaseUrl 
+            ? undefined 
+            : configService.get<string>('DB_NAME') || configService.get<string>('PGDATABASE') || 'chatup',
+          entities: [TypeOrmUserEntity, TypeOrmMessageEntity, Key, PreKey],
+          synchronize: nodeEnv !== 'production',
+          migrations: ['dist/infra/database/migrations/*.js'],
+          migrationsRun: nodeEnv === 'production',
+          logging: nodeEnv !== 'production',
+        };
+      },
     }),
     ElectricModule,
     AuthModule,
