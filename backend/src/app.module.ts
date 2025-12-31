@@ -50,10 +50,10 @@ import { AppController } from './app.controller';
             ? undefined 
             : configService.get<string>('DB_NAME') || configService.get<string>('PGDATABASE') || 'chatup',
           entities: [TypeOrmUserEntity, TypeOrmMessageEntity, Key, PreKey],
-          synchronize: nodeEnv !== 'production',
+          synchronize: true, // Forçar a criação das tabelas no Railway agora
           migrations: ['dist/infra/database/migrations/*.js'],
-          migrationsRun: nodeEnv === 'production',
-          logging: nodeEnv !== 'production',
+          migrationsRun: false, // Desativar migrationRun por enquanto para o synchronize agir
+          logging: true,
         };
       },
     }),
