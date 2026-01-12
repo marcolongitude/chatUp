@@ -1,2 +1,0 @@
-# Dockerfile isolado para o Electric SQL
-FROM electricsql/electric:latest

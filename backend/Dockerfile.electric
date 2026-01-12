@@ -1,5 +1,0 @@
-# Dockerfile para Electric SQL no Railway
-FROM electricsql/electric:latest
-
-# Não execute comandos 'docker run' aqui!
-# A configuração é feita via variáveis de ambiente no dashboard do Railway.

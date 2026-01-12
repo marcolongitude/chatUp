@@ -36,7 +36,7 @@ jobs:
         env:
           NODE_ENV: production
 
-      - name: Deploy Backend to Railway
+      - name: Deploy to Railway
         if: ${{ secrets.RAILWAY_TOKEN != '' }}
         uses: bervProject/railway-deploy@v0.2.0
         with:
@@ -45,17 +45,8 @@ jobs:
           detach: false
         continue-on-error: true
 
-      - name: Deploy Electric SQL to Railway
-        if: ${{ secrets.RAILWAY_TOKEN != '' && secrets.RAILWAY_ELECTRIC_SERVICE_ID != '' }}
-        uses: bervProject/railway-deploy@v0.2.0
-        with:
-          railway_token: ${{ secrets.RAILWAY_TOKEN }}
-          service: ${{ secrets.RAILWAY_ELECTRIC_SERVICE_ID }}
-          detach: false
-        continue-on-error: true
-
       - name: Deploy to Render (Fallback)
-        if: failure() && secrets.RENDER_API_KEY != ''
+        if: failure()
         uses: johnbeynon/render-deploy-action@v0.0.8
         with:
           service-id: ${{ secrets.RENDER_SERVICE_ID }}
@@ -64,10 +55,6 @@ jobs:
 
       - name: Deployment Status
         run: |
-          echo "🚀 Deployment process finished"
-          echo "✅ Backend deployment triggered"
-          if [ "${{ secrets.RAILWAY_ELECTRIC_SERVICE_ID }}" != "" ]; then
-            echo "✅ Electric SQL deployment triggered"
-          fi
-          echo "Check your Railway dashboard for real-time build progress"
+          echo "✅ Backend deployment completed"
+          echo "Check your Railway/Render dashboard for deployment status"
 
