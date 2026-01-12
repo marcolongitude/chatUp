@@ -1,12 +1,11 @@
-# Railway configuration for multiple services
-# Este arquivo ajuda o Railway a entender a estrutura do projeto
+# Railway configuration for NestJS Backend
+# Este arquivo configura o build e deploy do backend na Railway
 
 [build]
 builder = "NIXPACKS"
 
 [deploy]
 startCommand = "npm run start:prod"
-
-# Nota: Electric SQL deve ser configurado como serviço separado no Railway Dashboard
-# Use as variáveis de referência do PostgreSQL: ${{Postgres.DATABASE_URL}}
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
 

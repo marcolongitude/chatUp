@@ -1,0 +1,8 @@
+# Dockerfile para o serviço Electric SQL na Railway
+FROM electricsql/electric:latest
+
+# Porta padrão do Electric SQL
+EXPOSE 5133
+
+# Se houver migrações no futuro, elas podem ser copiadas para /migrations
+# COPY backend/electric/migrations /migrations

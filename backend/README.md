@@ -7,6 +7,7 @@ Backend service for ChatUp, built with NestJS and following Clean Architecture.
 ### 🚀 Deployment Guides
 
 - **[Railway Setup Guide](./RAILWAY_SETUP.md)** - Complete guide to deploy on Railway
+- **[Railway Cleanup](./RAILWAY_CLEANUP.md)** - Fix "Dockerfile.electric does not exist" error
 - **[Database Troubleshooting](./DATABASE_TROUBLESHOOTING.md)** - Fix database connection issues
 - **[Security Fix](../SECURITY_FIX.md)** - CVE-2025-66478 vulnerability fix
 
