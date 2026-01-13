@@ -5,13 +5,11 @@ import { TypeOrmKeyRepository } from '../../infra/database/typeorm-key.repositor
 import { Key } from '../../core/entities/key.entity';
 import { PreKey } from '../../core/entities/pre-key.entity';
 import { AuthModule } from './auth.module'; // For Guards? Usually global or exported
-// Actually JwtAuthGuard relies on Passport strategies provided by AuthModule usually? 
+// Actually JwtAuthGuard relies on Passport strategies provided by AuthModule usually?
 // Or just import PassportModule? We'll see. Assuming AuthModule exports Strategy.
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Key, PreKey]),
-  ],
+  imports: [TypeOrmModule.forFeature([Key, PreKey])],
   controllers: [KeysController],
   providers: [
     {

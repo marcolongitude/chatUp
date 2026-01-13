@@ -24,16 +24,16 @@ export class AuthController {
     // Auto-login after register? Or just return user.
     // For now, return the user, frontend can then call login or we can generate token here.
     // Let's return the user for now to check success.
-    
-    // To be compatible with frontend expectations, we might want to return a token too, 
+
+    // To be compatible with frontend expectations, we might want to return a token too,
     // but the simplest flow is Register -> then Login.
     return {
-       user: {
-         id: user.id,
-         username: user.email, // Mapping email to username for now to satisfy simple DTO if needed, or better yet, return email
+      user: {
+        id: user.id,
+        username: user.email, // Mapping email to username for now to satisfy simple DTO if needed, or better yet, return email
         email: user.email,
-         displayName: user.displayName,
-       }
+        displayName: user.displayName,
+      },
     };
   }
 }

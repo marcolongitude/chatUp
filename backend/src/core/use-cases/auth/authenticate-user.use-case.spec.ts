@@ -49,11 +49,13 @@ describe('AuthenticateUserUseCase', () => {
 
     const result = await useCase.execute(dto);
 
-
     expect(result.accessToken).toBe('jwt_token');
     expect(result.user.id).toBe('1');
     expect(userRepository.findByEmail).toHaveBeenCalledWith('test@test.com'); // Was undefined because I passed wrong DTO above? Checking above snippet
-    expect(passwordHasher.compare).toHaveBeenCalledWith('password', 'hashedPassword');
+    expect(passwordHasher.compare).toHaveBeenCalledWith(
+      'password',
+      'hashedPassword',
+    );
     // REMOVED EXTRA ASSERTIONS that are not part of the usecase return or mocking setup in this specific test
     // The previous error showed "Received: undefined" for findByEmail which implies the call didn't happen with the expected arg
   });
@@ -77,8 +79,6 @@ describe('AuthenticateUserUseCase', () => {
     userRepository.findByEmail.mockResolvedValue(user);
     passwordHasher.compare.mockResolvedValue(false);
 
-    await expect(
-      useCase.execute(dto),
-    ).rejects.toThrow('Invalid credentials');
+    await expect(useCase.execute(dto)).rejects.toThrow('Invalid credentials');
   });
 });

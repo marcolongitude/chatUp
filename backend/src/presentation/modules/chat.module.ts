@@ -15,12 +15,14 @@ import { TypeOrmMessageEntity } from '../../infra/database/entities/typeorm-mess
     TypeOrmMessageRepository,
     {
       provide: SendMessageUseCase,
-      useFactory: (repo: TypeOrmMessageRepository) => new SendMessageUseCase(repo),
+      useFactory: (repo: TypeOrmMessageRepository) =>
+        new SendMessageUseCase(repo),
       inject: [TypeOrmMessageRepository],
     },
     {
       provide: GetChatMessagesUseCase,
-      useFactory: (repo: TypeOrmMessageRepository) => new GetChatMessagesUseCase(repo),
+      useFactory: (repo: TypeOrmMessageRepository) =>
+        new GetChatMessagesUseCase(repo),
       inject: [TypeOrmMessageRepository],
     },
   ],

@@ -1,15 +1,34 @@
-import { Controller, Get, Param, Query, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Query,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { GetChatMessagesUseCase } from '../../core/use-cases/message/get-chat-messages.use-case';
+
+interface AuthenticatedUser {
+  id: string;
+  userId: string;
+  email?: string;
+}
+
+interface AuthenticatedRequest extends Request {
+  user: AuthenticatedUser;
+}
 
 @Controller('chat')
 @UseGuards(JwtAuthGuard)
 export class ChatController {
-  constructor(private readonly getChatMessagesUseCase: GetChatMessagesUseCase) {}
+  constructor(
+    private readonly getChatMessagesUseCase: GetChatMessagesUseCase,
+  ) {}
 
   @Get('messages/:contactId')
   async getMessages(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Param('contactId') contactId: string,
     @Query('limit') limit: string,
     @Query('offset') offset: string,

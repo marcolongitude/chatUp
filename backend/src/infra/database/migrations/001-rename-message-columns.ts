@@ -19,10 +19,10 @@ export class RenameMessageColumns1700000000001 implements MigrationInterface {
     }
 
     const hasOldColumns = table.columns.some(
-      (col) => col.name === 'senderId' || col.name === 'receiverId'
+      (col) => col.name === 'senderId' || col.name === 'receiverId',
     );
     const hasNewColumns = table.columns.some(
-      (col) => col.name === 'sender_id' || col.name === 'receiver_id'
+      (col) => col.name === 'sender_id' || col.name === 'receiver_id',
     );
 
     if (!hasOldColumns) {
@@ -88,7 +88,7 @@ export class RenameMessageColumns1700000000001 implements MigrationInterface {
     // Reverse migration: rename back to camelCase
     const table = await queryRunner.getTable('messages');
     const hasNewColumns = table?.columns.some(
-      (col) => col.name === 'sender_id' || col.name === 'receiver_id'
+      (col) => col.name === 'sender_id' || col.name === 'receiver_id',
     );
 
     if (!hasNewColumns) {
@@ -131,4 +131,3 @@ export class RenameMessageColumns1700000000001 implements MigrationInterface {
     `);
   }
 }
-

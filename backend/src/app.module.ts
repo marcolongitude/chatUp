@@ -21,21 +21,25 @@ import { AppController } from './app.controller';
     TypeOrmModule.forRoot({
       type: 'postgres',
       // Suporta DATABASE_URL (Railway) ou variáveis individuais
-      ...(process.env.DATABASE_URL 
-        ? { 
+      ...(process.env.DATABASE_URL
+        ? {
             url: process.env.DATABASE_URL,
-            ssl: process.env.NODE_ENV === 'production' 
-              ? { rejectUnauthorized: false } 
-              : false,
+            ssl:
+              process.env.NODE_ENV === 'production'
+                ? { rejectUnauthorized: false }
+                : false,
           }
         : {
             host: process.env.DB_HOST || process.env.PGHOST || 'localhost',
-            port: parseInt(process.env.DB_PORT || process.env.PGPORT || '5432', 10),
+            port: parseInt(
+              process.env.DB_PORT || process.env.PGPORT || '5432',
+              10,
+            ),
             username: process.env.DB_USERNAME || process.env.PGUSER || 'admin',
-            password: process.env.DB_PASSWORD || process.env.PGPASSWORD || 'password',
+            password:
+              process.env.DB_PASSWORD || process.env.PGPASSWORD || 'password',
             database: process.env.DB_NAME || process.env.PGDATABASE || 'chatup',
-          }
-      ),
+          }),
       entities: [TypeOrmUserEntity, TypeOrmMessageEntity, Key, PreKey], // Add Entities
       synchronize: true, // Temporariamente habilitado para criar tabelas automaticamente
       migrations: ['dist/infra/database/migrations/*.js'],

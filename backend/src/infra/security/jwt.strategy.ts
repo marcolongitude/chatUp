@@ -1,4 +1,3 @@
-
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable } from '@nestjs/common';
@@ -17,8 +16,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     console.log(`🔐 [AUTH] Validating JWT payload:`, payload);
     const id = payload.sub || payload.userId;
     if (!id) {
-        console.warn(`⚠️ [AUTH] No user ID found in payload`);
-        return null;
+      console.warn(`⚠️ [AUTH] No user ID found in payload`);
+      return null;
     }
     return { id, userId: id, email: payload.email };
   }

@@ -1,4 +1,13 @@
-import { Controller, Post, Get, Body, Param, UseGuards, Request, NotFoundException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Param,
+  UseGuards,
+  Request,
+  NotFoundException,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { IKeyRepository } from '../../core/interfaces/key.repository.interface';
 import { Inject } from '@nestjs/common';
@@ -17,15 +26,15 @@ export class KeysController {
     const { identityKey, registrationId, signedPreKey, publicKey } = body;
 
     await this.keyRepo.createOrUpdateKey({
-        userId,
-        identityKey,
-        registrationId,
-        signedPreKey,
-        publicKey
+      userId,
+      identityKey,
+      registrationId,
+      signedPreKey,
+      publicKey,
     });
 
     if (body.preKeys && Array.isArray(body.preKeys)) {
-        await this.keyRepo.addPreKeys(userId, body.preKeys);
+      await this.keyRepo.addPreKeys(userId, body.preKeys);
     }
 
     return { success: true };
@@ -36,26 +45,28 @@ export class KeysController {
   async getKeyBundle(@Param('userId') userId: string) {
     const bundle = await this.keyRepo.getKeyBundle(userId);
     if (!bundle) {
-        throw new NotFoundException('Key bundle not found for user');
+      throw new NotFoundException('Key bundle not found for user');
     }
 
     // Format for frontend
     return {
-        identityKey: bundle.key.identityKey,
-        registrationId: bundle.key.registrationId,
-        signedPreKey: bundle.key.signedPreKey,
-        publicKey: bundle.key.publicKey,
-        preKey: bundle.preKey ? {
+      identityKey: bundle.key.identityKey,
+      registrationId: bundle.key.registrationId,
+      signedPreKey: bundle.key.signedPreKey,
+      publicKey: bundle.key.publicKey,
+      preKey: bundle.preKey
+        ? {
             keyId: bundle.preKey.keyId,
-            publicKey: bundle.preKey.publicKey
-        } : undefined
+            publicKey: bundle.preKey.publicKey,
+          }
+        : undefined,
     };
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('count/me')
   async getPreKeyCount(@Request() req: any) {
-      const count = await this.keyRepo.countPreKeys(req.user.userId);
-      return { count };
+    const count = await this.keyRepo.countPreKeys(req.user.userId);
+    return { count };
   }
 }

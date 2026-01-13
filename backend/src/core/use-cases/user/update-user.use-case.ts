@@ -16,8 +16,8 @@ export class UpdateUserUseCase {
     if (dto.bio !== undefined) user.bio = dto.bio;
     if (dto.phoneNumber !== undefined) user.phoneNumber = dto.phoneNumber;
     // Email updates might require verification, skipping for now unless explicit
-    
+
     // TypeORM save() acts as upsert if ID exists.
-    return this.userRepository.update(user); 
+    return this.userRepository.update(user);
   }
 }

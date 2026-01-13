@@ -9,7 +9,8 @@ export class InMemoryUserRepository implements IUserRepository {
     new User({
       id: '1',
       email: 'test@test.com',
-      passwordHash: '$2b$10$TF88k7D.bXH3vuNjEwynxOLR2dWEYCgc8qy89z4UnaQyW0ThwZGiC', // password: 'password'
+      passwordHash:
+        '$2b$10$TF88k7D.bXH3vuNjEwynxOLR2dWEYCgc8qy89z4UnaQyW0ThwZGiC', // password: 'password'
       createdAt: new Date(),
     }),
   ];
@@ -20,7 +21,7 @@ export class InMemoryUserRepository implements IUserRepository {
   }
 
   async update(user: User): Promise<User> {
-    const index = this.users.findIndex(u => u.id === user.id);
+    const index = this.users.findIndex((u) => u.id === user.id);
     if (index !== -1) {
       this.users[index] = user;
     }

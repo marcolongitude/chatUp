@@ -195,26 +195,49 @@ function checkElectricHealth() {
   }, 2000);
 }
 
-// Iniciar Electric SQL (não bloqueia o backend)
-startElectric();
+// Iniciar Electric SQL em background (não bloqueia o backend)
+// Se falhar, não impede o backend de iniciar
+try {
+  startElectric();
+} catch (err) {
+  console.warn('⚠️  Erro ao tentar iniciar Electric SQL:', err.message);
+  console.warn('   Backend continuará sem Electric SQL');
+}
 
 // Iniciar Backend NestJS imediatamente (não espera Electric)
 // O backend deve funcionar mesmo se Electric SQL não estiver disponível
 console.log('📦 Iniciando Backend NestJS...\n');
 
+// Verificar se dist/main.js existe
+const fs = require('fs');
+const path = require('path');
+const mainJsPath = path.join(__dirname, '..', 'dist', 'main.js');
+
+if (!fs.existsSync(mainJsPath)) {
+  console.error('❌ Erro: dist/main.js não encontrado!');
+  console.error('   Execute "npm run build" antes de iniciar o backend');
+  process.exit(1);
+}
+
 const backendProcess = spawn('node', ['dist/main.js'], {
   env: process.env,
   stdio: 'inherit',
   shell: true,
+  cwd: path.join(__dirname, '..'),
 });
 
 backendProcess.on('error', (err) => {
   console.error('❌ Erro ao iniciar Backend:', err);
+  console.error('   Verifique se Node.js está instalado e dist/main.js existe');
   process.exit(1);
 });
 
 backendProcess.on('exit', (code) => {
-  console.log(`\n📦 Backend encerrou com código ${code}`);
+  if (code !== 0 && code !== null) {
+    console.error(`\n❌ Backend encerrou com código de erro ${code}`);
+  } else {
+    console.log(`\n📦 Backend encerrou normalmente`);
+  }
   if (electricProcess) {
     console.log('🛑 Encerrando Electric SQL...');
     electricProcess.kill();

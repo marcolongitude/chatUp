@@ -38,7 +38,8 @@ import { TypeOrmUserRepository } from '../../infra/database/typeorm-user.reposit
     },
     {
       provide: AuthenticateUserUseCase,
-      useFactory: (repo, hasher, token) => new AuthenticateUserUseCase(repo, hasher, token),
+      useFactory: (repo, hasher, token) =>
+        new AuthenticateUserUseCase(repo, hasher, token),
       inject: ['IUserRepository', 'IPasswordHasher', 'ITokenService'],
     },
     {

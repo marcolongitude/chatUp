@@ -1,7 +1,7 @@
 /**
  * Electric SQL Service
  * Service to interact with Electric SQL for real-time data synchronization
- * 
+ *
  * Note: Electric SQL runs as a separate service and connects to PostgreSQL
  * via logical replication. This service provides utilities for Electric configuration.
  */
@@ -56,4 +56,3 @@ export class ElectricService {
     }
   }
 }
-

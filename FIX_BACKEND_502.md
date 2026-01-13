@@ -11,12 +11,14 @@ O erro 502 (Bad Gateway) indica que o backend não está respondendo. Isso pode 
 ## ✅ Correções Aplicadas
 
 ### 1. Script `start-with-electric.js` Melhorado
-- ✅ Backend inicia **imediatamente**, sem esperar Electric SQL
-- ✅ Electric SQL é iniciado em paralelo (não bloqueia)
-- ✅ Backend funciona mesmo se Electric SQL falhar
+
+-   ✅ Backend inicia **imediatamente**, sem esperar Electric SQL
+-   ✅ Electric SQL é iniciado em paralelo (não bloqueia)
+-   ✅ Backend funciona mesmo se Electric SQL falhar
 
 ### 2. Fallback no `railway.json`
-- ✅ Se o script falhar, o Railway pode usar fallback (se configurado)
+
+-   ✅ Se o script falhar, o Railway pode usar fallback (se configurado)
 
 ## 🚀 Próximos Passos
 
@@ -40,10 +42,11 @@ railway logs --service backend --follow
 ```
 
 Procurar por:
-- `📦 Iniciando Backend NestJS...` - Backend iniciando
-- `Nest application successfully started` - Backend rodando
-- Erros de conexão com banco
-- Erros do Electric SQL (não devem bloquear o backend)
+
+-   `📦 Iniciando Backend NestJS...` - Backend iniciando
+-   `Nest application successfully started` - Backend rodando
+-   Erros de conexão com banco
+-   Erros do Electric SQL (não devem bloquear o backend)
 
 ### 3. Testar Health Check
 
@@ -61,38 +64,41 @@ curl https://backend-production-38c9.up.railway.app/health
 ### Se backend ainda não iniciar:
 
 1. **Verificar se `dist/main.js` existe**:
-   ```bash
-   railway connect --service backend
-   ls -la dist/
-   ```
+
+    ```bash
+    railway connect --service backend
+    ls -la dist/
+    ```
 
 2. **Verificar variáveis de ambiente**:
-   ```bash
-   railway variables --service backend
-   ```
-   
-   Deve ter:
-   - `DATABASE_URL`
-   - `PORT` (ou padrão 3000)
-   - `NODE_ENV=production`
+
+    ```bash
+    railway variables --service backend
+    ```
+
+    Deve ter:
+
+    - `DATABASE_URL`
+    - `PORT` (ou padrão 3000)
+    - `NODE_ENV=production`
 
 3. **Verificar se banco está acessível**:
-   ```bash
-   railway connect --service postgres
-   psql -c "SELECT 1;"
-   ```
+    ```bash
+    railway connect --service postgres
+    psql -c "SELECT 1;"
+    ```
 
 ### Se Electric SQL não iniciar:
 
-- **Isso não deve impedir o backend de funcionar**
-- O backend deve iniciar normalmente
-- Electric SQL pode ser configurado depois
+-   **Isso não deve impedir o backend de funcionar**
+-   O backend deve iniciar normalmente
+-   Electric SQL pode ser configurado depois
 
 ## 📝 Notas
 
-- O backend **deve funcionar** mesmo se Electric SQL não estiver disponível
-- O erro 502 indica que o backend não está respondendo
-- Verifique os logs para identificar o problema específico
+-   O backend **deve funcionar** mesmo se Electric SQL não estiver disponível
+-   O erro 502 indica que o backend não está respondendo
+-   Verifique os logs para identificar o problema específico
 
 ---
 

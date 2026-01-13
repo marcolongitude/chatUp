@@ -1,4 +1,13 @@
-import { Controller, Post, UseInterceptors, UploadedFile, Get, Param, Res, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  UseInterceptors,
+  UploadedFile,
+  Get,
+  Param,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
@@ -10,18 +19,23 @@ import { join } from 'path';
 export class FilesController {
   @Post('upload')
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor('file', {
-    storage: diskStorage({
-      destination: './uploads',
-      filename: (req, file, cb) => {
-        const randomName = Array(32).fill(null).map(() => (Math.round(Math.random() * 16)).toString(16)).join('');
-        return cb(null, `${randomName}${extname(file.originalname)}`);
-      }
-    })
-  }))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (req, file, cb) => {
+          const randomName = Array(32)
+            .fill(null)
+            .map(() => Math.round(Math.random() * 16).toString(16))
+            .join('');
+          return cb(null, `${randomName}${extname(file.originalname)}`);
+        },
+      }),
+    }),
+  )
   uploadFile(@UploadedFile() file: Express.Multer.File) {
     if (!file) {
-        throw new Error("File upload failed");
+      throw new Error('File upload failed');
     }
     // Return the URL to access the file
     // Assuming backend runs on same host/port relative path
@@ -31,7 +45,7 @@ export class FilesController {
       url: `/files/${file.filename}`,
       path: file.path,
       size: file.size,
-      contentType: file.mimetype
+      contentType: file.mimetype,
     };
   }
 

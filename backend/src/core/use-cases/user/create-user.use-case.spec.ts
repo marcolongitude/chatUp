@@ -43,19 +43,23 @@ describe('CreateUserUseCase', () => {
     expect(result.email).toBe('newuser@example.com');
     expect(result.passwordHash).toBe('hashed_password');
     expect(result.displayName).toBe('New User');
-    expect(userRepository.findByEmail).toHaveBeenCalledWith('newuser@example.com');
+    expect(userRepository.findByEmail).toHaveBeenCalledWith(
+      'newuser@example.com',
+    );
     expect(passwordHasher.hash).toHaveBeenCalledWith('newpassword');
     expect(userRepository.create).toHaveBeenCalled();
   });
 
   it('should throw error if email already exists', async () => {
     const dto = { email: 'existing@example.com', password: 'password' };
-    
+
     // Simulate existing user
-    userRepository.findByEmail.mockResolvedValue(new User({ id: '1', email: 'existing@example.com' } as any));
+    userRepository.findByEmail.mockResolvedValue(
+      new User({ id: '1', email: 'existing@example.com' } as any),
+    );
 
     await expect(useCase.execute(dto)).rejects.toThrow('Email already exists');
-    
+
     expect(userRepository.create).not.toHaveBeenCalled();
   });
 

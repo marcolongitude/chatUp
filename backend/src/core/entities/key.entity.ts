@@ -1,4 +1,11 @@
-import { Entity, Column, PrimaryColumn, OneToMany, JoinColumn, OneToOne } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryColumn,
+  OneToMany,
+  JoinColumn,
+  OneToOne,
+} from 'typeorm';
 import { PreKey } from './pre-key.entity';
 import { TypeOrmUserEntity } from '../../infra/database/entities/typeorm-user.entity';
 

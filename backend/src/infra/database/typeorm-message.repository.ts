@@ -25,30 +25,35 @@ export class TypeOrmMessageRepository implements IMessageRepository {
   }
 
   async findByUserId(userId: string): Promise<Message[]> {
-     // Find messages where user is receiver (inbox) or sender (outbox)
-     // For now, let's just return received messages for "Inbox" view
-     const entities = await this.repository.find({
-       where: [{ receiverId: userId }, { senderId: userId }],
-       order: { timestamp: 'ASC' }
-     });
-     return entities.map(e => this.toDomain(e));
+    // Find messages where user is receiver (inbox) or sender (outbox)
+    // For now, let's just return received messages for "Inbox" view
+    const entities = await this.repository.find({
+      where: [{ receiverId: userId }, { senderId: userId }],
+      order: { timestamp: 'ASC' },
+    });
+    return entities.map((e) => this.toDomain(e));
   }
 
   async markAsDelivered(messageId: string): Promise<void> {
     await this.repository.update(messageId, { isDelivered: true });
   }
 
-  async findChatMessages(userId1: string, userId2: string, limit: number, offset: number): Promise<Message[]> {
-     const entities = await this.repository.find({
-       where: [
-         { senderId: userId1, receiverId: userId2 },
-         { senderId: userId2, receiverId: userId1 },
-       ],
-       order: { timestamp: 'DESC' },
-       take: limit,
-       skip: offset,
-     });
-     return entities.map(e => this.toDomain(e));
+  async findChatMessages(
+    userId1: string,
+    userId2: string,
+    limit: number,
+    offset: number,
+  ): Promise<Message[]> {
+    const entities = await this.repository.find({
+      where: [
+        { senderId: userId1, receiverId: userId2 },
+        { senderId: userId2, receiverId: userId1 },
+      ],
+      order: { timestamp: 'DESC' },
+      take: limit,
+      skip: offset,
+    });
+    return entities.map((e) => this.toDomain(e));
   }
 
   private toDomain(entity: TypeOrmMessageEntity): Message {

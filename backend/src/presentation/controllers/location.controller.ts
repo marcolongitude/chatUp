@@ -1,4 +1,13 @@
-import { Controller, Get, Body, Put, UseGuards, Request, Query, ParseFloatPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Body,
+  Put,
+  UseGuards,
+  Request,
+  Query,
+  ParseFloatPipe,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -30,12 +39,15 @@ export class LocationController {
     @Request() req: any,
     @Query('latitude', new ParseFloatPipe()) lat: number,
     @Query('longitude', new ParseFloatPipe()) long: number,
-    @Query('radius', new ParseFloatPipe({ optional: true })) radiusKv: number = 2,
+    @Query('radius', new ParseFloatPipe({ optional: true }))
+    radiusKv: number = 2,
   ) {
     const currentUserId = req.user.id;
     const radiusKm = radiusKv || 2;
 
-    console.log(`📍 Finding nearby users for ${currentUserId}: lat=${lat}, long=${long}, radius=${radiusKm}`);
+    console.log(
+      `📍 Finding nearby users for ${currentUserId}: lat=${lat}, long=${long}, radius=${radiusKm}`,
+    );
 
     // Haversine formula in raw SQL for Postgres
     // Numerical stability: acos(LEAST(1, GREATEST(-1, ...)))
@@ -73,28 +85,28 @@ export class LocationController {
     `;
 
     try {
-        const users = await this.userRepository.query(query, [
-            lat,
-            long,
-            currentUserId,
-            radiusKm,
-        ]);
+      const users = await this.userRepository.query(query, [
+        lat,
+        long,
+        currentUserId,
+        radiusKm,
+      ]);
 
-        console.log(`✅ Found ${users.length} nearby users`);
+      console.log(`✅ Found ${users.length} nearby users`);
 
-        return users.map((u: any) => ({
-            id: u.id,
-            name: u.displayName || u.email.split('@')[0],
-            avatar: u.photoURL,
-            location: {
-                latitude: u.latitude,
-                longitude: u.longitude
-            },
-            distance: Math.round(u.distance * 1000) // Convert to meters
-        }));
+      return users.map((u: any) => ({
+        id: u.id,
+        name: u.displayName || u.email.split('@')[0],
+        avatar: u.photoURL,
+        location: {
+          latitude: u.latitude,
+          longitude: u.longitude,
+        },
+        distance: Math.round(u.distance * 1000), // Convert to meters
+      }));
     } catch (error) {
-        console.error("❌ SQL Error in getNearbyUsers:", error);
-        throw error;
+      console.error('❌ SQL Error in getNearbyUsers:', error);
+      throw error;
     }
   }
 }

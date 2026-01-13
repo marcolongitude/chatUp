@@ -1,7 +1,10 @@
 import { IUserRepository } from '../../interfaces/user.repository.interface';
 import { IPasswordHasher } from '../../interfaces/password-hasher.interface';
 import { ITokenService } from '../../interfaces/token-service.interface';
-import { AuthenticateUserDto, AuthenticationResult } from '../../dtos/authenticate-user.dto';
+import {
+  AuthenticateUserDto,
+  AuthenticationResult,
+} from '../../dtos/authenticate-user.dto';
 
 export class AuthenticateUserUseCase {
   constructor(
@@ -18,10 +21,13 @@ export class AuthenticateUserUseCase {
     }
 
     if (!dto.password) {
-       throw new Error('Password required');
+      throw new Error('Password required');
     }
 
-    const isPasswordValid = await this.passwordHasher.compare(dto.password, user.passwordHash);
+    const isPasswordValid = await this.passwordHasher.compare(
+      dto.password,
+      user.passwordHash,
+    );
 
     if (!isPasswordValid) {
       throw new Error('Invalid credentials');

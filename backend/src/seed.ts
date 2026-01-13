@@ -11,23 +11,29 @@ import { KeyHelper } from 'libsignal-protocol-typescript';
 
 // Helper to convert ArrayBuffer to Base64
 function toBase64(ab: ArrayBuffer): string {
-    return Buffer.from(ab).toString('base64');
+  return Buffer.from(ab).toString('base64');
 }
 
 // Helper to generate a valid Signal Key Bundle using libsignal directly
 async function generateSignalBundle() {
   // 1. Generate Identity Key Pair
   const identityKeyPair = await KeyHelper.generateIdentityKeyPair();
-  
+
   // 2. Generate Registration ID
   const registrationId = KeyHelper.generateRegistrationId();
-  
+
   // 3. Generate Signed PreKey
   const signedPreKeyId = 1;
-  const signedPreKey = await KeyHelper.generateSignedPreKey(identityKeyPair, signedPreKeyId);
-  
+  const signedPreKey = await KeyHelper.generateSignedPreKey(
+    identityKeyPair,
+    signedPreKeyId,
+  );
+
   // 4. Simple E2EE fallback (just a random 33-byte key with 0x05 prefix)
-  const simplePubKey = Buffer.concat([Buffer.from([0x05]), crypto.randomBytes(32)]).toString('base64');
+  const simplePubKey = Buffer.concat([
+    Buffer.from([0x05]),
+    crypto.randomBytes(32),
+  ]).toString('base64');
 
   return {
     identityKey: toBase64(identityKeyPair.pubKey),
@@ -37,7 +43,7 @@ async function generateSignalBundle() {
       keyId: signedPreKey.keyId,
       publicKey: toBase64(signedPreKey.keyPair.pubKey),
       signature: toBase64(signedPreKey.signature),
-    }
+    },
   };
 }
 
@@ -45,8 +51,8 @@ async function generateSignalBundle() {
 async function genPreKey(id: number) {
   const preKey = await KeyHelper.generatePreKey(id);
   return {
-      keyId: preKey.keyId,
-      publicKey: toBase64(preKey.keyPair.pubKey)
+    keyId: preKey.keyId,
+    publicKey: toBase64(preKey.keyPair.pubKey),
   };
 }
 
@@ -62,24 +68,24 @@ async function bootstrap() {
       email: 'ana@example.com',
       password: 'password123',
       displayName: 'Ana Silva',
-      latitude: -17.803000,
-      longitude: -50.920000,
+      latitude: -17.803,
+      longitude: -50.92,
       bio: 'Adoro conversar!',
     },
     {
       email: 'pedro@example.com',
       password: 'password123',
       displayName: 'Pedro Santos',
-      latitude: -17.805000,
-      longitude: -50.922000,
+      latitude: -17.805,
+      longitude: -50.922,
       bio: 'Buscando novas amizades.',
     },
     {
       email: 'carla@example.com',
       password: 'password123',
       displayName: 'Carla Oliveira',
-      latitude: -17.801000,
-      longitude: -50.919000,
+      latitude: -17.801,
+      longitude: -50.919,
       bio: 'Interessada em tecnologia.',
     },
   ];
@@ -88,7 +94,7 @@ async function bootstrap() {
 
   for (const u of users) {
     let user = await userRepo.findOne({ where: { email: u.email } });
-    
+
     if (!user) {
       const passwordHash = await bcrypt.hash(u.password, 10);
       user = userRepo.create({
@@ -118,11 +124,11 @@ async function bootstrap() {
       signedPreKey: bundle.signedPreKey,
       updatedAt: new Date(),
     });
-    
+
     // Clear existing keys first to ensure we have a fresh valid set
     await preKeyRepo.delete({ userId });
     await keyRepo.delete({ userId });
-    
+
     await keyRepo.save(keyBundle);
     console.log(`🔑 Created VALID E2EE Key bundle for: ${u.email}`);
 
@@ -130,11 +136,13 @@ async function bootstrap() {
     const preKeys = [];
     for (let i = 1; i <= 20; i++) {
       const pk = await genPreKey(i);
-      preKeys.push(preKeyRepo.create({
-        userId,
-        keyId: pk.keyId,
-        publicKey: pk.publicKey,
-      }));
+      preKeys.push(
+        preKeyRepo.create({
+          userId,
+          keyId: pk.keyId,
+          publicKey: pk.publicKey,
+        }),
+      );
     }
     await preKeyRepo.save(preKeys);
     console.log(`📦 Created 20 PreKeys for: ${u.email}`);

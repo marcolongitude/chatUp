@@ -6,4 +6,3 @@ import { ElectricService } from './electric.service';
   exports: [ElectricService],
 })
 export class ElectricModule {}
-
