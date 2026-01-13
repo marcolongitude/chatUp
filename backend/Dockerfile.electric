@@ -1,0 +1,17 @@
+# Dockerfile para Electric SQL
+# Para uso na Railway
+
+FROM electricsql/electric:latest
+
+# Electric SQL já vem configurado na imagem base
+# Apenas precisamos das variáveis de ambiente corretas
+
+# Expor porta do Electric
+EXPOSE 5133
+
+# Healthcheck para verificar se Electric está respondendo
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:5133/health || exit 1
+
+# O CMD já está definido na imagem base do Electric
+# Electric inicia automaticamente com as variáveis de ambiente

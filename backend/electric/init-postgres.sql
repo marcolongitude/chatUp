@@ -1,21 +1,16 @@
 -- Initialization script for PostgreSQL to support Electric SQL
--- This script sets up logical replication and RLS policies
+-- This script sets up logical replication
 
 -- Enable necessary extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Ensure wal_level is set to logical (should be set in postgresql.conf or via command)
--- This is typically done via docker-compose command or postgresql.conf
+-- This is typically done via docker-compose command or Dockerfile
 
--- Create publication for Electric SQL (if not exists)
--- This allows Electric to subscribe to changes
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'electric_publication') THEN
-        CREATE PUBLICATION electric_publication FOR TABLE messages, users, keys, pre_keys;
-    END IF;
-END $$;
+-- Note: Publication will be created AFTER tables exist
+-- The backend migrations will create the tables
+-- Then we can create the publication manually or via migration
 
--- Note: RLS policies are created in schema.sql
--- This script just ensures the publication exists
+-- For now, just ensure extensions are available
+-- The publication creation is moved to a separate migration
 

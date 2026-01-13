@@ -47,11 +47,13 @@ railway service delete SERVICE_ID
 Após remover o serviço Electric SQL:
 
 1. **Verifique os serviços ativos**:
+
    ```bash
    railway status
    ```
 
    **Resultado esperado**:
+
    ```
    ✅ Postgres (postgres)
    ✅ Backend (backend)
@@ -99,6 +101,7 @@ O Electric SQL foi **descontinuado** neste projeto porque:
 ```
 
 **Comunicação em tempo real**:
+
 - Frontend ↔ Backend: WebSockets (Socket.io)
 - Frontend ↔ Firestore: Real-time listeners
 - Backend ↔ PostgreSQL: TypeORM
@@ -125,6 +128,7 @@ backend/
 ## 🚀 Próximos Passos Após Limpeza
 
 1. **Commit das mudanças**:
+
    ```bash
    git add .
    git commit -m "fix: remove Electric SQL service and Dockerfile references"
@@ -140,10 +144,11 @@ backend/
    - Ver **[RAILWAY_SETUP.md](./RAILWAY_SETUP.md)**
 
 4. **Testar aplicação**:
+
    ```bash
    # Health check
    curl https://seu-backend.railway.app/health
-   
+
    # Test auth endpoint
    curl -X POST https://seu-backend.railway.app/auth/register \
      -H "Content-Type: application/json" \
@@ -167,6 +172,7 @@ backend/
 ### Q: E se eu quiser usar Electric SQL no futuro?
 
 **A**: Você pode recriar o serviço a qualquer momento:
+
 1. Restaurar o `railway.dockerfile`
 2. Criar novo serviço na Railway
 3. Configurar variáveis de ambiente
@@ -193,21 +199,23 @@ backend/
 ### Backend não inicia após remoção
 
 1. **Verificar logs**:
+
    ```bash
    railway logs
    ```
 
 2. **Verificar se ElectricModule está causando erro**:
    - Se sim, remova a importação em `src/app.module.ts`:
+
    ```typescript
    // Remover esta linha:
    import { ElectricModule } from './infra/database/electric.module';
-   
+
    // E remover do array imports:
    imports: [
      // ...
      // ElectricModule,  // <-- Comentar ou remover
-   ]
+   ];
    ```
 
 ## 📞 Suporte

@@ -1,0 +1,22 @@
+# Dockerfile para PostgreSQL com suporte a Electric SQL
+# Para uso na Railway
+
+FROM postgres:15-alpine
+
+# Copiar script de inicialização
+COPY electric/init-postgres.sql /docker-entrypoint-initdb.d/
+
+# Configurar PostgreSQL para logical replication
+# Necessário para Electric SQL
+RUN echo "wal_level = logical" >> /usr/local/share/postgresql/postgresql.conf.sample && \
+    echo "max_replication_slots = 10" >> /usr/local/share/postgresql/postgresql.conf.sample && \
+    echo "max_wal_senders = 10" >> /usr/local/share/postgresql/postgresql.conf.sample
+
+# Expor porta padrão do PostgreSQL
+EXPOSE 5432
+
+# Healthcheck
+HEALTHCHECK --interval=10s --timeout=5s --retries=5 \
+  CMD pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-chatup}
+
+# O CMD já está definido na imagem base do postgres
