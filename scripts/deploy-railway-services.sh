@@ -64,6 +64,32 @@ PROJECT_NAME=$(railway status 2>&1 | grep "Project:" | awk '{print $2}')
 print_success "Projeto: $PROJECT_NAME"
 echo ""
 
+# Detectar nomes reais dos serviços
+print_info "Detectando nomes dos serviços..."
+SERVICES_JSON=$(railway status --json 2>&1)
+SERVICE_NAMES=$(echo "$SERVICES_JSON" | grep -o '"serviceName": "[^"]*"' | cut -d'"' -f4 | sort -u)
+
+# Detectar nomes dos serviços
+BACKEND_SERVICE_NAME="chatUp"
+ELECTRIC_SERVICE_NAME="electric-sql"
+
+for service in $SERVICE_NAMES; do
+    case $service in
+        chatUp|chatup|backend)
+            BACKEND_SERVICE_NAME=$service
+            ;;
+        electric-sql|electric)
+            ELECTRIC_SERVICE_NAME=$service
+            ;;
+    esac
+done
+
+print_info "Serviços detectados:"
+echo "  - PostgreSQL: postgres"
+echo "  - Backend: $BACKEND_SERVICE_NAME"
+echo "  - Electric: $ELECTRIC_SERVICE_NAME"
+echo ""
+
 # Menu de opções
 echo "Escolha uma opção:"
 echo "1) Deploy completo (PostgreSQL + Backend + Electric)"
@@ -105,17 +131,17 @@ case $OPTION in
         sleep 30
         
         print_step "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        print_step "2️⃣  Deploying Backend..."
+        print_step "2️⃣  Deploying Backend ($BACKEND_SERVICE_NAME)..."
         print_step "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         echo ""
         
         print_info "Fazendo deploy do Backend..."
-        echo "Comando: railway up --service backend --dockerfile Dockerfile.backend"
+        echo "Comando: railway up --service $BACKEND_SERVICE_NAME --dockerfile Dockerfile.backend"
         echo ""
         read -p "Confirmar deploy do Backend? (s/N): " -n 1 -r
         echo ""
         if [[ $REPLY =~ ^[Ss]$ ]]; then
-            railway up --service backend --dockerfile Dockerfile.backend --detach || {
+            railway up --service "$BACKEND_SERVICE_NAME" --dockerfile Dockerfile.backend --detach || {
                 print_warning "Erro no deploy do Backend"
                 print_info "Você pode precisar criar o serviço manualmente no Dashboard"
             }
@@ -134,24 +160,24 @@ case $OPTION in
         read -p "Executar migrations agora? (s/N): " -n 1 -r
         echo ""
         if [[ $REPLY =~ ^[Ss]$ ]]; then
-            railway run --service backend npm run migration:run || {
+            railway run --service "$BACKEND_SERVICE_NAME" npm run migration:run || {
                 print_error "Erro ao executar migrations"
-                print_info "Tente manualmente: railway run --service backend npm run migration:run"
+                print_info "Tente manualmente: railway run --service $BACKEND_SERVICE_NAME npm run migration:run"
             }
         fi
         
         print_step "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        print_step "4️⃣  Deploying Electric SQL..."
+        print_step "4️⃣  Deploying Electric SQL ($ELECTRIC_SERVICE_NAME)..."
         print_step "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         echo ""
         
         print_info "Fazendo deploy do Electric..."
-        echo "Comando: railway up --service electric --dockerfile Dockerfile.electric"
+        echo "Comando: railway up --service $ELECTRIC_SERVICE_NAME --dockerfile Dockerfile.electric"
         echo ""
         read -p "Confirmar deploy do Electric? (s/N): " -n 1 -r
         echo ""
         if [[ $REPLY =~ ^[Ss]$ ]]; then
-            railway up --service electric --dockerfile Dockerfile.electric --detach || {
+            railway up --service "$ELECTRIC_SERVICE_NAME" --dockerfile Dockerfile.electric --detach || {
                 print_warning "Erro no deploy do Electric"
                 print_info "Você pode precisar criar o serviço manualmente no Dashboard"
             }
@@ -168,23 +194,23 @@ case $OPTION in
         
     3)
         print_step "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        print_step "Deploying Backend..."
+        print_step "Deploying Backend ($BACKEND_SERVICE_NAME)..."
         print_step "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        railway up --service backend --dockerfile Dockerfile.backend
+        railway up --service "$BACKEND_SERVICE_NAME" --dockerfile Dockerfile.backend
         ;;
         
     4)
         print_step "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        print_step "Deploying Electric SQL..."
+        print_step "Deploying Electric SQL ($ELECTRIC_SERVICE_NAME)..."
         print_step "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        railway up --service electric --dockerfile Dockerfile.electric
+        railway up --service "$ELECTRIC_SERVICE_NAME" --dockerfile Dockerfile.electric
         ;;
         
     5)
         print_step "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         print_step "Running Migrations..."
         print_step "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        railway run --service backend npm run migration:run
+        railway run --service "$BACKEND_SERVICE_NAME" npm run migration:run
         ;;
         
     6)
@@ -225,8 +251,8 @@ print_info "Próximos passos:"
 echo ""
 echo "1. Verificar logs dos serviços:"
 echo "   ${BLUE}railway logs --service postgres${NC}"
-echo "   ${BLUE}railway logs --service backend${NC}"
-echo "   ${BLUE}railway logs --service electric${NC}"
+echo "   ${BLUE}railway logs --service $BACKEND_SERVICE_NAME${NC}"
+echo "   ${BLUE}railway logs --service $ELECTRIC_SERVICE_NAME${NC}"
 echo ""
 echo "2. Criar publication (se ainda não criou):"
 echo "   ${BLUE}./scripts/deploy-railway-services.sh${NC} (opção 6)"

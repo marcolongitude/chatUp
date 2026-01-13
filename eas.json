@@ -23,9 +23,9 @@
                 "EXPO_PUBLIC_FIREBASE_APP_ID": "1:510679848324:web:8fd91100b48ff347aab9d1",
                 "EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID": "G-DTZT3VN40J",
                 "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "510679848324-uicijmb0d26ebf3rlo0qil5pjuk9d1ea.apps.googleusercontent.com",
-                "EXPO_PUBLIC_API_URL": "http://192.168.0.14:3000",
-                "EXPO_PUBLIC_ELECTRIC_URL": "ws://192.168.0.14:5133",
-                "EXPO_PUBLIC_ELECTRIC_API_URL": "http://192.168.0.14:5133"
+                "EXPO_PUBLIC_API_URL": "https://backend-production-38c9.up.railway.app",
+                "EXPO_PUBLIC_ELECTRIC_URL": "wss://backend-production-38c9.up.railway.app",
+                "EXPO_PUBLIC_ELECTRIC_API_URL": "https://backend-production-38c9.up.railway.app"
             }
         },
         "production": {
@@ -43,9 +43,9 @@
                 "EXPO_PUBLIC_FIREBASE_APP_ID": "1:510679848324:web:8fd91100b48ff347aab9d1",
                 "EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID": "G-DTZT3VN40J",
                 "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "510679848324-uicijmb0d26ebf3rlo0qil5pjuk9d1ea.apps.googleusercontent.com",
-                "EXPO_PUBLIC_API_URL": "http://192.168.0.14:3000",
-                "EXPO_PUBLIC_ELECTRIC_URL": "ws://192.168.0.14:5133",
-                "EXPO_PUBLIC_ELECTRIC_API_URL": "http://192.168.0.14:5133"
+                "EXPO_PUBLIC_API_URL": "https://backend-production-38c9.up.railway.app",
+                "EXPO_PUBLIC_ELECTRIC_URL": "wss://backend-production-38c9.up.railway.app",
+                "EXPO_PUBLIC_ELECTRIC_API_URL": "https://backend-production-38c9.up.railway.app"
             }
         },
         "production-aab": {
@@ -62,9 +62,9 @@
                 "EXPO_PUBLIC_FIREBASE_APP_ID": "1:510679848324:web:8fd91100b48ff347aab9d1",
                 "EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID": "G-DTZT3VN40J",
                 "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "510679848324-uicijmb0d26ebf3rlo0qil5pjuk9d1ea.apps.googleusercontent.com",
-                "EXPO_PUBLIC_API_URL": "http://192.168.0.14:3000",
-                "EXPO_PUBLIC_ELECTRIC_URL": "ws://192.168.0.14:5133",
-                "EXPO_PUBLIC_ELECTRIC_API_URL": "http://192.168.0.14:5133"
+                "EXPO_PUBLIC_API_URL": "https://backend-production-38c9.up.railway.app",
+                "EXPO_PUBLIC_ELECTRIC_URL": "wss://backend-production-38c9.up.railway.app",
+                "EXPO_PUBLIC_ELECTRIC_API_URL": "https://backend-production-38c9.up.railway.app"
             }
         }
     },

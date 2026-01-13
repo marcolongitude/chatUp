@@ -18,15 +18,8 @@ const getElectricUrl = () => {
     return Constants.expoConfig.extra.electricUrl;
   }
 
-  // Priority 3: Platform-specific fallback
-  if (Platform.OS === 'android') {
-    // For physical devices: use LAN IP (default 192.168.0.14)
-    // Use same IP as API for consistency
-    return 'ws://192.168.0.14:5133';
-  }
-  
-  // iOS Simulator or Web uses localhost
-  return 'ws://localhost:5133';
+  // Priority 3: Railway production URL (fallback for production builds)
+  return 'wss://backend-production-38c9.up.railway.app';
 };
 
 const getElectricApiUrl = () => {
@@ -40,13 +33,8 @@ const getElectricApiUrl = () => {
     return Constants.expoConfig.extra.electricApiUrl;
   }
 
-  // Priority 3: Platform-specific fallback
-  if (Platform.OS === 'android') {
-    // For physical devices: use LAN IP (default 192.168.0.14)
-    return 'http://192.168.0.14:5133';
-  }
-  
-  return 'http://localhost:5133';
+  // Priority 3: Railway production URL (fallback for production builds)
+  return 'https://backend-production-38c9.up.railway.app';
 };
 
 export const ELECTRIC_CONFIG = {

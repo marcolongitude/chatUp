@@ -6,11 +6,22 @@ import { PreKey } from '../../core/entities/pre-key.entity';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432', 10),
-  username: process.env.DB_USERNAME || 'admin',
-  password: process.env.DB_PASSWORD || 'password',
-  database: process.env.DB_NAME || 'chatup',
+  // Suporta DATABASE_URL (Railway) ou variáveis individuais
+  ...(process.env.DATABASE_URL 
+    ? { 
+        url: process.env.DATABASE_URL,
+        ssl: process.env.NODE_ENV === 'production' 
+          ? { rejectUnauthorized: false } 
+          : false,
+      }
+    : {
+        host: process.env.DB_HOST || 'localhost',
+        port: parseInt(process.env.DB_PORT || '5432', 10),
+        username: process.env.DB_USERNAME || 'admin',
+        password: process.env.DB_PASSWORD || 'password',
+        database: process.env.DB_NAME || 'chatup',
+      }
+  ),
   entities: [TypeOrmUserEntity, TypeOrmMessageEntity, Key, PreKey],
   migrations: ['src/infra/database/migrations/*.ts'],
   synchronize: false,

@@ -31,6 +31,11 @@ const getApiUrl = () => {
 
 export const API_URL = getApiUrl();
 
+// Log da URL sendo usada (para debug)
+console.log('🔍 [API] URL configurada:', API_URL);
+console.log('🔍 [API] EXPO_PUBLIC_API_URL:', process.env.EXPO_PUBLIC_API_URL || 'não definido');
+console.log('🔍 [API] Constants.extra.apiUrl:', Constants.expoConfig?.extra?.apiUrl || 'não definido');
+
 const api = axios.create({
   baseURL: API_URL,
   timeout: 10000,

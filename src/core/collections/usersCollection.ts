@@ -6,6 +6,7 @@
 import { createCollection } from '@tanstack/react-db';
 import { electricCollectionOptions } from '@tanstack/electric-db-collection';
 import { userSchema, type UserRow } from './schemas';
+import Constants from 'expo-constants';
 
 /**
  * Users collection with Electric SQL sync
@@ -19,7 +20,9 @@ export const usersCollection = createCollection(
     
     // Electric shape configuration
     shapeOptions: {
-      url: process.env.EXPO_PUBLIC_ELECTRIC_API_URL || 'http://localhost:5133',
+      url: process.env.EXPO_PUBLIC_ELECTRIC_API_URL || 
+        Constants.expoConfig?.extra?.electricApiUrl || 
+        'https://backend-production-38c9.up.railway.app',
       params: {
         table: 'users',
       },

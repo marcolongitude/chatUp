@@ -88,16 +88,13 @@ module.exports = () => {
 				},
 				firebase,
 				// API and Electric SQL URLs
-				// Priority: 1) Environment variable, 2) Production URL, 3) Local IP, 4) undefined
+				// Priority: 1) Environment variable, 2) Railway URL (production), 3) Local IP, 4) undefined
 				apiUrl: process.env.EXPO_PUBLIC_API_URL || 
-					(process.env.NODE_ENV === 'production' ? process.env.EXPO_PUBLIC_PRODUCTION_API_URL : undefined) ||
-					(process.env.LOCAL_IP ? `http://${process.env.LOCAL_IP}:3000` : undefined),
+					(process.env.LOCAL_IP ? `http://${process.env.LOCAL_IP}:3000` : 'https://backend-production-38c9.up.railway.app'),
 				electricUrl: process.env.EXPO_PUBLIC_ELECTRIC_URL || 
-					(process.env.NODE_ENV === 'production' ? process.env.EXPO_PUBLIC_PRODUCTION_ELECTRIC_URL : undefined) ||
-					(process.env.LOCAL_IP ? `ws://${process.env.LOCAL_IP}:5133` : undefined),
+					(process.env.LOCAL_IP ? `ws://${process.env.LOCAL_IP}:5133` : 'wss://backend-production-38c9.up.railway.app'),
 				electricApiUrl: process.env.EXPO_PUBLIC_ELECTRIC_API_URL || 
-					(process.env.NODE_ENV === 'production' ? process.env.EXPO_PUBLIC_PRODUCTION_ELECTRIC_API_URL : undefined) ||
-					(process.env.LOCAL_IP ? `http://${process.env.LOCAL_IP}:5133` : undefined),
+					(process.env.LOCAL_IP ? `http://${process.env.LOCAL_IP}:5133` : 'https://backend-production-38c9.up.railway.app'),
 			},
 		},
 	};

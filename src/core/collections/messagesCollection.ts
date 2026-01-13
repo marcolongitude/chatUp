@@ -8,6 +8,7 @@ import { electricCollectionOptions } from '@tanstack/electric-db-collection';
 import { messageSchema, type MessageRow } from './schemas';
 import { encryptMessage, decryptMessage } from '@/core/security';
 import type { Collection } from '@tanstack/db';
+import Constants from 'expo-constants';
 
 // Helper to generate chat ID (consistent with existing logic)
 function generateChatId(userId1: string, userId2: string): string {
@@ -27,7 +28,9 @@ export const messagesCollection = createCollection(
     
     // Electric shape configuration
     shapeOptions: {
-      url: process.env.EXPO_PUBLIC_ELECTRIC_API_URL || 'http://localhost:5133',
+      url: process.env.EXPO_PUBLIC_ELECTRIC_API_URL || 
+        Constants.expoConfig?.extra?.electricApiUrl || 
+        'https://backend-production-38c9.up.railway.app',
       params: {
         table: 'messages',
       },

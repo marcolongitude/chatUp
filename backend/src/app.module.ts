@@ -21,31 +21,26 @@ import { AppController } from './app.controller';
     TypeOrmModule.forRoot({
       type: 'postgres',
       // Suporta DATABASE_URL (Railway) ou variáveis individuais
-      url: process.env.DATABASE_URL,
-      host: process.env.DATABASE_URL 
-        ? undefined 
-        : (process.env.DB_HOST || process.env.PGHOST || 'localhost'),
-      port: process.env.DATABASE_URL 
-        ? undefined 
-        : parseInt(process.env.DB_PORT || process.env.PGPORT || '5432', 10),
-      username: process.env.DATABASE_URL 
-        ? undefined 
-        : (process.env.DB_USERNAME || process.env.PGUSER || 'admin'),
-      password: process.env.DATABASE_URL 
-        ? undefined 
-        : (process.env.DB_PASSWORD || process.env.PGPASSWORD || 'password'),
-      database: process.env.DATABASE_URL 
-        ? undefined 
-        : (process.env.DB_NAME || process.env.PGDATABASE || 'chatup'),
+      ...(process.env.DATABASE_URL 
+        ? { 
+            url: process.env.DATABASE_URL,
+            ssl: process.env.NODE_ENV === 'production' 
+              ? { rejectUnauthorized: false } 
+              : false,
+          }
+        : {
+            host: process.env.DB_HOST || process.env.PGHOST || 'localhost',
+            port: parseInt(process.env.DB_PORT || process.env.PGPORT || '5432', 10),
+            username: process.env.DB_USERNAME || process.env.PGUSER || 'admin',
+            password: process.env.DB_PASSWORD || process.env.PGPASSWORD || 'password',
+            database: process.env.DB_NAME || process.env.PGDATABASE || 'chatup',
+          }
+      ),
       entities: [TypeOrmUserEntity, TypeOrmMessageEntity, Key, PreKey], // Add Entities
-      synchronize: process.env.NODE_ENV !== 'production', // Disable in production, use migrations
+      synchronize: true, // Temporariamente habilitado para criar tabelas automaticamente
       migrations: ['dist/infra/database/migrations/*.js'],
-      migrationsRun: process.env.NODE_ENV === 'production', // Run migrations automatically in production
+      migrationsRun: false, // Desabilitado temporariamente
       logging: process.env.NODE_ENV !== 'production', // Disable SQL logging in production
-      // SSL configuration for production (Railway requires SSL)
-      ssl: process.env.NODE_ENV === 'production' 
-        ? { rejectUnauthorized: false } 
-        : false,
       // Connection pool settings for better performance
       extra: {
         max: 10, // Maximum connections in pool

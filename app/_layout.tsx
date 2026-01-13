@@ -20,6 +20,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider } from "@/core/theme/ThemeProvider";
 import { I18nProvider } from "@/core/i18n/I18nProvider";
 import { ElectricProvider } from "@/core/electric";
+import { DatabaseProvider } from "@/core/database/DatabaseProvider";
 import { UpdateDialog, CryptoLoadingProvider } from "@/shared/components";
 import React, { Suspense, useEffect } from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
@@ -157,10 +158,12 @@ export default function RootLayout() {
 					<ThemeProvider>
 						<CryptoLoadingProvider>
 							<QueryClientProvider client={queryClient}>
-								<ElectricProvider>
-									<AppContent />
-									<UpdateDialog />
-								</ElectricProvider>
+								<DatabaseProvider>
+									<ElectricProvider>
+										<AppContent />
+										<UpdateDialog />
+									</ElectricProvider>
+								</DatabaseProvider>
 							</QueryClientProvider>
 						</CryptoLoadingProvider>
 					</ThemeProvider>
