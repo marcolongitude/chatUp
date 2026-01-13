@@ -35,18 +35,25 @@ if (DATABASE_URL) {
 }
 
 const AUTH_MODE = process.env.AUTH_MODE || 'insecure';
-const LOGICAL_PUBLISHER_HOST = process.env.LOGICAL_PUBLISHER_HOST || parsedDbUrl?.host;
-const LOGICAL_PUBLISHER_PORT = process.env.LOGICAL_PUBLISHER_PORT || parsedDbUrl?.port || '5432';
-const LOGICAL_PUBLISHER_USER = process.env.LOGICAL_PUBLISHER_USER || parsedDbUrl?.user;
-const LOGICAL_PUBLISHER_PASSWORD = process.env.LOGICAL_PUBLISHER_PASSWORD || parsedDbUrl?.password;
-const LOGICAL_PUBLISHER_DATABASE = process.env.LOGICAL_PUBLISHER_DATABASE || parsedDbUrl?.database;
+const LOGICAL_PUBLISHER_HOST =
+  process.env.LOGICAL_PUBLISHER_HOST || parsedDbUrl?.host;
+const LOGICAL_PUBLISHER_PORT =
+  process.env.LOGICAL_PUBLISHER_PORT || parsedDbUrl?.port || '5432';
+const LOGICAL_PUBLISHER_USER =
+  process.env.LOGICAL_PUBLISHER_USER || parsedDbUrl?.user;
+const LOGICAL_PUBLISHER_PASSWORD =
+  process.env.LOGICAL_PUBLISHER_PASSWORD || parsedDbUrl?.password;
+const LOGICAL_PUBLISHER_DATABASE =
+  process.env.LOGICAL_PUBLISHER_DATABASE || parsedDbUrl?.database;
 
 let electricProcess = null;
 
 // Função para iniciar Electric SQL via Docker (se disponível)
 function startElectric() {
   if (!DATABASE_URL) {
-    console.warn('⚠️  DATABASE_URL não configurada, Electric SQL não será iniciado');
+    console.warn(
+      '⚠️  DATABASE_URL não configurada, Electric SQL não será iniciado',
+    );
     return;
   }
 
@@ -54,9 +61,13 @@ function startElectric() {
   console.log(`📋 Configuração:`);
   console.log(`   - Porta: ${ELECTRIC_PORT}`);
   console.log(`   - AUTH_MODE: ${AUTH_MODE}`);
-  console.log(`   - DATABASE_URL: ${DATABASE_URL ? '✅ Configurada' : '❌ Não configurada'}`);
+  console.log(
+    `   - DATABASE_URL: ${DATABASE_URL ? '✅ Configurada' : '❌ Não configurada'}`,
+  );
   if (LOGICAL_PUBLISHER_HOST) {
-    console.log(`   - Logical Publisher: ${LOGICAL_PUBLISHER_HOST}:${LOGICAL_PUBLISHER_PORT}`);
+    console.log(
+      `   - Logical Publisher: ${LOGICAL_PUBLISHER_HOST}:${LOGICAL_PUBLISHER_PORT}`,
+    );
   }
 
   // Tentar usar Docker para rodar Electric SQL
@@ -70,24 +81,42 @@ function startElectric() {
     const dockerArgs = [
       'run',
       '--rm',
-      '--network', 'host',
-      '-e', `DATABASE_URL=${DATABASE_URL}`,
-      '-e', `AUTH_MODE=${AUTH_MODE}`,
-      '-e', 'ELECTRIC_WRITE_TO_PG_MODE=direct',
-      '-p', `${ELECTRIC_PORT}:5133`,
-      'electricsql/electric:latest'
+      '--network',
+      'host',
+      '-e',
+      `DATABASE_URL=${DATABASE_URL}`,
+      '-e',
+      `AUTH_MODE=${AUTH_MODE}`,
+      '-e',
+      'ELECTRIC_WRITE_TO_PG_MODE=direct',
+      '-p',
+      `${ELECTRIC_PORT}:5133`,
+      'electricsql/electric:latest',
     ];
 
     // Always set logical replication parameters (required for Electric SQL)
-    if (LOGICAL_PUBLISHER_HOST && LOGICAL_PUBLISHER_USER && LOGICAL_PUBLISHER_PASSWORD && LOGICAL_PUBLISHER_DATABASE) {
+    if (
+      LOGICAL_PUBLISHER_HOST &&
+      LOGICAL_PUBLISHER_USER &&
+      LOGICAL_PUBLISHER_PASSWORD &&
+      LOGICAL_PUBLISHER_DATABASE
+    ) {
       dockerArgs.push('-e', `LOGICAL_PUBLISHER_HOST=${LOGICAL_PUBLISHER_HOST}`);
       dockerArgs.push('-e', `LOGICAL_PUBLISHER_PORT=${LOGICAL_PUBLISHER_PORT}`);
       dockerArgs.push('-e', `LOGICAL_PUBLISHER_USER=${LOGICAL_PUBLISHER_USER}`);
-      dockerArgs.push('-e', `LOGICAL_PUBLISHER_PASSWORD=${LOGICAL_PUBLISHER_PASSWORD}`);
-      dockerArgs.push('-e', `LOGICAL_PUBLISHER_DATABASE=${LOGICAL_PUBLISHER_DATABASE}`);
+      dockerArgs.push(
+        '-e',
+        `LOGICAL_PUBLISHER_PASSWORD=${LOGICAL_PUBLISHER_PASSWORD}`,
+      );
+      dockerArgs.push(
+        '-e',
+        `LOGICAL_PUBLISHER_DATABASE=${LOGICAL_PUBLISHER_DATABASE}`,
+      );
       console.log('✅ Configuração de logical replication detectada');
     } else {
-      console.warn('⚠️  Parâmetros de logical replication não configurados completamente');
+      console.warn(
+        '⚠️  Parâmetros de logical replication não configurados completamente',
+      );
       console.warn('   Electric SQL pode não funcionar corretamente');
     }
 
@@ -112,7 +141,6 @@ function startElectric() {
     setTimeout(() => {
       checkElectricHealth();
     }, 5000);
-
   } catch (err) {
     console.log('🐳 Docker não disponível, tentando método alternativo...');
     startElectricAlternative();
@@ -121,7 +149,9 @@ function startElectric() {
 
 // Método alternativo: tentar baixar e executar binário
 function startElectricAlternative() {
-  console.log('📦 Método alternativo: Electric SQL precisa ser configurado separadamente');
+  console.log(
+    '📦 Método alternativo: Electric SQL precisa ser configurado separadamente',
+  );
   console.log('💡 Configure Electric SQL como serviço separado ou use Docker');
 }
 
@@ -129,7 +159,7 @@ function startElectricAlternative() {
 function checkElectricHealth() {
   let attempts = 0;
   const maxAttempts = 15; // 30 segundos total (15 * 2s)
-  
+
   const checkInterval = setInterval(() => {
     attempts++;
     const req = http.get(`http://localhost:${ELECTRIC_PORT}/health`, (res) => {
@@ -137,13 +167,17 @@ function checkElectricHealth() {
         console.log(`✅ Electric SQL está rodando na porta ${ELECTRIC_PORT}`);
         clearInterval(checkInterval);
       } else {
-        console.log(`⏳ Electric SQL ainda não está pronto (tentativa ${attempts}/${maxAttempts})...`);
+        console.log(
+          `⏳ Electric SQL ainda não está pronto (tentativa ${attempts}/${maxAttempts})...`,
+        );
       }
     });
 
     req.on('error', (err) => {
       if (attempts < maxAttempts) {
-        console.log(`⏳ Electric SQL ainda não está pronto (tentativa ${attempts}/${maxAttempts})...`);
+        console.log(
+          `⏳ Electric SQL ainda não está pronto (tentativa ${attempts}/${maxAttempts})...`,
+        );
       }
     });
 
@@ -152,7 +186,9 @@ function checkElectricHealth() {
     });
 
     if (attempts >= maxAttempts) {
-      console.warn(`⚠️  Electric SQL não respondeu após ${maxAttempts} tentativas`);
+      console.warn(
+        `⚠️  Electric SQL não respondeu após ${maxAttempts} tentativas`,
+      );
       console.warn('   Verifique os logs do Electric SQL para mais detalhes');
       clearInterval(checkInterval);
     }
