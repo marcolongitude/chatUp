@@ -4,13 +4,13 @@ import * as Crypto from "expo-crypto";
 
 // Polyfill crypto.randomUUID if not available
 if (typeof global.crypto === "undefined") {
-  (global as any).crypto = {};
+	(global as any).crypto = {};
 }
 if (typeof (global as any).crypto.randomUUID !== "function") {
-  // expo-crypto.randomUUID() is synchronous
-  (global as any).crypto.randomUUID = () => {
-    return Crypto.randomUUID().toLowerCase();
-  };
+	// expo-crypto.randomUUID() is synchronous
+	(global as any).crypto.randomUUID = () => {
+		return Crypto.randomUUID().toLowerCase();
+	};
 }
 
 import { Stack } from "expo-router";
