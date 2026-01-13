@@ -1,0 +1,156 @@
+#!/usr/bin/env node
+
+/**
+ * Script para iniciar Backend NestJS + Electric SQL no mesmo processo
+ * Usa child_process para rodar Electric SQL como processo filho
+ */
+
+const { spawn } = require('child_process');
+const { execSync } = require('child_process');
+const path = require('path');
+const fs = require('fs');
+const http = require('http');
+
+console.log('🚀 Iniciando Backend + Electric SQL...\n');
+
+// Configurações do Electric SQL
+const ELECTRIC_PORT = process.env.ELECTRIC_PORT || '5133';
+const DATABASE_URL = process.env.DATABASE_URL;
+const AUTH_MODE = process.env.AUTH_MODE || 'insecure';
+const LOGICAL_PUBLISHER_HOST = process.env.LOGICAL_PUBLISHER_HOST;
+const LOGICAL_PUBLISHER_PORT = process.env.LOGICAL_PUBLISHER_PORT || '5432';
+const LOGICAL_PUBLISHER_USER = process.env.LOGICAL_PUBLISHER_USER;
+const LOGICAL_PUBLISHER_PASSWORD = process.env.LOGICAL_PUBLISHER_PASSWORD;
+const LOGICAL_PUBLISHER_DATABASE = process.env.LOGICAL_PUBLISHER_DATABASE;
+
+let electricProcess = null;
+
+// Função para iniciar Electric SQL via Docker (se disponível)
+function startElectric() {
+  if (!DATABASE_URL) {
+    console.warn('⚠️  DATABASE_URL não configurada, Electric SQL não será iniciado');
+    return;
+  }
+
+  console.log('⚡ Iniciando Electric SQL...');
+
+  // Tentar usar Docker para rodar Electric SQL
+  // Railway pode ter Docker disponível
+  try {
+    // Verificar se Docker está disponível
+    execSync('which docker', { stdio: 'ignore' });
+    console.log('🐳 Docker encontrado, iniciando Electric SQL via Docker...');
+
+    const dockerArgs = [
+      'run',
+      '--rm',
+      '--network', 'host',
+      '-e', `DATABASE_URL=${DATABASE_URL}`,
+      '-e', `AUTH_MODE=${AUTH_MODE}`,
+      '-p', `${ELECTRIC_PORT}:5133`,
+      'electricsql/electric:latest'
+    ];
+
+    if (LOGICAL_PUBLISHER_HOST) {
+      dockerArgs.push('-e', `LOGICAL_PUBLISHER_HOST=${LOGICAL_PUBLISHER_HOST}`);
+      dockerArgs.push('-e', `LOGICAL_PUBLISHER_PORT=${LOGICAL_PUBLISHER_PORT}`);
+      dockerArgs.push('-e', `LOGICAL_PUBLISHER_USER=${LOGICAL_PUBLISHER_USER}`);
+      dockerArgs.push('-e', `LOGICAL_PUBLISHER_PASSWORD=${LOGICAL_PUBLISHER_PASSWORD}`);
+      dockerArgs.push('-e', `LOGICAL_PUBLISHER_DATABASE=${LOGICAL_PUBLISHER_DATABASE}`);
+    }
+
+    electricProcess = spawn('docker', dockerArgs, {
+      stdio: 'inherit',
+      shell: false,
+    });
+
+    electricProcess.on('error', (err) => {
+      console.error('❌ Erro ao iniciar Electric SQL via Docker:', err.message);
+      console.log('💡 Tentando método alternativo...');
+      startElectricAlternative();
+    });
+
+    electricProcess.on('exit', (code) => {
+      if (code !== 0 && code !== null) {
+        console.error(`❌ Electric SQL encerrou com código ${code}`);
+      }
+    });
+
+    // Aguardar Electric iniciar
+    setTimeout(() => {
+      checkElectricHealth();
+    }, 5000);
+
+  } catch (err) {
+    console.log('🐳 Docker não disponível, tentando método alternativo...');
+    startElectricAlternative();
+  }
+}
+
+// Método alternativo: tentar baixar e executar binário
+function startElectricAlternative() {
+  console.log('📦 Método alternativo: Electric SQL precisa ser configurado separadamente');
+  console.log('💡 Configure Electric SQL como serviço separado ou use Docker');
+}
+
+// Verificar se Electric está rodando
+function checkElectricHealth() {
+  const checkInterval = setInterval(() => {
+    const req = http.get(`http://localhost:${ELECTRIC_PORT}/health`, (res) => {
+      if (res.statusCode === 200) {
+        console.log(`✅ Electric SQL está rodando na porta ${ELECTRIC_PORT}`);
+        clearInterval(checkInterval);
+      }
+    });
+
+    req.on('error', () => {
+      // Ainda não está pronto
+    });
+
+    req.setTimeout(2000, () => {
+      req.destroy();
+    });
+  }, 2000);
+
+  // Parar após 30 segundos
+  setTimeout(() => clearInterval(checkInterval), 30000);
+}
+
+// Iniciar Electric SQL
+startElectric();
+
+// Iniciar Backend NestJS
+console.log('📦 Iniciando Backend NestJS...\n');
+
+const backendProcess = spawn('node', ['dist/main.js'], {
+  env: process.env,
+  stdio: 'inherit',
+  shell: true,
+});
+
+backendProcess.on('error', (err) => {
+  console.error('❌ Erro ao iniciar Backend:', err);
+  process.exit(1);
+});
+
+backendProcess.on('exit', (code) => {
+  console.log(`\n📦 Backend encerrou com código ${code}`);
+  if (electricProcess) {
+    console.log('🛑 Encerrando Electric SQL...');
+    electricProcess.kill();
+  }
+  process.exit(code || 0);
+});
+
+// Tratamento de sinais
+process.on('SIGTERM', () => {
+  console.log('\n🛑 Recebido SIGTERM, encerrando processos...');
+  if (electricProcess) electricProcess.kill();
+  backendProcess.kill();
+});
+
+process.on('SIGINT', () => {
+  console.log('\n🛑 Recebido SIGINT, encerrando processos...');
+  if (electricProcess) electricProcess.kill();
+  backendProcess.kill();
+});
