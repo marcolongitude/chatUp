@@ -52,27 +52,35 @@ export function ElectricProvider({ children }: ElectricProviderProps) {
         // Listen for connection changes
         electricClient.on('connect', () => {
           if (mounted) {
+            console.log('✅ Electric SQL conectado');
             setIsConnected(true);
+            setError(null);
           }
         });
 
         electricClient.on('disconnect', () => {
           if (mounted) {
+            console.warn('⚠️ Electric SQL desconectado - modo offline');
             setIsConnected(false);
           }
         });
 
         electricClient.on('error', (err: Error) => {
           if (mounted) {
+            console.error('❌ Electric SQL error:', err);
             setError(err);
             setIsConnected(false);
           }
         });
       } catch (err) {
         if (mounted) {
-          setError(err as Error);
+          const error = err as Error;
+          console.warn('⚠️ Electric SQL não disponível:', error.message);
+          console.warn('   App funcionará offline, mas sem sincronização em tempo real');
+          setError(error);
           setIsLoading(false);
           setIsConnected(false);
+          // Don't set client to null - allow app to work offline
         }
       }
     };

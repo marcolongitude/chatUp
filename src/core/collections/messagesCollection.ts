@@ -27,12 +27,16 @@ export const messagesCollection = createCollection(
     getKey: (item: MessageRow) => item.id,
     
     // Electric shape configuration
+    // Shapes define what data to sync - Electric will create shapes automatically
+    // when queries are made, but we can pre-configure them here
     shapeOptions: {
       url: process.env.EXPO_PUBLIC_ELECTRIC_API_URL || 
         Constants.expoConfig?.extra?.electricApiUrl || 
         'https://backend-production-38c9.up.railway.app',
       params: {
         table: 'messages',
+        // Electric will create shapes dynamically based on queries
+        // No need to pre-define filters here - they're created on-demand
       },
     },
     
