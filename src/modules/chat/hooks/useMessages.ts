@@ -22,23 +22,25 @@ export function useMessages(contactId: string) {
   }, [user?.id, contactId]);
 
   // Live query for messages - automatically updates when Electric syncs new messages
-  const { data: messageRows, isLoading, error: queryError } = useLiveQuery((q) => {
-    if (!chatId || !user) {
-      return q.from({ msg: messagesCollection }).where(() => false); // Empty query
+  const { data: messageRows = [], isLoading, error: queryError } = useLiveQuery((q) => {
+    // Always return a valid query, even if empty
+    if (!chatId || !user || !contactId) {
+      return q.from({ msg: messagesCollection }).where(() => false);
     }
 
+    // Build query safely
     return q
       .from({ msg: messagesCollection })
-      .where(({ msg }) =>
-        and(
+      .where(({ msg }) => {
+        // Filter messages between current user and contact
+        return and(
           or(eq(msg.sender_id, user.id), eq(msg.receiver_id, user.id)),
-          // Filter by chat participants
           or(
             and(eq(msg.sender_id, user.id), eq(msg.receiver_id, contactId)),
             and(eq(msg.sender_id, contactId), eq(msg.receiver_id, user.id))
           )
-        )
-      )
+        );
+      })
       .orderBy(({ msg }) => msg.timestamp, "asc");
   });
 
