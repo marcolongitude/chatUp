@@ -4,8 +4,6 @@ import { ensureSignalSession } from "@/core/security";
 import { useLiveQuery, eq, or, and } from "@tanstack/react-db";
 import { messagesCollection, insertEncryptedMessage, decryptMessageRow } from "@/core/collections";
 import { useElectric } from "@/core/electric";
-import { useQuery } from "@tanstack/react-query";
-import { fetchMessages as fetchMessagesApi, sendMessageApi } from "@/services/api/chat.service";
 import type { Message, CreateMessageData } from "../types";
 
 // Helper to generate a consistent chat ID (users sorted alphabetically)
@@ -25,49 +23,36 @@ export function useMessages(contactId: string) {
 		return generateChatId(user.id, contactId);
 	}, [user?.id, contactId]);
 
-	// Determine if we should use Electric SQL or API REST
-	// Use Electric if connected and ready, otherwise fallback to API
-	const useElectricMode = useMemo(() => {
-		const shouldUse = isElectricConnected && !isElectricLoading && chatId && user && contactId;
-		console.log('🔍 [useMessages] Electric mode:', {
-			shouldUse,
-			isElectricConnected,
-			isElectricLoading,
-			hasChatId: !!chatId,
-			hasUser: !!user,
-			hasContactId: !!contactId,
-		});
-		return shouldUse;
-	}, [isElectricConnected, isElectricLoading, chatId, user, contactId]);
+	// Only run query if Electric is connected and ready
+	const shouldRunQuery = useMemo(() => {
+		const ready = isElectricConnected && !isElectricLoading && chatId && user?.id && contactId;
+		if (!ready) {
+			console.warn('⚠️ [useMessages] Electric SQL não está pronto:', {
+				isElectricConnected,
+				isElectricLoading,
+				hasChatId: !!chatId,
+				hasUser: !!user,
+				hasContactId: !!contactId,
+				electricError: electricError?.message,
+			});
+		}
+		return ready;
+	}, [isElectricConnected, isElectricLoading, chatId, user?.id, contactId, electricError]);
 
 	// Electric SQL query - always call hook (can't be conditional)
-	// But return empty query if Electric not ready to prevent errors
-	console.log('🔍 [useMessages] Electric status:', {
-		useElectricMode,
-		isElectricConnected,
-		isElectricLoading,
-		hasUser: !!user,
-		hasContactId: !!contactId,
-		userId: user?.id,
-		contactId,
-	});
-
+	// Return empty query if Electric not ready to prevent errors
 	const {
-		data: electricMessageRows = [],
-		isLoading: electricIsLoading,
-		error: electricQueryError,
+		data: messageRows = [],
+		isLoading,
+		error: queryError,
 	} = useLiveQuery((q) => {
 		// Always return a valid query - empty if Electric not ready
-		if (!useElectricMode || !user?.id || !contactId) {
-			console.log('⚠️ [useMessages] Returning empty query - Electric not ready or missing data');
+		if (!shouldRunQuery || !user?.id || !contactId) {
 			return q.from({ msg: messagesCollection }).where(() => false);
 		}
 
-		// Validate all values before building query
-		console.log('⚡ [useMessages] Building Electric query with:', { userId: user.id, contactId });
-		
+		// Build query with validated values
 		try {
-			// Build query with validated values
 			return q
 				.from({ msg: messagesCollection })
 				.where(({ msg }) => {
@@ -87,39 +72,6 @@ export function useMessages(contactId: string) {
 		}
 	});
 
-	// API REST fallback - used when Electric is not available
-	const {
-		data: apiMessages = [],
-		isLoading: apiIsLoading,
-		error: apiError,
-	} = useQuery({
-		queryKey: ['messages', contactId, user?.id],
-		queryFn: () => {
-			if (!contactId || !user?.id) {
-				return Promise.resolve([]);
-			}
-			console.log('🌐 [useMessages] Fetching messages from API');
-			return fetchMessagesApi(contactId);
-		},
-		enabled: !useElectricMode && !!contactId && !!user?.id, // Only fetch if not using Electric
-		staleTime: 1000 * 30, // 30 seconds
-	});
-
-	// Use Electric data if available, otherwise use API data
-	const messageRows = useElectricMode ? electricMessageRows : (apiMessages || []);
-	const isLoading = useElectricMode ? electricIsLoading : apiIsLoading;
-	const queryError = useElectricMode ? (electricQueryError || null) : (apiError || null);
-
-	// Log which mode is being used
-	useEffect(() => {
-		console.log('📊 [useMessages] Current mode:', {
-			useElectricMode,
-			messageCount: messageRows.length,
-			isLoading,
-			hasError: !!queryError,
-		});
-	}, [useElectricMode, messageRows.length, isLoading, queryError]);
-
 	// Decrypt messages and transform to Message format
 	useEffect(() => {
 		if (!messageRows || !user || !chatId) {
@@ -129,40 +81,7 @@ export function useMessages(contactId: string) {
 
 		(async () => {
 			try {
-				// Handle both Electric rows and API messages
-				const decrypted = await Promise.all(
-					messageRows.map(async (row: any) => {
-						if (useElectricMode) {
-							// Electric row format - use decryptMessageRow
-							return await decryptMessageRow(row, user.id);
-						} else {
-							// API message format - transform and decrypt
-							const senderId = row.sender_id || row.senderId;
-							const receiverId = row.receiver_id || row.receiverId;
-							const chatId = generateChatId(senderId, receiverId);
-							
-							const { decryptMessage } = await import('@/core/security');
-							const decryptedText = await decryptMessage(
-								row.content,
-								chatId,
-								user.id,
-								senderId,
-								receiverId
-							);
-							
-							return {
-								id: row.id,
-								text: decryptedText,
-								timestamp: row.timestamp instanceof Date 
-									? row.timestamp 
-									: new Date(row.timestamp),
-								senderId,
-								receiverId,
-								read: row.is_read || row.isRead || false,
-							};
-						}
-					})
-				);
+				const decrypted = await Promise.all(messageRows.map((row) => decryptMessageRow(row, user.id)));
 
 				const transformed: Message[] = decrypted.map((d) => ({
 					id: d.id,
@@ -183,7 +102,7 @@ export function useMessages(contactId: string) {
 				setDecryptedMessages([]);
 			}
 		})();
-	}, [messageRows, user?.id, chatId, useElectricMode]);
+	}, [messageRows, user?.id, chatId]);
 
 	// Ensure Signal session on mount
 	useEffect(() => {
@@ -207,34 +126,19 @@ export function useMessages(contactId: string) {
 			if (!plaintext) return;
 
 			try {
-				if (useElectricMode) {
-					// Use Electric SQL - insert encrypted message
-					console.log('⚡ [useMessages] Sending via Electric SQL');
-					await insertEncryptedMessage({
-						senderId: user.id,
-						receiverId: messageData.receiverId,
-						content: plaintext,
-						timestamp: new Date(),
-					});
-				} else {
-					// Fallback to API REST
-					console.log('🌐 [useMessages] Sending via API REST');
-					// Encrypt message before sending
-					const chatId = generateChatId(user.id, messageData.receiverId);
-					const encryptedContent = await (await import('@/core/security')).encryptMessage(
-						plaintext,
-						chatId,
-						user.id,
-						messageData.receiverId
-					);
-					await sendMessageApi(messageData.receiverId, encryptedContent);
-				}
+				// Insert encrypted message - Electric will sync automatically
+				await insertEncryptedMessage({
+					senderId: user.id,
+					receiverId: messageData.receiverId,
+					content: plaintext,
+					timestamp: new Date(),
+				});
 			} catch (error) {
 				console.error("❌ [useMessages] Error sending message:", error);
 				throw error;
 			}
 		},
-		[user, useElectricMode]
+		[user]
 	);
 
 	// Mark messages as read
@@ -284,7 +188,11 @@ export function useMessages(contactId: string) {
 	// Log connection status for debugging
 	useEffect(() => {
 		if (!isElectricConnected && !isElectricLoading) {
-			console.warn("⚠️ Electric SQL não está conectado. Mensagens não serão sincronizadas.");
+			console.error("❌ [useMessages] Electric SQL não está conectado!");
+			console.error("   Verifique se Electric SQL está rodando no Railway");
+			console.error("   URL esperada:", process.env.EXPO_PUBLIC_ELECTRIC_URL || "não configurada");
+		} else if (isElectricConnected) {
+			console.log("✅ [useMessages] Electric SQL conectado e pronto");
 		}
 	}, [isElectricConnected, isElectricLoading]);
 

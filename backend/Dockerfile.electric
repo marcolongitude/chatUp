@@ -1,0 +1,22 @@
+# Dockerfile para Electric SQL no Railway
+# Electric SQL é uma imagem Docker oficial, não precisa de build
+
+FROM electricsql/electric:latest
+
+# Electric SQL usa apenas variáveis de ambiente
+# Todas as configurações são feitas via Railway environment variables:
+# - DATABASE_URL
+# - LOGICAL_PUBLISHER_HOST
+# - LOGICAL_PUBLISHER_PORT
+# - LOGICAL_PUBLISHER_USER
+# - LOGICAL_PUBLISHER_PASSWORD
+# - LOGICAL_PUBLISHER_DATABASE
+# - AUTH_MODE
+# - ELECTRIC_WRITE_TO_PG_MODE
+
+# Porta padrão do Electric SQL
+EXPOSE 5133
+
+# Health check endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:5133/health || exit 1
