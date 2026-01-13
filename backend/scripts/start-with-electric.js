@@ -195,10 +195,11 @@ function checkElectricHealth() {
   }, 2000);
 }
 
-// Iniciar Electric SQL
+// Iniciar Electric SQL (não bloqueia o backend)
 startElectric();
 
-// Iniciar Backend NestJS
+// Iniciar Backend NestJS imediatamente (não espera Electric)
+// O backend deve funcionar mesmo se Electric SQL não estiver disponível
 console.log('📦 Iniciando Backend NestJS...\n');
 
 const backendProcess = spawn('node', ['dist/main.js'], {

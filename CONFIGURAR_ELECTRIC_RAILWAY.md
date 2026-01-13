@@ -3,18 +3,21 @@
 ## ✅ Configurações Aplicadas
 
 ### 1. Script `start-with-electric.js` Melhorado
-- ✅ Parse automático do `DATABASE_URL` para extrair credenciais
-- ✅ Configuração automática de logical replication
-- ✅ Health check melhorado com mais tentativas
-- ✅ Logs mais informativos
+
+-   ✅ Parse automático do `DATABASE_URL` para extrair credenciais
+-   ✅ Configuração automática de logical replication
+-   ✅ Health check melhorado com mais tentativas
+-   ✅ Logs mais informativos
 
 ### 2. Migrations do Electric SQL
-- ✅ `001-enable-logical-replication.sql` - Habilita logical replication
-- ✅ `setup-electric-postgres.sql` - Script para configurar PostgreSQL
+
+-   ✅ `001-enable-logical-replication.sql` - Habilita logical replication
+-   ✅ `setup-electric-postgres.sql` - Script para configurar PostgreSQL
 
 ### 3. Frontend Reativado
-- ✅ `useLiveQuery` reativado no `useMessages.ts`
-- ✅ Query completa restaurada
+
+-   ✅ `useLiveQuery` reativado no `useMessages.ts`
+-   ✅ Query completa restaurada
 
 ## 🚀 Próximos Passos no Railway
 
@@ -76,9 +79,10 @@ railway logs --service backend
 ```
 
 Procurar por:
-- `✅ Electric SQL está rodando na porta 5133`
-- `🐳 Docker encontrado, iniciando Electric SQL via Docker...`
-- Erros relacionados ao Docker ou Electric SQL
+
+-   `✅ Electric SQL está rodando na porta 5133`
+-   `🐳 Docker encontrado, iniciando Electric SQL via Docker...`
+-   Erros relacionados ao Docker ou Electric SQL
 
 ### 4. Testar Endpoint do Electric SQL
 
@@ -106,42 +110,46 @@ SELECT * FROM pg_publication_tables WHERE pubname = 'electric_publication';
 ### Se Electric SQL não iniciar:
 
 1. **Verificar se Docker está disponível**:
-   ```bash
-   railway logs --service backend | grep -i docker
-   ```
+
+    ```bash
+    railway logs --service backend | grep -i docker
+    ```
 
 2. **Verificar se DATABASE_URL está configurada**:
-   ```bash
-   railway variables --service backend | grep DATABASE_URL
-   ```
+
+    ```bash
+    railway variables --service backend | grep DATABASE_URL
+    ```
 
 3. **Verificar se logical replication está habilitado**:
-   ```sql
-   SELECT name, setting FROM pg_settings WHERE name = 'wal_level';
-   -- Deve retornar: logical
-   ```
+    ```sql
+    SELECT name, setting FROM pg_settings WHERE name = 'wal_level';
+    -- Deve retornar: logical
+    ```
 
 ### Se "Unknown expression type: undefined" continuar:
 
 1. **Verificar se Electric SQL está acessível**:
-   - Testar endpoint `/health`
-   - Verificar se porta 5133 está exposta
+
+    - Testar endpoint `/health`
+    - Verificar se porta 5133 está exposta
 
 2. **Verificar se shapes estão configurados**:
-   - Electric SQL cria shapes automaticamente quando conecta
-   - Verificar logs do Electric SQL para erros de shape
+
+    - Electric SQL cria shapes automaticamente quando conecta
+    - Verificar logs do Electric SQL para erros de shape
 
 3. **Verificar se publicação existe**:
-   ```sql
-   SELECT * FROM pg_publication WHERE pubname = 'electric_publication';
-   ```
+    ```sql
+    SELECT * FROM pg_publication WHERE pubname = 'electric_publication';
+    ```
 
 ## 📝 Notas Importantes
 
-- O Railway pode não ter Docker disponível - nesse caso, Electric SQL não vai iniciar
-- Se Docker não estiver disponível, considere usar Electric SQL como serviço separado
-- Logical replication requer restart do PostgreSQL após habilitar
-- A publicação deve ser criada **após** as tabelas existirem
+-   O Railway pode não ter Docker disponível - nesse caso, Electric SQL não vai iniciar
+-   Se Docker não estiver disponível, considere usar Electric SQL como serviço separado
+-   Logical replication requer restart do PostgreSQL após habilitar
+-   A publicação deve ser criada **após** as tabelas existirem
 
 ---
 

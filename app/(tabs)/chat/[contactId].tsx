@@ -465,6 +465,23 @@ export default function ChatScreen() {
 		);
 	}
 
+	// Show error if Electric SQL is not connected
+	if (error && error.includes("Electric SQL não conectado")) {
+		return (
+			<Container>
+				<EmptyContainer>
+					<ActivityIndicator size="large" color={theme.colors.button.primary} />
+					<EmptyText style={{ marginTop: theme.spacing.md }}>
+						Conectando ao servidor...
+					</EmptyText>
+					<EmptyText style={{ marginTop: theme.spacing.sm, fontSize: 12 }}>
+						{error}
+					</EmptyText>
+				</EmptyContainer>
+			</Container>
+		);
+	}
+
 	// Header será configurado no _layout.tsx
 
 	// No Android, usar wrapper customizado; no iOS, usar KeyboardAvoidingView

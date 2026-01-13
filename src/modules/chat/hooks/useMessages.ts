@@ -3,6 +3,7 @@ import { useAuth } from "@/modules/auth";
 import { ensureSignalSession } from "@/core/security";
 import { useLiveQuery, eq, or, and } from "@tanstack/react-db";
 import { messagesCollection, insertEncryptedMessage, decryptMessageRow } from "@/core/collections";
+import { useElectric } from "@/core/electric";
 import type { Message, CreateMessageData } from "../types";
 
 // Helper to generate a consistent chat ID (users sorted alphabetically)
@@ -13,6 +14,7 @@ function generateChatId(userId1: string, userId2: string): string {
 
 export function useMessages(contactId: string) {
 	const { user } = useAuth();
+	const { isConnected: isElectricConnected, isLoading: isElectricLoading, error: electricError } = useElectric();
 	const [decryptedMessages, setDecryptedMessages] = useState<Message[]>([]);
 
 	// Generate chat ID
@@ -21,31 +23,46 @@ export function useMessages(contactId: string) {
 		return generateChatId(user.id, contactId);
 	}, [user?.id, contactId]);
 
+	// Only run query if Electric is connected
+	// If Electric is not connected, return empty query to prevent errors
+	const shouldRunQuery = useMemo(() => {
+		return isElectricConnected && !isElectricLoading && chatId && user && contactId;
+	}, [isElectricConnected, isElectricLoading, chatId, user, contactId]);
+
 	// Live query for messages - automatically updates when Electric syncs new messages
+	// Only execute if Electric is connected to prevent errors
 	const {
 		data: messageRows = [],
 		isLoading,
 		error: queryError,
 	} = useLiveQuery((q) => {
-		// Always return a valid query - empty if data is missing
-		if (!chatId || !user || !contactId) {
+		// Always return a valid query - empty if data is missing or Electric not connected
+		// This prevents "Unknown expression type: undefined" errors
+		if (!shouldRunQuery) {
+			// Return empty query that won't cause compilation errors
 			return q.from({ msg: messagesCollection }).where(() => false);
 		}
 
-		// Build query safely
-		return q
-			.from({ msg: messagesCollection })
-			.where(({ msg }) => {
-				// Filter messages between current user and contact
-				return and(
-					or(eq(msg.sender_id, user.id), eq(msg.receiver_id, user.id)),
-					or(
-						and(eq(msg.sender_id, user.id), eq(msg.receiver_id, contactId)),
-						and(eq(msg.sender_id, contactId), eq(msg.receiver_id, user.id))
-					)
-				);
-			})
-			.orderBy(({ msg }) => msg.timestamp, "asc");
+		// Build query safely - only when Electric is connected
+		try {
+			return q
+				.from({ msg: messagesCollection })
+				.where(({ msg }) => {
+					// Filter messages between current user and contact
+					return and(
+						or(eq(msg.sender_id, user.id), eq(msg.receiver_id, user.id)),
+						or(
+							and(eq(msg.sender_id, user.id), eq(msg.receiver_id, contactId)),
+							and(eq(msg.sender_id, contactId), eq(msg.receiver_id, user.id))
+						)
+					);
+				})
+				.orderBy(({ msg }) => msg.timestamp, "asc");
+		} catch (err) {
+			// If query building fails, return empty query
+			console.warn("⚠️ Query building failed, returning empty query:", err);
+			return q.from({ msg: messagesCollection }).where(() => false);
+		}
 	});
 
 	// Decrypt messages and transform to Message format
@@ -152,10 +169,27 @@ export function useMessages(contactId: string) {
 		console.log("Load more - Electric handles pagination automatically");
 	}, []);
 
+	// Combine loading states
+	const combinedIsLoading = isLoading || isElectricLoading || !isElectricConnected;
+	
+	// Combine errors - prioritize Electric connection errors
+	const combinedError = electricError 
+		? `Electric SQL não conectado: ${electricError.message}` 
+		: queryError 
+			? String(queryError) 
+			: null;
+
+	// Log connection status for debugging
+	useEffect(() => {
+		if (!isElectricConnected && !isElectricLoading) {
+			console.warn("⚠️ Electric SQL não está conectado. Mensagens não serão sincronizadas.");
+		}
+	}, [isElectricConnected, isElectricLoading]);
+
 	return {
 		messages: decryptedMessages,
-		isLoading,
-		error: queryError ? String(queryError) : null,
+		isLoading: combinedIsLoading,
+		error: combinedError,
 		sendMessage,
 		loadMoreMessages,
 		hasMore: false, // Electric handles this automatically
