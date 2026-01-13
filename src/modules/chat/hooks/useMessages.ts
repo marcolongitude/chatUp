@@ -27,7 +27,7 @@ export function useMessages(contactId: string) {
 		isLoading,
 		error: queryError,
 	} = useLiveQuery((q) => {
-		// Always return a valid query, even if empty
+		// Always return a valid query - empty if data is missing
 		if (!chatId || !user || !contactId) {
 			return q.from({ msg: messagesCollection }).where(() => false);
 		}

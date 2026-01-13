@@ -7,6 +7,7 @@ import {
 	Keyboard,
 	View,
 	FlatList,
+	TouchableOpacity,
 } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useNavigation } from "@react-navigation/native";
@@ -101,7 +102,7 @@ const TextInput = styled.TextInput.attrs(() => ({
 	margin-right: ${(props) => props.theme.spacing.sm}px;
 `;
 
-const SendButton = styled.TouchableOpacity<{ disabled: boolean }>`
+const SendButton = styled(TouchableOpacity)<{ disabled: boolean }>`
 	width: 44px;
 	height: 44px;
 	border-radius: 22px;

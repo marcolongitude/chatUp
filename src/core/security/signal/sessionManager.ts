@@ -75,63 +75,87 @@ async function fetchRemoteBundleWithRetry(
 	return null;
 }
 
+// Cache de sessões em verificação para evitar chamadas duplicadas simultâneas
+const sessionCheckCache = new Map<string, Promise<void>>();
+
 export async function ensureSignalSession(currentUserId: string, contactId: string): Promise<void> {
+	const sessionKey = `${currentUserId}_${contactId}`;
+	
+	// Se já existe uma verificação em andamento para esta sessão, aguardar ela
+	if (sessionCheckCache.has(sessionKey)) {
+		return sessionCheckCache.get(sessionKey)!;
+	}
+
 	const sessionStartTime = Date.now();
 	console.log("🔐 [Signal] Iniciando ensureSignalSession", { currentUserId, contactId });
 
-	const storage = await bootstrapSignalAccount(currentUserId);
-	const address = new SignalProtocolAddress(contactId, DEVICE_ID);
-	const cipher = new SessionCipher(storage, address);
+	// Criar promise e adicionar ao cache
+	const sessionPromise = (async () => {
+		try {
+			const storage = await bootstrapSignalAccount(currentUserId);
+			const address = new SignalProtocolAddress(contactId, DEVICE_ID);
+			const cipher = new SessionCipher(storage, address);
 
-	if (await cipher.hasOpenSession()) {
-		console.log("✅ [Signal] Sessão já existe, retornando", { duration: Date.now() - sessionStartTime });
-		return;
-	}
+			if (await cipher.hasOpenSession()) {
+				console.log("✅ [Signal] Sessão já existe, retornando", { duration: Date.now() - sessionStartTime });
+				return;
+			}
 
-	console.log("🔄 [Signal] Sessão não existe, buscando bundle...");
-	// Tentar buscar bundle com retry
-	const retryStartTime = Date.now();
-	let remoteBundle = await fetchRemoteBundleWithRetry(contactId);
-	console.log("📦 [Signal] Resultado do retry:", { found: !!remoteBundle, duration: Date.now() - retryStartTime });
+			console.log("🔄 [Signal] Sessão não existe, buscando bundle...");
+			// Tentar buscar bundle com retry
+			const retryStartTime = Date.now();
+			let remoteBundle = await fetchRemoteBundleWithRetry(contactId);
+			console.log("📦 [Signal] Resultado do retry:", { found: !!remoteBundle, duration: Date.now() - retryStartTime });
 
-	// Se ainda não encontrou, aguardar com listener em tempo real (timeout reduzido para 2s - mais rápido)
-	if (!remoteBundle) {
-		console.log(
-			"⏳ [Signal] Bundle não encontrado após retries, aguardando publicação em tempo real (timeout: 2s)..."
-		);
-		const listenerStartTime = Date.now();
-		remoteBundle = await waitForRemoteBundle(contactId, 2000); // Reduzido de 7s para 2s
-		console.log("👂 [Signal] Resultado do listener:", {
-			found: !!remoteBundle,
-			duration: Date.now() - listenerStartTime,
-		});
-	}
+			// Se ainda não encontrou, aguardar com listener em tempo real (timeout reduzido para 2s - mais rápido)
+			if (!remoteBundle) {
+				console.log(
+					"⏳ [Signal] Bundle não encontrado após retries, aguardando publicação em tempo real (timeout: 2s)..."
+				);
+				const listenerStartTime = Date.now();
+				remoteBundle = await waitForRemoteBundle(contactId, 2000); // Reduzido de 7s para 2s
+				console.log("👂 [Signal] Resultado do listener:", {
+					found: !!remoteBundle,
+					duration: Date.now() - listenerStartTime,
+				});
+			}
 
-	if (!remoteBundle) {
-		throw new Error(
-			"Contato não possui bundle de prekeys publicado. O contato precisa estar online e ter feito login recentemente."
-		);
-	}
+			if (!remoteBundle) {
+				throw new Error(
+					"Contato não possui bundle de prekeys publicado. O contato precisa estar online e ter feito login recentemente."
+				);
+			}
 
-	const builder = new SessionBuilder(storage, address);
-	await builder.processPreKey({
-		identityKey: remoteBundle.identityKey,
-		signedPreKey: {
-			keyId: remoteBundle.signedPreKey.keyId,
-			publicKey: remoteBundle.signedPreKey.publicKey,
-			signature: remoteBundle.signedPreKey.signature,
-		},
-		preKey: remoteBundle.preKey
-			? {
-					keyId: remoteBundle.preKey.keyId,
-					publicKey: remoteBundle.preKey.publicKey,
-			  }
-			: undefined,
-		registrationId: remoteBundle.registrationId,
-	});
+			const builder = new SessionBuilder(storage, address);
+			await builder.processPreKey({
+				identityKey: remoteBundle.identityKey,
+				signedPreKey: {
+					keyId: remoteBundle.signedPreKey.keyId,
+					publicKey: remoteBundle.signedPreKey.publicKey,
+					signature: remoteBundle.signedPreKey.signature,
+				},
+				preKey: remoteBundle.preKey
+					? {
+							keyId: remoteBundle.preKey.keyId,
+							publicKey: remoteBundle.preKey.publicKey,
+					  }
+					: undefined,
+				registrationId: remoteBundle.registrationId,
+			});
 
-	// await consumeRemotePreKey(contactId, remoteBundle.preKey?.rawEntry); 
-    // Backend handles consumption
+			// await consumeRemotePreKey(contactId, remoteBundle.preKey?.rawEntry); 
+			// Backend handles consumption
+		} finally {
+			// Remover do cache após completar (sucesso ou erro)
+			sessionCheckCache.delete(sessionKey);
+		}
+	})();
+
+	// Adicionar ao cache
+	sessionCheckCache.set(sessionKey, sessionPromise);
+	
+	// Aguardar conclusão
+	await sessionPromise;
 }
 
 export async function encryptWithSignal(options: {
