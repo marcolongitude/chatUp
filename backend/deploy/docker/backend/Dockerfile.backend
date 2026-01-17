@@ -1,0 +1,21 @@
+FROM node:20-alpine
+
+WORKDIR /backend
+
+# Install dependencies (incorporating system deps if needed, though usually alpine is fine for pure nestjs unless native modules)
+# Copying package files first for caching
+COPY package*.json ./
+
+RUN npm install
+
+# Copy source
+COPY . .
+
+# Build
+RUN npm run build
+
+# Expose NestJS port
+EXPOSE 3000
+
+# Start command
+CMD ["node", "dist/main"]

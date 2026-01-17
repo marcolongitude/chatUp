@@ -1,0 +1,8 @@
+# Dockerignore - Keeping deploy folder as it contains scripts needed during build
+node_modules
+dist
+npm-debug.log
+.git
+.env
+Dockerfile*
+docker-compose*

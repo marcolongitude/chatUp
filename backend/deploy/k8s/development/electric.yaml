@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: electric
+  namespace: chatup-dev
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: electric
+  template:
+    metadata:
+      labels:
+        app: electric
+    spec:
+      containers:
+      - name: electric
+        image: electricsql/electric:latest
+        ports:
+        - containerPort: 5133
+        env:
+        - name: DATABASE_URL
+          value: "postgresql://admin:password@postgres-0.postgres.chatup-dev.svc.cluster.local:5432/chatup"
+        - name: AUTH_MODE
+          value: "insecure"
+        - name: ELECTRIC_INSECURE
+          value: "true"
+        - name: ELECTRIC_WRITE_TO_PG_MODE
+          value: "direct"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: electric
+  namespace: chatup-dev
+spec:
+  selector:
+    app: electric
+  ports:
+  - port: 5133
+    targetPort: 5133
+  type: ClusterIP

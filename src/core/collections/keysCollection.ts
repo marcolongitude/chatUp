@@ -6,7 +6,7 @@
 import { createCollection } from '@tanstack/react-db';
 import { electricCollectionOptions } from '@tanstack/electric-db-collection';
 import { keySchema, type KeyRow } from './schemas';
-import Constants from 'expo-constants';
+import { ELECTRIC_CONFIG } from '@/core/electric/config';
 
 /**
  * Keys collection with Electric SQL sync
@@ -20,9 +20,7 @@ export const keysCollection = createCollection(
     
     // Electric shape configuration
     shapeOptions: {
-      url: process.env.EXPO_PUBLIC_ELECTRIC_API_URL || 
-        Constants.expoConfig?.extra?.electricApiUrl || 
-        'https://backend-production-38c9.up.railway.app',
+      url: ELECTRIC_CONFIG.url!,
       params: {
         table: 'keys',
       },
@@ -36,13 +34,13 @@ export const keysCollection = createCollection(
     onInsert: async ({ transaction }) => {
       const { changes: newKey } = transaction.mutations[0];
       // Keys are typically created via REST API
-      return { txid: `tx_${Date.now()}` };
+      return { txid: Date.now() };
     },
     
     onUpdate: async ({ transaction }) => {
       const { changes: updatedKey } = transaction.mutations[0];
       // Handle key updates
-      return { txid: `tx_${Date.now()}` };
+      return { txid: Date.now() };
     },
   })
 );

@@ -17,16 +17,26 @@ const getApiUrl = () => {
     return Constants.expoConfig.extra.apiUrl;
   }
 
-  // Priority 3: Platform-specific fallback
-  if (Platform.OS === 'android') {
-    // For physical devices: use LAN IP (default 192.168.0.14)
-    // This allows physical devices on the same WiFi to connect.
-    // Update this IP if your computer's IP changes.
-    return 'http://192.168.0.14:3000'; 
+  // Priority 3: Auto-detect from Expo's hostUri (best for development)
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (hostUri) {
+    const ip = hostUri.split(':')[0];
+    if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
+      console.log(`📡 [API] Auto-detectado IP do servidor: ${ip}`);
+      return `http://${ip}:3000`;
+    }
+  }
+
+  // Priority 4: Platform-specific fallback (Emulator only)
+  // Only use 10.0.2.2 if it's an emulator. If it's a physical device,
+  // it needs to hit the machine's LAN IP.
+  if (Platform.OS === 'android' && !Constants.isDevice) {
+    return 'http://10.0.2.2:3000'; 
   }
   
-  // iOS Simulator or Web uses localhost
-  return 'http://localhost:3000'; 
+  // Priority 5: Default local IP (Ultimate fallback)
+  // Replaces localhost which doesn't work for physical devices
+  return 'http://192.168.0.18:3000'; 
 };
 
 export const API_URL = getApiUrl();

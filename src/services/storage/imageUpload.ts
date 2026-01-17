@@ -3,19 +3,13 @@ import { encryptMessage } from "@/core/security";
 import type { Message } from "@/modules/chat/types";
 
 /**
- * Serviço otimizado para upload de imagens no Firebase Storage
+ * Serviço otimizado para upload de imagens no Backend
  * 
  * VANTAGENS sobre Base64:
  * - ✅ Sem overhead de codificação (~33% menor)
  * - ✅ Upload direto (mais rápido)
  * - ✅ Suporte a metadados (tipo MIME, tamanho)
- * - ✅ URLs temporárias com expiração
- * - ✅ Compressão automática do Firebase
- * 
- * SEGURANÇA:
- * - Imagens são armazenadas em paths criptografados
- * - Apenas usuários autorizados podem acessar
- * - URLs expiram automaticamente
+ * - ✅ Gerenciamento de arquivos local no backend
  */
 
 export interface ImageUploadResult {
@@ -60,7 +54,7 @@ async function compressImageIfNeeded(
 }
 
 /**
- * Faz upload de imagem para Firebase Storage
+ * Faz upload de imagem para o Backend
  * 
  * @param imageUri - URI local da imagem (file:// ou content://)
  * @param options - Opções de upload

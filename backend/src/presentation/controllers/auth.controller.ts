@@ -1,4 +1,4 @@
-import { Body, Controller, Post, HttpCode, HttpStatus } from '@nestjs/common';
+import { Body, Controller, Post, HttpCode, HttpStatus, UnauthorizedException } from '@nestjs/common';
 import { AuthenticateUserUseCase } from '../../core/use-cases/auth/authenticate-user.use-case';
 import { CreateUserUseCase } from '../../core/use-cases/user/create-user.use-case';
 import { AuthenticateUserDto } from '../../core/dtos/authenticate-user.dto';
@@ -14,7 +14,19 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() dto: AuthenticateUserDto) {
-    return this.authenticateUserUseCase.execute(dto);
+    try {
+      return await this.authenticateUserUseCase.execute(dto);
+    } catch (error: any) {
+      if (
+        error.message === 'User not found' ||
+        error.message === 'Invalid credentials'
+      ) {
+        throw new UnauthorizedException(
+          'Credenciais inválidas',
+        );
+      }
+      throw error;
+    }
   }
 
   @Post('register')

@@ -7,14 +7,17 @@ import { AppState, AppStateStatus, Linking, Platform, Alert, PermissionsAndroid 
 import * as Location from "expo-location";
 import type { Location as LocationType, LocationPermissionStatus } from "../types";
 
-// Mock de localização para desenvolvimento
-// Só funciona quando __DEV__ === true (modo desenvolvimento)
-// Em produção, o comportamento normal será mantido
+import Constants from "expo-constants";
+
+// Mock de localização para desenvolvimento ou quando forçado via config
 const MOCK_LOCATION: LocationType = {
 	latitude: -17.803677,
 	longitude: -50.920879,
 	updatedAt: new Date(),
 };
+
+// Verificar se devemos usar o mock
+const SHOULD_USE_MOCK = __DEV__ || Constants.expoConfig?.extra?.forceMockLocation === true;
 
 interface UseLocationReturn {
 	location: LocationType | null;
@@ -121,9 +124,9 @@ export function useLocation(): UseLocationReturn {
 	 * Em modo dev (__DEV__), retorna granted automaticamente para permitir uso do mock
 	 */
 	const checkPermission = useCallback(async () => {
-		// Em modo desenvolvimento, retornar granted automaticamente para permitir mock
-		if (__DEV__) {
-			console.log("🔧 useLocation: Modo DEV ativo - usando mock de localização");
+		// Retornar granted automaticamente se mock estiver ativo
+		if (SHOULD_USE_MOCK) {
+			console.log("🔧 useLocation: Usando mock de localização (SHOULD_USE_MOCK ativo)");
 			const permission: LocationPermissionStatus = {
 				granted: true,
 				canAskAgain: false,
@@ -215,16 +218,15 @@ export function useLocation(): UseLocationReturn {
 	 * Em modo dev (__DEV__), retorna coordenadas mockadas imediatamente
 	 */
 	const updateLocation = useCallback(async () => {
-		// Em modo desenvolvimento, usar mock de localização
-		if (__DEV__) {
-			console.log("🔧 useLocation: Modo DEV - usando coordenadas mockadas", {
+		// Usar mock de localização se configurado
+		if (SHOULD_USE_MOCK) {
+			console.log("🔧 useLocation: Usando coordenadas mockadas", {
 				latitude: MOCK_LOCATION.latitude,
 				longitude: MOCK_LOCATION.longitude,
 			});
 			setIsLoading(true);
 			setError(null);
 
-			// Simular delay mínimo para parecer realista
 			await new Promise((resolve) => setTimeout(resolve, 100));
 
 			const mockLocation: LocationType = {
@@ -235,7 +237,6 @@ export function useLocation(): UseLocationReturn {
 			setLocation(mockLocation);
 			setError(null);
 			setIsLoading(false);
-			console.log("✅ useLocation: Mock de localização aplicado com sucesso");
 			return;
 		}
 
@@ -260,23 +261,42 @@ export function useLocation(): UseLocationReturn {
 				throw new Error("Serviços de localização estão desabilitados. Por favor, habilite o GPS.");
 			}
 
-			// Obter localização atual com alta precisão
-			const locationResult = await Location.getCurrentPositionAsync({
-				accuracy: Location.Accuracy.Balanced, // Balanceado entre precisão e bateria
-			});
+			try {
+				console.log("🔍 useLocation: Tentando obter posição (Balanced)...");
+				// Obter localização atual
+				const locationResult = await Location.getCurrentPositionAsync({
+					accuracy: Location.Accuracy.Balanced,
+				});
 
-			const newLocation: LocationType = {
-				latitude: locationResult.coords.latitude,
-				longitude: locationResult.coords.longitude,
-				updatedAt: new Date(),
-			};
+				const newLocation: LocationType = {
+					latitude: locationResult.coords.latitude,
+					longitude: locationResult.coords.longitude,
+					updatedAt: new Date(),
+				};
 
-			setLocation(newLocation);
-			setError(null);
+				setLocation(newLocation);
+				setError(null);
+			} catch (firstTryErr) {
+				console.warn("⚠️ useLocation: Falha ao obter posição com Balanced, tentando Lowest...", firstTryErr);
+				
+				// Segunda tentativa com menor precisão (mais chance de funcionar em emuladores sem GMS)
+				const fallbackResult = await Location.getCurrentPositionAsync({
+					accuracy: Location.Accuracy.Lowest,
+				});
+
+				const fallbackLocation: LocationType = {
+					latitude: fallbackResult.coords.latitude,
+					longitude: fallbackResult.coords.longitude,
+					updatedAt: new Date(),
+				};
+
+				setLocation(fallbackLocation);
+				setError(null);
+			}
 		} catch (err: any) {
 			const errorMessage = err.message || "Erro ao obter localização. Verifique se o GPS está habilitado.";
 			setError(errorMessage);
-			console.error("Erro ao atualizar localização:", err);
+			console.error("❌ useLocation: Erro final ao atualizar localização:", err);
 		} finally {
 			setIsLoading(false);
 		}

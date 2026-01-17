@@ -1,6 +1,5 @@
 import "react-native-get-random-values";
 import { SignalProtocolAddress, SessionBuilder, SessionCipher } from "libsignal-protocol-typescript";
-// import { onSnapshot, doc } from "firebase/firestore"; // Removed
 import {
 	stringToArrayBuffer,
 	arrayBufferToString,

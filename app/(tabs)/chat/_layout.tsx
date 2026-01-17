@@ -53,8 +53,14 @@ const HeaderTitleText = styled.Text`
  * Hook para buscar informações do contato
  */
 function useContactInfo(contactId: string | undefined) {
-	const [contactInfo, setContactInfo] = useState<{ name: string; avatar?: string } | null>(null);
-	const [isLoading, setIsLoading] = useState(true);
+	const params = useLocalSearchParams<{ initialName?: string; initialAvatar?: string }>();
+	const initialName = Array.isArray(params.initialName) ? params.initialName[0] : params.initialName;
+	const initialAvatar = Array.isArray(params.initialAvatar) ? params.initialAvatar[0] : params.initialAvatar;
+
+	const [contactInfo, setContactInfo] = useState<{ name: string; avatar?: string } | null>(
+		initialName ? { name: initialName, avatar: initialAvatar } : null
+	);
+	const [isLoading, setIsLoading] = useState(!initialName);
 
 	useEffect(() => {
 		if (!contactId) {
@@ -71,19 +77,23 @@ function useContactInfo(contactId: string | undefined) {
 						name: userData.displayName || "Usuário",
 						avatar: userData.photoURL,
 					});
-				} else {
+				} else if (!initialName) {
+					// Fallback only if no initial info
 					setContactInfo({ name: "Usuário" });
 				}
 			} catch (error) {
 				console.error("❌ Erro ao buscar informações do contato:", error);
-				setContactInfo({ name: "Usuário" });
+				// Keep initial info if available, otherwise fallback
+				if (!contactInfo?.name && !initialName) {
+					setContactInfo({ name: "Usuário" });
+				}
 			} finally {
 				setIsLoading(false);
 			}
 		};
 
 		fetchContactInfo();
-	}, [contactId]);
+	}, [contactId]); // We don't want to re-run if params change unexpectedly, just contactId
 
 	return { contactInfo, isLoading };
 }

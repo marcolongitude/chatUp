@@ -140,7 +140,11 @@ export default function ConversationsScreen() {
 					avatar: item.photoURL || item.avatar,
 					unreadCount: item.unreadCount
 				}} 
-				onPress={() => handleContactPress(item.id)} 
+				onPress={() => {
+          const name = item.displayName || item.name;
+          const avatar = item.photoURL || item.avatar;
+          handleContactPress(item.id, name, avatar);
+        }} 
 			/>
 		),
 		[handleContactPress]

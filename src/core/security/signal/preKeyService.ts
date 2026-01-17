@@ -1,4 +1,4 @@
-import "@/core/polyfills/textEncoding";
+import "@/core/polyfills";
 
 import { KeyHelper, type KeyPairType, type PreKeyPairType } from "libsignal-protocol-typescript";
 import api from "@/services/api";

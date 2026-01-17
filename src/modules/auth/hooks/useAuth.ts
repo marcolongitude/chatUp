@@ -35,7 +35,7 @@ export function useAuth() {
 	};
 
 	return {
-		user, // O usuário autenticado (anteriormente firebaseUser)
+		user,
 		userProfile,
 		isAuthenticated,
 		hasCompleteProfile,

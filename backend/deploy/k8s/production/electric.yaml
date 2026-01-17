@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: electric
+  namespace: chatup-prod
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: electric
+  template:
+    metadata:
+      labels:
+        app: electric
+    spec:
+      containers:
+      - name: electric
+        image: electricsql/electric:latest
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+        ports:
+        - containerPort: 5133
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: backend-secret
+              key: database_url
+        - name: AUTH_MODE
+          value: "secure" # Em produção deve ser seguro
+        - name: ELECTRIC_WRITE_TO_PG_MODE
+          value: "direct"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: electric
+  namespace: chatup-prod
+spec:
+  selector:
+    app: electric
+  ports:
+  - port: 5133
+    targetPort: 5133
+  type: ClusterIP

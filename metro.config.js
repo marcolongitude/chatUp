@@ -18,6 +18,9 @@ config.resolver.blockList = [
 	/docs\/.*/,
 ];
 
+// Adicionar suporte a .mjs (necessário para Electric SQL e bibliotecas modernas)
+config.resolver.sourceExts.push("mjs");
+
 // Otimizações adicionais
 config.transformer = {
 	...config.transformer,

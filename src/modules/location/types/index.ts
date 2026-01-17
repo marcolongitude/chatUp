@@ -2,12 +2,10 @@
  * Tipos relacionados ao módulo de localização
  */
 
-import { Timestamp } from 'firebase/firestore';
-
 export interface Location {
 	latitude: number;
 	longitude: number;
-	updatedAt: Timestamp | Date;
+	updatedAt: Date | string;
 }
 
 export interface UserLocation {

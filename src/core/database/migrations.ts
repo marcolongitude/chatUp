@@ -19,12 +19,17 @@ export interface Migration {
 const migration_1: Migration = {
 	version: 1,
 	up: async (db) => {
-		// Criar tabela de mensagens
-		await db.execAsync(CREATE_MESSAGES_TABLE);
+		try {
+			// Criar tabela de mensagens
+			await db.execAsync(CREATE_MESSAGES_TABLE);
 
-		// Criar índices
-		for (const indexSql of CREATE_MESSAGES_INDEXES) {
-			await db.execAsync(indexSql);
+			// Criar índices
+			for (const indexSql of CREATE_MESSAGES_INDEXES) {
+				await db.execAsync(indexSql);
+			}
+		} catch (error) {
+			console.error(`❌ Erro na migração 1:`, error);
+			throw error;
 		}
 	},
 	down: async (db) => {

@@ -45,11 +45,16 @@ export class KeysController {
   async getKeyBundle(@Param('userId') userId: string) {
     const bundle = await this.keyRepo.getKeyBundle(userId);
     if (!bundle) {
-      throw new NotFoundException('Key bundle not found for user');
+      // Retornar objeto vazio em vez de 404 para evitar crash no Axios de alguns frontends
+      return { 
+        success: false, 
+        message: 'Key bundle not found for user' 
+      };
     }
 
     // Format for frontend
     return {
+      success: true,
       identityKey: bundle.key.identityKey,
       registrationId: bundle.key.registrationId,
       signedPreKey: bundle.key.signedPreKey,

@@ -6,23 +6,13 @@
 require("dotenv").config();
 
 module.exports = () => {
-	const firebase = {
-		apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-		authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-		projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-		storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-		messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-		appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
-		measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
-	};
-
 	return {
 		expo: {
 			name: "chatUp",
 			slug: "chatUp",
 			version: "1.0.2",
 			orientation: "portrait",
-			icon: "./assets/icon.png",
+			icon: "./assets/logoIcon.png",
 			userInterfaceStyle: "light",
 			newArchEnabled: true,
 			scheme: "chatup",
@@ -43,7 +33,7 @@ module.exports = () => {
 			},
 			android: {
 				adaptiveIcon: {
-					foregroundImage: "./assets/adaptive-icon.png",
+					foregroundImage: "./assets/logoIcon.png",
 					backgroundColor: "#ffffff",
 				},
 				package: "com.chatup.app",
@@ -86,15 +76,13 @@ module.exports = () => {
 				eas: {
 					projectId: "d662ef19-e2a8-4cf3-b18a-564a4faa4a3d",
 				},
-				firebase,
 				// API and Electric SQL URLs
-				// Priority: 1) Environment variable, 2) Railway URL (production), 3) Local IP, 4) undefined
 				apiUrl: process.env.EXPO_PUBLIC_API_URL || 
-					(process.env.LOCAL_IP ? `http://${process.env.LOCAL_IP}:3000` : 'https://backend-production-38c9.up.railway.app'),
+					(`http://${process.env.LOCAL_IP || '192.168.0.18'}:3000`),
 				electricUrl: process.env.EXPO_PUBLIC_ELECTRIC_URL || 
-					(process.env.LOCAL_IP ? `ws://${process.env.LOCAL_IP}:5133` : 'wss://backend-production-38c9.up.railway.app'),
+					(`http://${process.env.LOCAL_IP || '192.168.0.18'}:5133/v1/shape`),
 				electricApiUrl: process.env.EXPO_PUBLIC_ELECTRIC_API_URL || 
-					(process.env.LOCAL_IP ? `http://${process.env.LOCAL_IP}:5133` : 'https://backend-production-38c9.up.railway.app'),
+					(`http://${process.env.LOCAL_IP || '192.168.0.18'}:5133`),
 			},
 		},
 	};

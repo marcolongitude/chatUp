@@ -1,0 +1,54 @@
+services:
+  postgres:
+    build:
+      context: ./docker/postgres
+    environment:
+      POSTGRES_DB: chatup
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+    command: >
+      postgres
+      -c wal_level=logical
+      -c max_replication_slots=10
+      -c max_wal_senders=10
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d chatup"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  electric:
+    image: electricsql/electric:latest
+    environment:
+      DATABASE_URL: postgresql://admin:password@postgres:5432/chatup
+      ELECTRIC_LOG_LEVEL: info
+    ports:
+      - "5133:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: always
+
+  backend:
+    build:
+      context: ../
+      dockerfile: ./deploy/docker/backend/Dockerfile.backend
+    environment:
+      DATABASE_URL: postgresql://admin:password@postgres:5432/chatup
+      ELECTRIC_URL: http://electric:3000
+      NODE_ENV: development
+      JWT_SECRET: dev-secret-key
+      PORT: 3000
+    depends_on:
+      - postgres
+      - electric
+    ports:
+      - "3000:3000"
+    restart: always
+
+volumes:
+  postgres_data:

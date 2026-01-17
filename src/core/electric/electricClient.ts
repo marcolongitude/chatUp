@@ -3,72 +3,86 @@
  * Manages connection to Electric SQL service for real-time data synchronization
  */
 
-import { ElectricClient } from '@electric-sql/client';
 import { ELECTRIC_CONFIG } from './config';
 
-let electricClientInstance: ElectricClient | null = null;
+// Define a simplified client interface or use void since we don't need the object
+export type ElectricClient = {
+  disconnect: () => Promise<void>;
+  isConnected: () => boolean;
+};
+
+let isConnected = false;
 
 /**
- * Initialize Electric client with offline-first support
+ * Initialize Electric client (Connectivity Check)
  */
 export async function initElectricClient(userId?: string): Promise<ElectricClient> {
-  if (electricClientInstance) {
-    return electricClientInstance;
-  }
+  console.log('⚡ Checking Electric SQL connection...');
+  console.log(`📡 Electric URL: ${ELECTRIC_CONFIG.url}`);
 
   try {
-    const client = new ElectricClient({
-      url: ELECTRIC_CONFIG.url,
-      auth: userId ? { userId } : undefined,
-      // Offline-first configuration
-      // Electric will work offline using local SQLite database
-      // and sync when connection is available
+    // perform a simple health check or shape request HEAD to verify connectivity
+    // Using the API URL (without /v1/shape) usually exposes a health or root endpoint
+    // But since we are using /v1/shape, let's just assume it's fine if we can reach it
+    // or rely on TanStack DB to handle the connection errors.
+    
+    // For now, we'll optimistically assume connection is established if configuration is present.
+    // In a real v1 setup, individual ShapeStreams manage their own connections.
+    
+    // We can try to fetch the shape URL with a HEAD request to see if it's reachable
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
+
+    const response = await fetch(ELECTRIC_CONFIG.url!, { 
+      method: 'HEAD',
+      signal: controller.signal
     });
-
-    // Connect with timeout
-    const connectPromise = client.connect();
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Connection timeout')), ELECTRIC_CONFIG.connectTimeout)
-    );
-
-    await Promise.race([connectPromise, timeoutPromise]);
+    clearTimeout(timeoutId);
     
-    electricClientInstance = client;
-    console.log('✅ Electric client connected successfully');
-    console.log(`📡 Electric URL: ${ELECTRIC_CONFIG.url}`);
+    // Note: 400/404 might be expected if no params provided, but 500 or network error is bad.
+    // We'll consider it "connected" if we get a response (even error) from the server,
+    // meaning the server is reachable.
     
-    return client;
+    isConnected = true;
+    console.log('✅ Electric server is reachable');
+
+    return {
+      disconnect: async () => {
+        isConnected = false;
+        console.log('✅ Electric client disconnected (logical)');
+      },
+      isConnected: () => isConnected
+    };
   } catch (error) {
-    console.error('❌ Failed to connect Electric client:', error);
+    console.error('❌ Failed to connect to Electric server:', error);
     console.warn('⚠️ Electric SQL não disponível. App funcionará offline, mas sem sincronização em tempo real.');
-    // Don't throw - allow app to work offline
-    // The app should handle this gracefully
+    isConnected = false;
     throw error;
   }
 }
 
 /**
- * Get Electric client instance
+ * Get Electric client instance (Mock)
  */
 export function getElectricClient(): ElectricClient | null {
-  return electricClientInstance;
+  return {
+    disconnect: async () => { isConnected = false; },
+    isConnected: () => isConnected
+  };
 }
 
 /**
  * Disconnect Electric client
  */
 export async function disconnectElectricClient(): Promise<void> {
-  if (electricClientInstance) {
-    await electricClientInstance.disconnect();
-    electricClientInstance = null;
-    console.log('✅ Electric client disconnected');
-  }
+  isConnected = false;
+  console.log('✅ Electric client disconnected');
 }
 
 /**
  * Check if Electric client is connected
  */
 export function isElectricConnected(): boolean {
-  return electricClientInstance?.isConnected() ?? false;
+  return isConnected;
 }
 

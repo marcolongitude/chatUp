@@ -260,12 +260,14 @@ export default function ChatScreen() {
 	useEffect(() => {
 		if (sortedMessages && sortedMessages.length > 0 && !isLoading) {
 			setTimeout(() => {
-				try {
-					listRef.current?.scrollToIndex({ index: 0, animated: false });
-				} catch (err) {
-					// Se scrollToIndex falhar, usar scrollToOffset como fallback
-					console.warn("⚠️ Erro ao fazer scrollToIndex, usando scrollToOffset:", err);
-					listRef.current?.scrollToOffset({ offset: 0, animated: false });
+				if (sortedMessages.length > 0) { // Double check inside timeout
+					try {
+						listRef.current?.scrollToIndex({ index: 0, animated: false });
+					} catch (err) {
+						// Se scrollToIndex falhar, usar scrollToOffset como fallback seguro
+						// console.warn("⚠️ Erro ao fazer scrollToIndex, usando scrollToOffset:", err);
+						listRef.current?.scrollToOffset({ offset: 0, animated: false });
+					}
 				}
 			}, 200);
 		}
@@ -284,7 +286,7 @@ export default function ChatScreen() {
 							listRef.current?.scrollToIndex({ index: 0, animated: true });
 						} catch (err) {
 							// Se scrollToIndex falhar, usar scrollToOffset como fallback
-							console.warn("⚠️ Erro ao fazer scrollToIndex, usando scrollToOffset:", err);
+							// console.warn("⚠️ Erro ao fazer scrollToIndex, usando scrollToOffset:", err);
 							listRef.current?.scrollToOffset({ offset: 0, animated: true });
 						}
 					}
@@ -460,23 +462,6 @@ export default function ChatScreen() {
 			<Container>
 				<EmptyContainer>
 					<EmptyText>{t("chat.contactNotFound")}</EmptyText>
-				</EmptyContainer>
-			</Container>
-		);
-	}
-
-	// Show error if Electric SQL is not connected
-	if (error && error.includes("Electric SQL não conectado")) {
-		return (
-			<Container>
-				<EmptyContainer>
-					<ActivityIndicator size="large" color={theme.colors.button.primary} />
-					<EmptyText style={{ marginTop: theme.spacing.md }}>
-						Conectando ao servidor...
-					</EmptyText>
-					<EmptyText style={{ marginTop: theme.spacing.sm, fontSize: 12 }}>
-						{error}
-					</EmptyText>
 				</EmptyContainer>
 			</Container>
 		);

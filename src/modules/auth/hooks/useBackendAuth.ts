@@ -13,7 +13,7 @@ interface BackendUser {
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
-  // Mock Firebase methods if needed (e.g. getIdToken)
+  // Method to get current auth token
   getIdToken: () => Promise<string>;
 }
 

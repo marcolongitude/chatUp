@@ -8,7 +8,8 @@ import { electricCollectionOptions } from '@tanstack/electric-db-collection';
 import { messageSchema, type MessageRow } from './schemas';
 import { encryptMessage, decryptMessage } from '@/core/security';
 import type { Collection } from '@tanstack/db';
-import Constants from 'expo-constants';
+import { ELECTRIC_CONFIG } from '@/core/electric/config';
+import { chatService } from '@/services/api/chat.service';
 
 // Helper to generate chat ID (consistent with existing logic)
 function generateChatId(userId1: string, userId2: string): string {
@@ -30,9 +31,7 @@ export const messagesCollection = createCollection(
     // Shapes define what data to sync - Electric will create shapes automatically
     // when queries are made, but we can pre-configure them here
     shapeOptions: {
-      url: process.env.EXPO_PUBLIC_ELECTRIC_API_URL || 
-        Constants.expoConfig?.extra?.electricApiUrl || 
-        'https://backend-production-38c9.up.railway.app',
+      url: ELECTRIC_CONFIG.url!,
       params: {
         table: 'messages',
         // Electric will create shapes dynamically based on queries
@@ -60,7 +59,7 @@ export const messagesCollection = createCollection(
         throw error;
       }
       
-      return { txid: `tx_${Date.now()}` };
+      return { txid: Date.now() };
     },
     
     onUpdate: async ({ transaction }) => {
@@ -69,12 +68,12 @@ export const messagesCollection = createCollection(
       // Handle updates (e.g., marking as read/delivered)
       // Content should not be updated (encrypted), only metadata
       
-      return { txid: `tx_${Date.now()}` };
+      return { txid: Date.now() };
     },
     
     onDelete: async ({ transaction }) => {
       // Handle message deletion if needed
-      return { txid: `tx_${Date.now()}` };
+      return { txid: Date.now() };
     },
   })
 ) as Collection<MessageRow>;
@@ -103,7 +102,7 @@ export async function insertEncryptedMessage(
   
   // Create message row with encrypted content
   const messageRow: MessageRow = {
-    id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    id: crypto.randomUUID(),
     sender_id: messageData.senderId,
     receiver_id: messageData.receiverId,
     content: encryptedContent,
@@ -112,8 +111,42 @@ export async function insertEncryptedMessage(
     is_read: false,
   };
   
-  // Insert into collection (Electric will sync automatically)
-  await messagesCollection.insert(messageRow);
+  // 1. Upstream (Device -> Postgres)
+  // In Electric 1.0 (Next), writes should go through your API to Postgres.
+  // Electric then handles the real-time sync back to all devices (Downstream).
+  console.log(`📡 Sending message to backend for central persistence...`);
+  try {
+    await chatService.sendMessage({
+      receiverId: messageData.receiverId,
+      content: encryptedContent
+    });
+    console.log(`✅ Message persisted in Postgres via Backend API`);
+  } catch (apiErr: any) {
+    console.warn(`⚠️ Failed to persist message on server:`, apiErr?.message);
+    // Offline resilience: the message is still saved locally below
+  }
+
+  // 2. Dual Write: Also write to Local SQLite for immediate UI persistence (Offline First)
+  try {
+    const { insertMessage } = require('@/core/database');
+    console.log(`💾 Saving message to Local SQLite...`);
+    await insertMessage({
+      id: messageRow.id,
+      chatId,
+      senderId: messageRow.sender_id,
+      receiverId: messageRow.receiver_id,
+      text: messageData.content, // Store plaintext locally for UI
+      encryptedText: encryptedContent,
+      timestamp: messageRow.timestamp,
+      read: false,
+      createdAt: messageRow.timestamp,
+      updatedAt: messageRow.timestamp,
+      isLocal: true
+    });
+    console.log(`✅ Message backed up to Local SQLite`);
+  } catch (serializationError) {
+    console.warn(`⚠️ Failed to backup message to Local SQLite:`, serializationError);
+  }
   
   return messageRow.id;
 }

@@ -4,8 +4,7 @@
  */
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { initElectricClient, disconnectElectricClient, getElectricClient, isElectricConnected } from './electricClient';
-import { ElectricClient } from '@electric-sql/client';
+import { initElectricClient, disconnectElectricClient, getElectricClient, isElectricConnected, ElectricClient } from './electricClient';
 import { useAuth } from '@/modules/auth';
 
 interface ElectricContextValue {
@@ -41,6 +40,7 @@ export function ElectricProvider({ children }: ElectricProviderProps) {
         setIsLoading(true);
         setError(null);
 
+        // This effectively just checks if the server is reachable
         const electricClient = await initElectricClient(user.id);
         
         if (mounted) {
@@ -49,29 +49,9 @@ export function ElectricProvider({ children }: ElectricProviderProps) {
           setIsLoading(false);
         }
 
-        // Listen for connection changes
-        electricClient.on('connect', () => {
-          if (mounted) {
-            console.log('✅ Electric SQL conectado');
-            setIsConnected(true);
-            setError(null);
-          }
-        });
+        // Note: Event listeners removed as we are using a simplified connectivity check
+        // Real-time status is handled via polling isElectricConnected() below
 
-        electricClient.on('disconnect', () => {
-          if (mounted) {
-            console.warn('⚠️ Electric SQL desconectado - modo offline');
-            setIsConnected(false);
-          }
-        });
-
-        electricClient.on('error', (err: Error) => {
-          if (mounted) {
-            console.error('❌ Electric SQL error:', err);
-            setError(err);
-            setIsConnected(false);
-          }
-        });
       } catch (err) {
         if (mounted) {
           const error = err as Error;
@@ -81,6 +61,8 @@ export function ElectricProvider({ children }: ElectricProviderProps) {
           setIsLoading(false);
           setIsConnected(false);
           // Don't set client to null - allow app to work offline
+          // We can still provide the disconnect method if needed
+          setClient(getElectricClient());
         }
       }
     };
@@ -99,7 +81,7 @@ export function ElectricProvider({ children }: ElectricProviderProps) {
   useEffect(() => {
     const interval = setInterval(() => {
       setIsConnected(isElectricConnected());
-    }, 1000);
+    }, 2000); // Check every 2s
 
     return () => clearInterval(interval);
   }, []);

@@ -1,17 +1,5 @@
-// Polyfill for crypto.randomUUID() required by TanStack DB
-// Using expo-crypto which is already installed
-import * as Crypto from "expo-crypto";
-
-// Polyfill crypto.randomUUID if not available
-if (typeof global.crypto === "undefined") {
-	(global as any).crypto = {};
-}
-if (typeof (global as any).crypto.randomUUID !== "function") {
-	// expo-crypto.randomUUID() is synchronous
-	(global as any).crypto.randomUUID = () => {
-		return Crypto.randomUUID().toLowerCase();
-	};
-}
+// MUST BE THE VERY FIRST IMPORT
+import "@/core/polyfills";
 
 import { Stack } from "expo-router";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -23,9 +11,16 @@ import { ElectricProvider } from "@/core/electric";
 import { UpdateDialog, CryptoLoadingProvider } from "@/shared/components";
 import React, { Suspense, useEffect } from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
-// import "@/core/firebase";
-// Database initialization removed - Electric SQL handles data storage
 import { requestNotificationPermissions } from "@/services/notifications";
+
+// Polyfill global crypto (keep as backup if not handled in polyfills/index.ts)
+import * as Crypto from "expo-crypto";
+if (typeof (global as any).crypto === "undefined") {
+	(global as any).crypto = {} as any;
+}
+if (typeof (global as any).crypto.randomUUID !== "function") {
+	(global as any).crypto.randomUUID = () => Crypto.randomUUID().toLowerCase();
+}
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {
 	constructor(props: { children: React.ReactNode }) {

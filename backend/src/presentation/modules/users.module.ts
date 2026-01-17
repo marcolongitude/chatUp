@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersController } from '../controllers/users.controller';
 import { UpdateUserUseCase } from '../../core/use-cases/user/update-user.use-case';
 import { SearchUsersUseCase } from '../../core/use-cases/user/search-users.use-case';
+import { FindUserByIdUseCase } from '../../core/use-cases/user/find-user-by-id.use-case';
 import { TypeOrmUserRepository } from '../../infra/database/typeorm-user.repository';
 import { TypeOrmUserEntity } from '../../infra/database/entities/typeorm-user.entity';
 
@@ -19,6 +20,11 @@ import { TypeOrmUserEntity } from '../../infra/database/entities/typeorm-user.en
     {
       provide: SearchUsersUseCase,
       useFactory: (repo: TypeOrmUserRepository) => new SearchUsersUseCase(repo),
+      inject: [TypeOrmUserRepository],
+    },
+    {
+      provide: FindUserByIdUseCase,
+      useFactory: (repo: TypeOrmUserRepository) => new FindUserByIdUseCase(repo),
       inject: [TypeOrmUserRepository],
     },
   ],
