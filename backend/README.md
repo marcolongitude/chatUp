@@ -6,8 +6,6 @@ Backend service for ChatUp, built with NestJS and following Clean Architecture.
 
 ### 🚀 Deployment Guides
 
-- **[Railway Setup Guide](./RAILWAY_SETUP.md)** - Complete guide to deploy on Railway
-- **[Railway Cleanup](./RAILWAY_CLEANUP.md)** - Fix "Dockerfile.electric does not exist" error
 - **[Database Troubleshooting](./DATABASE_TROUBLESHOOTING.md)** - Fix database connection issues
 - **[Security Fix](../SECURITY_FIX.md)** - CVE-2025-66478 vulnerability fix
 
@@ -73,8 +71,7 @@ src/
    The API will be available at `http://localhost:3000`
 
 ### Production Deployment
-
-See **[Railway Setup Guide](./RAILWAY_SETUP.md)** for detailed instructions.
+See documentation for detailed instructions.
 
 ## 🛠️ Available Scripts
 
@@ -125,7 +122,7 @@ npm run audit:fix       # Fix security vulnerabilities
 ### Required Variables
 
 ```bash
-# Database (Railway auto-provides this)
+# Database
 DATABASE_URL=postgresql://user:password@host:port/database
 
 # Application
@@ -137,7 +134,7 @@ JWT_SECRET=your-super-secure-secret-here
 JWT_EXPIRES_IN=7d
 ```
 
-See **[Railway Setup Guide](./RAILWAY_SETUP.md)** for complete list.
+
 
 ## 📡 API Endpoints
 
@@ -252,26 +249,17 @@ npm run test:e2e
 ### Health Check
 
 ```bash
-curl https://your-app.railway.app/health
+curl http://localhost:3000/health
 ```
 
-### Logs
-
-```bash
-# Via Railway CLI
-railway logs
-
-# Follow logs in real-time
-railway logs --follow
-```
+# Check container logs
+docker logs <container-id>
 
 ## 🐛 Troubleshooting
 
 ### Database Connection Issues
 
 See **[Database Troubleshooting Guide](./DATABASE_TROUBLESHOOTING.md)**
-
-### Security Vulnerabilities
 
 See **[Security Fix Guide](../SECURITY_FIX.md)**
 
@@ -323,7 +311,6 @@ Private - All rights reserved
 ## 📞 Support
 
 - **Issues**: Open an issue on GitHub
-- **Railway Support**: [help.railway.app](https://help.railway.app)
 - **NestJS Docs**: [docs.nestjs.com](https://docs.nestjs.com)
 
 ---

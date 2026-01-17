@@ -15,8 +15,8 @@ DB_NAME="${DB_NAME:-chatup}"
 
 echo "🔄 Resetando banco de dados..."
 
-# Executar script SQL de reset
-PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f electric/reset-database.sql
+# Executar comandos SQL de reset
+PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO public; COMMENT ON SCHEMA public IS 'standard public schema';"
 
 if [ $? -eq 0 ]; then
     echo "✅ Banco de dados resetado com sucesso!"

@@ -6,7 +6,7 @@ import { PreKey } from '../../core/entities/pre-key.entity';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
-  // Suporta DATABASE_URL (Railway) ou variáveis individuais
+  // Suporta DATABASE_URL ou variáveis individuais
   ...(process.env.DATABASE_URL
     ? {
         url: process.env.DATABASE_URL,

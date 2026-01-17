@@ -12,7 +12,6 @@ import { Key } from './core/entities/key.entity';
 import { PreKey } from './core/entities/pre-key.entity';
 import { LocationModule } from './presentation/modules/location.module';
 import { FilesModule } from './presentation/modules/files.module';
-import { ElectricModule } from './infra/database/electric.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -20,7 +19,7 @@ import { AppController } from './app.controller';
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRoot({
       type: 'postgres',
-      // Suporta DATABASE_URL (Railway) ou variáveis individuais
+      // Suporta DATABASE_URL ou variáveis individuais
       ...(process.env.DATABASE_URL
         ? {
             url: process.env.DATABASE_URL,
@@ -52,7 +51,6 @@ import { AppController } from './app.controller';
         idleTimeoutMillis: 30000, // 30 seconds
       },
     }),
-    ElectricModule,
     AuthModule,
     UsersModule,
     ChatModule,
