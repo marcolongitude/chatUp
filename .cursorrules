@@ -2,20 +2,76 @@
 
 ## Contexto do Projeto
 
-Este é um aplicativo React Native com Expo Router para chat em tempo real com criptografia end-to-end.
+Este é um aplicativo React Native com Expo Router para chat em tempo real com criptografia end-to-end, sincronização offline-first via ElectricSQL e backend NestJS.
 
 ### Stack Tecnológico
 
+#### Frontend (React Native + Expo)
+
 -   **Framework**: Expo ~54.0.0 com React Native 0.81.5
--   **React**: 19.1.0
+-   **React**: 19.0.2
 -   **TypeScript**: ~5.9.2 (strict mode habilitado)
 -   **Roteamento**: Expo Router ~6.0.15 (file-based routing)
 -   **Estilização**: styled-components ^6.1.19
 -   **Estado Servidor**: @tanstack/react-query ^5.62.0
--   **Backend**: Firebase 12.6.0 (Firestore, Auth, Storage)
+-   **Sincronização Local-First**: 
+    -   @electric-sql/client ^1.3.1
+    -   @tanstack/electric-db-collection ^0.2.20
+    -   @tanstack/react-db ^0.1.60
+    -   expo-sqlite ~16.0.9
 -   **Formulários**: react-hook-form ^7.66.1
--   **Criptografia**: expo-crypto ~15.0.7 (implementação customizada E2E)
+-   **Criptografia**: 
+    -   expo-crypto ~15.0.7
+    -   libsignal-protocol-typescript ^0.0.18
+    -   react-native-quick-crypto ^1.0.6
+    -   @noble/curves ^2.0.1, @noble/hashes ^2.0.1
+-   **Armazenamento Local**:
+    -   @react-native-async-storage/async-storage ^2.1.0
+    -   react-native-mmkv ^4.0.1
+    -   react-native-keychain ^10.0.0
+    -   expo-secure-store ^15.0.7
 -   **Internacionalização**: expo-localization ^17.0.7, i18next ^25.6.3, react-i18next ^16.3.5
+-   **Networking**: axios ^1.7.9, @react-native-community/netinfo ^11.3.1
+
+#### Backend (NestJS)
+
+-   **Framework**: NestJS ^11.0.1
+-   **Runtime**: Node.js >=20.0.0, npm >=10.0.0
+-   **TypeScript**: ^5.7.3
+-   **Database ORM**: TypeORM ^0.3.28
+-   **Database Driver**: pg ^8.16.3 (PostgreSQL)
+-   **Autenticação**:
+    -   @nestjs/passport ^11.0.5
+    -   @nestjs/jwt ^11.0.2
+    -   passport ^0.7.0
+    -   passport-jwt ^4.0.1
+    -   bcrypt ^6.0.0
+-   **WebSockets**: 
+    -   @nestjs/websockets ^11.1.9
+    -   @nestjs/platform-socket.io ^11.1.9
+    -   socket.io ^4.8.1
+-   **Validação**:
+    -   class-validator ^0.14.3
+    -   class-transformer ^0.5.1
+-   **Criptografia E2E**: libsignal-protocol-typescript ^0.0.18
+-   **Configuração**: @nestjs/config ^4.0.2
+-   **Testing**: Jest ^30.0.0, Supertest ^7.0.0
+
+#### Infraestrutura (Docker)
+
+-   **PostgreSQL**: Custom build com WAL logical replication
+    -   Configurações: wal_level=logical, max_replication_slots=10, max_wal_senders=10
+    -   Porta: 5432
+    -   Database: chatup
+    -   User: admin
+-   **ElectricSQL**: electricsql/electric:latest
+    -   Sincronização em tempo real PostgreSQL ↔ SQLite
+    -   Porta: 5133 (mapeada de 3000 interno)
+    -   Modo: ELECTRIC_INSECURE=true (desenvolvimento)
+-   **Backend NestJS**: Custom Dockerfile
+    -   Porta: 3000
+    -   Conecta ao PostgreSQL e ElectricSQL
+    -   Variáveis: DATABASE_URL, ELECTRIC_URL, JWT_SECRET
 
 ### Arquitetura do Projeto
 
@@ -44,6 +100,245 @@ src/
   shared/              # Componentes e utilitários compartilhados
   tests/               # Configuração de testes
 ```
+
+### Feature-Sliced Design (FSD) - Arquitetura Frontend
+
+Este projeto segue a metodologia **Feature-Sliced Design (FSD)** para organização do código frontend. FSD é uma metodologia arquitetural que torna o projeto mais compreensível e estável diante de requisitos de negócio em constante mudança.
+
+**Documentação Oficial**: https://feature-sliced.design/docs/get-started/tutorial
+
+#### Conceitos Fundamentais
+
+##### 1. Layers (Camadas)
+
+As camadas são padronizadas em todos os projetos FSD. Existem 7 camadas (de cima para baixo):
+
+1. **app** — Tudo que faz o app rodar: routing, entrypoints, estilos globais, providers
+2. **processes** (deprecated) — Cenários complexos entre páginas
+3. **pages** — Páginas completas ou grandes partes de uma página em nested routing
+4. **widgets** — Grandes blocos auto-contidos de funcionalidade ou UI, geralmente entregando um caso de uso completo
+5. **features** — Implementações reutilizáveis de funcionalidades completas do produto (ações que trazem valor de negócio ao usuário)
+6. **entities** — Entidades de negócio com as quais o projeto trabalha (ex: user, message, contact)
+7. **shared** — Funcionalidade reutilizável, especialmente quando desacoplada das especificidades do projeto/negócio
+
+**Regra Fundamental**: Módulos em uma camada só podem importar de camadas **estritamente abaixo**.
+
+```typescript
+// ✅ BOM - Feature importando de Entity e Shared
+// src/features/send-message/ui/SendMessageForm.tsx
+import { Message } from "@/entities/message";
+import { Button } from "@/shared/ui";
+
+// ❌ EVITAR - Feature importando de Widget (camada acima)
+import { ChatWidget } from "@/widgets/chat";
+```
+
+##### 2. Slices (Fatias)
+
+Slices particionam o código por **domínio de negócio**. Você é livre para escolher nomes e criar quantas quiser.
+
+- Slices mantêm módulos logicamente relacionados próximos
+- **Slices não podem usar outras slices na mesma camada** (alta coesão, baixo acoplamento)
+- Camadas **app** e **shared** não têm slices, apenas segments
+
+```
+src/
+  entities/
+    user/           # Slice de usuário
+    message/        # Slice de mensagem
+    contact/        # Slice de contato
+  features/
+    send-message/   # Slice de enviar mensagem
+    edit-profile/   # Slice de editar perfil
+```
+
+##### 3. Segments (Segmentos)
+
+Segments agrupam código por **propósito técnico**. Nomes convencionais:
+
+- **ui** — Tudo relacionado a UI: componentes, formatadores, estilos
+- **api** — Interações com backend: funções de request, tipos de dados, mappers
+- **model** — Modelo de dados: schemas, interfaces, stores, lógica de negócio
+- **lib** — Código de biblioteca que outros módulos nesta slice precisam
+- **config** — Arquivos de configuração e feature flags
+
+```
+src/
+  entities/
+    message/
+      ui/           # Componentes de UI de mensagem
+      api/          # API de mensagens
+      model/        # Tipos e lógica de mensagem
+      lib/          # Utilitários de mensagem
+      index.ts      # Public API
+```
+
+#### Estrutura FSD Recomendada para ChatUp
+
+```
+src/
+  app/                          # Layer: App
+    providers/                  # Segment: providers
+      ThemeProvider.tsx
+      I18nProvider.tsx
+      QueryProvider.tsx
+    styles/                     # Segment: styles
+      global.css
+    index.tsx                   # Entrypoint
+
+  pages/                        # Layer: Pages
+    chat/                       # Slice: chat
+      ui/                       # Segment: ui
+        ChatPage.tsx
+      model/                    # Segment: model
+        useChatPage.ts
+      index.ts
+    profile/                    # Slice: profile
+      ui/
+        ProfilePage.tsx
+      index.ts
+
+  widgets/                      # Layer: Widgets
+    chat-header/                # Slice: chat-header
+      ui/
+        ChatHeader.tsx
+      index.ts
+    message-list/               # Slice: message-list
+      ui/
+        MessageList.tsx
+      model/
+        useMessageList.ts
+      index.ts
+
+  features/                     # Layer: Features
+    send-message/               # Slice: send-message
+      ui/
+        SendMessageForm.tsx
+      model/
+        useSendMessage.ts
+      api/
+        sendMessageApi.ts
+      index.ts
+    edit-profile/               # Slice: edit-profile
+      ui/
+        EditProfileForm.tsx
+      model/
+        useEditProfile.ts
+      index.ts
+    encrypt-message/            # Slice: encrypt-message
+      lib/
+        encryption.ts
+      index.ts
+
+  entities/                     # Layer: Entities
+    user/                       # Slice: user
+      ui/
+        UserAvatar.tsx
+      model/
+        types.ts
+        userStore.ts
+      api/
+        userApi.ts
+      index.ts
+    message/                    # Slice: message
+      ui/
+        MessageBubble.tsx
+      model/
+        types.ts
+      lib/
+        formatMessage.ts
+      index.ts
+    contact/                    # Slice: contact
+      ui/
+        ContactCard.tsx
+      model/
+        types.ts
+      index.ts
+
+  shared/                       # Layer: Shared
+    ui/                         # Segment: ui
+      Button/
+      Input/
+      Avatar/
+    api/                        # Segment: api
+      axios.ts
+      client.ts
+    lib/                        # Segment: lib
+      hooks/
+        useDebounce.ts
+      utils/
+        formatTime.ts
+    config/                     # Segment: config
+      constants.ts
+    theme/                      # Segment: theme
+      colors.ts
+      typography.ts
+```
+
+#### Regras de Importação FSD
+
+1. **Public API (index.ts)**
+
+   - Cada slice DEVE ter um `index.ts` que exporta sua API pública
+   - Outros módulos só podem importar através do `index.ts`
+   - Isso garante encapsulamento e facilita refatoração
+
+   ```typescript
+   // ✅ BOM - Importar através do index
+   import { UserAvatar } from "@/entities/user";
+
+   // ❌ EVITAR - Importar diretamente de segments
+   import { UserAvatar } from "@/entities/user/ui/UserAvatar";
+   ```
+
+2. **Regra de Camadas**
+
+   ```typescript
+   // ✅ BOM - Camadas superiores importam de inferiores
+   // pages → widgets, features, entities, shared
+   // widgets → features, entities, shared
+   // features → entities, shared
+   // entities → shared
+
+   // ❌ EVITAR - Camadas inferiores importando de superiores
+   // entities → features (PROIBIDO)
+   // shared → entities (PROIBIDO)
+   ```
+
+3. **Isolamento de Slices**
+
+   ```typescript
+   // ✅ BOM - Slices na mesma camada não se importam
+   // features/send-message não importa de features/edit-profile
+
+   // Se precisar compartilhar, mova para uma camada inferior:
+   // - Lógica compartilhada → entities ou shared
+   // - Componentes compartilhados → shared/ui
+   ```
+
+#### Migração Gradual para FSD
+
+O projeto atual pode ser migrado gradualmente:
+
+1. **Fase 1**: Reorganizar `shared/` seguindo segments (ui, lib, api, config)
+2. **Fase 2**: Extrair entidades de negócio para `entities/` (user, message, contact)
+3. **Fase 3**: Identificar e mover features para `features/` (send-message, edit-profile)
+4. **Fase 4**: Criar widgets compostos em `widgets/` (chat-header, message-list)
+5. **Fase 5**: Organizar pages em `pages/` (já parcialmente feito em `app/`)
+
+#### Benefícios do FSD
+
+- **Escalabilidade**: Estrutura clara mesmo com crescimento do projeto
+- **Manutenibilidade**: Fácil localizar e modificar código
+- **Reusabilidade**: Componentes e lógica bem isolados
+- **Onboarding**: Novos desenvolvedores entendem a estrutura rapidamente
+- **Testabilidade**: Isolamento facilita testes unitários e de integração
+
+#### Ferramentas FSD
+
+- **Linter**: [Steiger](https://github.com/feature-sliced/steiger) - Valida arquitetura FSD
+- **Exemplos**: https://feature-sliced.design/examples
+- **Awesome FSD**: https://github.com/feature-sliced/awesome
 
 ## Regras Gerais de Código
 
@@ -100,9 +395,16 @@ src/
     	onPress: () => void;
     }
 
+    export function Button({ title, onPress }: ButtonProps) {
+    	// ...
+    }
+    
+    ```
+    // ❌ EVITAR
     export const Button: React.FC<ButtonProps> = ({ title, onPress }) => {
     	// ...
     };
+    - nunca usar emojis em comentarios ou console.logs ou mensagens de debug
     ```
 
 2. **Hooks**
@@ -190,34 +492,6 @@ src/
     - Evite criar styled components dentro de componentes funcionais
     - Defina styled components no nível do módulo
 
-### Firebase
-
-1. **Firestore**
-
-    ```typescript
-    // ✅ BOM - Queries tipadas
-    import { collection, query, where, orderBy } from "firebase/firestore";
-    import { db } from "@/core/firebase";
-
-    const messagesQuery = query(
-    	collection(db, "messages"),
-    	where("chatId", "==", chatId),
-    	orderBy("timestamp", "desc"),
-    	limit(50)
-    );
-    ```
-
-2. **Real-time Listeners**
-
-    - Sempre faça cleanup de listeners no `useEffect`
-    - Use `onSnapshot` para dados em tempo real
-    - Trate erros de permissão e índices faltando
-
-3. **Segurança**
-    - Mensagens devem ser criptografadas antes de salvar no Firestore
-    - Use `encryptMessage` e `decryptMessage` de `@/core/security`
-    - Nunca armazene dados sensíveis sem criptografia
-
 ### React Query (TanStack Query)
 
 1. **Queries**
@@ -252,14 +526,12 @@ src/
 ### Criptografia e Segurança
 
 1. **Mensagens**
-
     - SEMPRE criptografe mensagens antes de enviar ao Firestore
     - Use `encryptMessage(plaintext, chatId, userId)` antes de `addDoc`
     - Use `decryptMessage(encryptedText, chatId, userId)` ao receber
     - Nunca armazene texto plano de mensagens
 
 2. **Chaves**
-
     - Chaves são derivadas do `chatId` (mesma chave para ambos usuários)
     - Chaves são armazenadas localmente via AsyncStorage
     - Limpe chaves no logout usando `clearAllKeys()`
@@ -272,12 +544,10 @@ src/
 ### Tratamento de Erros
 
 1. **Error Boundaries**
-
     - Use ErrorBoundary no nível raiz (`app/_layout.tsx`)
     - Capture erros de renderização e inicialização
 
 2. **Tratamento de Erros em Hooks**
-
     ```typescript
     // ✅ BOM
     try {
@@ -288,11 +558,6 @@ src/
     	// Não apenas console.error
     }
     ```
-
-3. **Mensagens de Erro**
-    - Converta códigos de erro do Firebase para mensagens amigáveis
-    - Use a função `getFirebaseErrorMessage` como referência
-    - Sempre mostre feedback visual ao usuário
 
 ### Formulários (React Hook Form)
 
@@ -694,7 +959,1156 @@ src/
     - Use `developer` como branch principal de desenvolvimento
     - Crie branches feature para novas funcionalidades
 
+## Docker e Infraestrutura
+
+### Estrutura de Containers
+
+O projeto usa Docker Compose com 3 serviços principais:
+
+1. **PostgreSQL** - Banco de dados principal com replicação lógica
+2. **ElectricSQL** - Sincronização em tempo real
+3. **Backend NestJS** - API REST e WebSockets
+
+### PostgreSQL Container
+
+1. **Configuração Obrigatória**
+
+    - **SEMPRE** use `wal_level=logical` para ElectricSQL funcionar
+    - Configure `max_replication_slots=10` e `max_wal_senders=10`
+    - Use healthcheck para garantir disponibilidade antes de outros serviços
+
+    ```yaml
+    # ✅ BOM - PostgreSQL configurado para ElectricSQL
+    postgres:
+        build:
+            context: ./docker/postgres
+        environment:
+            POSTGRES_DB: chatup
+            POSTGRES_USER: admin
+            POSTGRES_PASSWORD: password
+        command: >
+            postgres
+            -c wal_level=logical
+            -c max_replication_slots=10
+            -c max_wal_senders=10
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U admin -d chatup"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+    ```
+
+2. **Volumes**
+    - Use volumes nomeados para persistência de dados
+    - NUNCA delete volumes em produção sem backup
+
+### ElectricSQL Container
+
+1. **Configuração**
+
+    ```yaml
+    # ✅ BOM - ElectricSQL configurado
+    electric:
+        image: electricsql/electric:latest
+        environment:
+            DATABASE_URL: postgresql://admin:password@postgres:5432/chatup
+            ELECTRIC_INSECURE: "true" # Apenas desenvolvimento
+            ELECTRIC_LOG_LEVEL: info
+        ports:
+            - "5133:3000" # Porta externa:interna
+        depends_on:
+            postgres:
+                condition: service_healthy
+    ```
+
+2. **Regras Importantes**
+    - SEMPRE use `depends_on` com `condition: service_healthy`
+    - Em produção, remova `ELECTRIC_INSECURE` ou configure SSL
+    - A porta interna é sempre 3000, mapeie para 5133 externamente
+
+### Backend Container
+
+1. **Dockerfile**
+
+    - Use multi-stage builds para otimizar tamanho
+    - Instale apenas dependências de produção na imagem final
+    - Configure NODE_ENV corretamente
+
+    ```dockerfile
+    # ✅ BOM - Multi-stage build
+    FROM node:20-alpine AS builder
+    WORKDIR /app
+    COPY package*.json ./
+    RUN npm ci
+    COPY . .
+    RUN npm run build
+
+    FROM node:20-alpine
+    WORKDIR /app
+    COPY --from=builder /app/dist ./dist
+    COPY --from=builder /app/node_modules ./node_modules
+    COPY package*.json ./
+    CMD ["node", "dist/main"]
+    ```
+
+2. **Variáveis de Ambiente**
+
+    - `DATABASE_URL`: Conexão PostgreSQL
+    - `ELECTRIC_URL`: URL do ElectricSQL (http://electric:3000)
+    - `JWT_SECRET`: Chave secreta para tokens
+    - `PORT`: Porta do servidor (padrão 3000)
+    - `NODE_ENV`: development | production
+
+### Docker Compose - Boas Práticas
+
+1. **Ordem de Inicialização**
+
+    ```yaml
+    # ✅ BOM - Ordem correta com healthchecks
+    services:
+        postgres:
+            # ... configuração
+            healthcheck: # OBRIGATÓRIO
+                test: ["CMD-SHELL", "pg_isready"]
+
+        electric:
+            depends_on:
+                postgres:
+                    condition: service_healthy # Aguarda healthcheck
+
+        backend:
+            depends_on:
+                - postgres
+                - electric
+    ```
+
+2. **Networking**
+
+    - Serviços no mesmo docker-compose se comunicam pelo nome do serviço
+    - Use `postgres:5432` não `localhost:5432` entre containers
+    - Exponha portas apenas quando necessário acesso externo
+
+3. **Comandos Úteis**
+
+    ```bash
+    # Iniciar todos os serviços
+    docker-compose up -d
+
+    # Ver logs de um serviço específico
+    docker-compose logs -f backend
+
+    # Reiniciar um serviço
+    docker-compose restart electric
+
+    # Parar e remover containers (mantém volumes)
+    docker-compose down
+
+    # Parar e remover TUDO incluindo volumes (CUIDADO!)
+    docker-compose down -v
+    ```
+
+## ElectricSQL + TanStack Query
+
+### Conceitos Fundamentais
+
+ElectricSQL sincroniza dados entre PostgreSQL (servidor) e SQLite (cliente) em tempo real, permitindo:
+
+-   **Offline-first**: App funciona sem internet
+-   **Sincronização automática**: Mudanças locais → servidor e vice-versa
+-   **Conflito automático**: ElectricSQL resolve conflitos (last-write-wins)
+-   **Reatividade**: UI atualiza automaticamente quando dados mudam
+
+### Arquitetura de Dados
+
+```
+PostgreSQL (Servidor)
+    ↕ ElectricSQL (Sincronização)
+SQLite (Cliente - expo-sqlite)
+    ↕ TanStack Query (Cache + Reatividade)
+React Components
+```
+
+### Configuração do Cliente
+
+1. **Inicialização do Electric**
+
+    ```typescript
+    // ✅ BOM - Configurar Electric client
+    import { Electric } from "@electric-sql/client";
+    import * as SQLite from "expo-sqlite";
+
+    const db = SQLite.openDatabaseSync("chatup.db");
+
+    const electric = await Electric.init({
+        db,
+        url: "http://localhost:5133", // URL do ElectricSQL
+    });
+
+    // Sincronizar tabelas
+    await electric.sync.subscribe({
+        table: "messages",
+        where: `user_id = '${userId}'`,
+    });
+    ```
+
+2. **Integração com TanStack Query**
+
+    ```typescript
+    // ✅ BOM - Usar TanStack Query com Electric
+    import { useElectricQuery } from "@tanstack/react-db";
+
+    function useMessages(contactId: string) {
+        return useElectricQuery({
+            queryKey: ["messages", contactId],
+            queryFn: async () => {
+                const result = await db.getAllAsync(
+                    "SELECT * FROM messages WHERE contact_id = ? ORDER BY created_at DESC",
+                    [contactId]
+                );
+                return result;
+            },
+            // Reativa automaticamente quando dados mudam
+            refetchOnMount: false,
+            refetchOnWindowFocus: false,
+        });
+    }
+    ```
+
+### Padrões de Uso
+
+1. **Leitura de Dados**
+
+    ```typescript
+    // ✅ BOM - Query reativa
+    const { data: messages, isLoading } = useElectricQuery({
+        queryKey: ["messages", chatId],
+        queryFn: () =>
+            db.getAllAsync("SELECT * FROM messages WHERE chat_id = ?", [
+                chatId,
+            ]),
+    });
+    ```
+
+2. **Escrita de Dados**
+
+    ```typescript
+    // ✅ BOM - Mutation com invalidação
+    const sendMessage = useMutation({
+        mutationFn: async (message: NewMessage) => {
+            // Insere localmente (sincroniza automaticamente)
+            await db.runAsync(
+                "INSERT INTO messages (id, chat_id, text, created_at) VALUES (?, ?, ?, ?)",
+                [message.id, message.chatId, message.text, Date.now()]
+            );
+        },
+        onSuccess: () => {
+            // Invalida cache para re-fetch
+            queryClient.invalidateQueries({ queryKey: ["messages"] });
+        },
+    });
+    ```
+
+3. **Sincronização Seletiva**
+
+    ```typescript
+    // ✅ BOM - Sincronizar apenas dados relevantes
+    // Sincronizar apenas mensagens dos últimos 30 dias
+    await electric.sync.subscribe({
+        table: "messages",
+        where: `created_at > ${Date.now() - 30 * 24 * 60 * 60 * 1000}`,
+    });
+
+    // Sincronizar apenas contatos do usuário
+    await electric.sync.subscribe({
+        table: "contacts",
+        where: `user_id = '${userId}'`,
+    });
+    ```
+
+### Schema e Migrações
+
+1. **Definir Schema no PostgreSQL**
+
+    ```sql
+    -- ✅ BOM - Tabela com suporte ElectricSQL
+    CREATE TABLE messages (
+        id UUID PRIMARY KEY,
+        chat_id UUID NOT NULL,
+        sender_id UUID NOT NULL,
+        text TEXT NOT NULL,
+        encrypted BOOLEAN DEFAULT false,
+        created_at BIGINT NOT NULL,
+        updated_at BIGINT NOT NULL
+    );
+
+    -- Habilitar ElectricSQL para a tabela
+    ALTER TABLE messages ENABLE ELECTRIC;
+    ```
+
+2. **Migrações**
+    - Use TypeORM migrations no backend para alterar schema
+    - ElectricSQL detecta mudanças automaticamente
+    - Clientes sincronizam novo schema na próxima conexão
+
+### Tratamento de Conflitos
+
+1. **Last-Write-Wins (Padrão)**
+
+    - ElectricSQL usa timestamp para resolver conflitos
+    - Última escrita sempre vence
+    - Adequado para maioria dos casos
+
+2. **Conflitos Customizados**
+    ```typescript
+    // Para casos especiais, implemente lógica customizada
+    // Exemplo: Merge de arrays ao invés de substituição
+    ```
+
+### Performance e Otimização
+
+1. **Índices no SQLite**
+
+    ```typescript
+    // ✅ BOM - Criar índices para queries frequentes
+    await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS idx_messages_chat_id 
+        ON messages(chat_id);
+        
+        CREATE INDEX IF NOT EXISTS idx_messages_created_at 
+        ON messages(created_at DESC);
+    `);
+    ```
+
+2. **Paginação**
+
+    ```typescript
+    // ✅ BOM - Paginar queries grandes
+    const { data, fetchNextPage, hasNextPage } = useInfiniteQuery({
+        queryKey: ["messages", chatId],
+        queryFn: ({ pageParam = 0 }) =>
+            db.getAllAsync(
+                "SELECT * FROM messages WHERE chat_id = ? ORDER BY created_at DESC LIMIT 50 OFFSET ?",
+                [chatId, pageParam]
+            ),
+        getNextPageParam: (lastPage, pages) =>
+            lastPage.length === 50 ? pages.length * 50 : undefined,
+    });
+    ```
+
+3. **Limpeza de Dados Antigos**
+    ```typescript
+    // ✅ BOM - Remover dados antigos periodicamente
+    await db.runAsync(
+        "DELETE FROM messages WHERE created_at < ?",
+        [Date.now() - 90 * 24 * 60 * 60 * 1000] // 90 dias
+    );
+    ```
+
+### Debugging
+
+1. **Verificar Status de Sincronização**
+
+    ```typescript
+    // ✅ BOM - Monitorar sincronização
+    electric.sync.status.subscribe((status) => {
+        console.log("Sync status:", status);
+        // status: 'connected' | 'disconnected' | 'syncing'
+    });
+    ```
+
+2. **Logs**
+    ```typescript
+    // Habilitar logs detalhados em desenvolvimento
+    Electric.init({
+        db,
+        url: ELECTRIC_URL,
+        debug: __DEV__, // Apenas em desenvolvimento
+    });
+    ```
+
+## Backend NestJS
+
+### Estrutura do Projeto Backend
+
+```
+backend/
+  src/
+    modules/          # Módulos de funcionalidade
+      auth/           # Autenticação e autorização
+      users/          # Gestão de usuários
+      messages/       # Mensagens e chat
+      contacts/       # Contatos
+    infra/            # Infraestrutura
+      database/       # TypeORM config e migrations
+      websockets/     # WebSocket gateway
+    shared/           # Código compartilhado
+      decorators/     # Decorators customizados
+      guards/         # Guards de autenticação
+      interceptors/   # Interceptors
+      pipes/          # Pipes de validação
+    main.ts           # Entry point
+```
+
+### NestJS - Princípios Fundamentais
+
+1. **Módulos**
+
+    ```typescript
+    // ✅ BOM - Módulo bem estruturado
+    import { Module } from "@nestjs/common";
+    import { MessagesController } from "./messages.controller";
+    import { MessagesService } from "./messages.service";
+    import { TypeOrmModule } from "@nestjs/typeorm";
+    import { Message } from "./entities/message.entity";
+
+    @Module({
+        imports: [TypeOrmModule.forFeature([Message])],
+        controllers: [MessagesController],
+        providers: [MessagesService],
+        exports: [MessagesService], // Exportar se usado em outros módulos
+    })
+    export class MessagesModule {}
+    ```
+
+2. **Controllers**
+
+    ```typescript
+    // ✅ BOM - Controller com validação e autenticação
+    import {
+        Controller,
+        Get,
+        Post,
+        Body,
+        Param,
+        UseGuards,
+    } from "@nestjs/common";
+    import { JwtAuthGuard } from "@/shared/guards/jwt-auth.guard";
+    import { CurrentUser } from "@/shared/decorators/current-user.decorator";
+    import { CreateMessageDto } from "./dto/create-message.dto";
+
+    @Controller("messages")
+    @UseGuards(JwtAuthGuard) // Proteger todas as rotas
+    export class MessagesController {
+        constructor(private readonly messagesService: MessagesService) {}
+
+        @Post()
+        async create(
+            @Body() createMessageDto: CreateMessageDto,
+            @CurrentUser() user: User
+        ) {
+            return this.messagesService.create(createMessageDto, user.id);
+        }
+
+        @Get(":chatId")
+        async findByChatId(
+            @Param("chatId") chatId: string,
+            @CurrentUser() user: User
+        ) {
+            return this.messagesService.findByChatId(chatId, user.id);
+        }
+    }
+    ```
+
+3. **Services**
+
+    ```typescript
+    // ✅ BOM - Service com injeção de dependências
+    import { Injectable, NotFoundException } from "@nestjs/common";
+    import { InjectRepository } from "@nestjs/typeorm";
+    import { Repository } from "typeorm";
+    import { Message } from "./entities/message.entity";
+
+    @Injectable()
+    export class MessagesService {
+        constructor(
+            @InjectRepository(Message)
+            private messagesRepository: Repository<Message>
+        ) {}
+
+        async create(
+            createMessageDto: CreateMessageDto,
+            userId: string
+        ): Promise<Message> {
+            const message = this.messagesRepository.create({
+                ...createMessageDto,
+                senderId: userId,
+            });
+            return this.messagesRepository.save(message);
+        }
+
+        async findByChatId(
+            chatId: string,
+            userId: string
+        ): Promise<Message[]> {
+            return this.messagesRepository.find({
+                where: { chatId },
+                order: { createdAt: "DESC" },
+            });
+        }
+    }
+    ```
+
+### TypeORM
+
+1. **Entities**
+
+    ```typescript
+    // ✅ BOM - Entity bem definida
+    import {
+        Entity,
+        PrimaryGeneratedColumn,
+        Column,
+        CreateDateColumn,
+        UpdateDateColumn,
+        ManyToOne,
+        Index,
+    } from "typeorm";
+    import { User } from "@/modules/users/entities/user.entity";
+
+    @Entity("messages")
+    @Index(["chatId", "createdAt"]) // Índice para queries frequentes
+    export class Message {
+        @PrimaryGeneratedColumn("uuid")
+        id: string;
+
+        @Column({ name: "chat_id" })
+        chatId: string;
+
+        @Column({ name: "sender_id" })
+        senderId: string;
+
+        @ManyToOne(() => User)
+        sender: User;
+
+        @Column("text")
+        text: string;
+
+        @Column({ default: false })
+        encrypted: boolean;
+
+        @CreateDateColumn({ name: "created_at" })
+        createdAt: Date;
+
+        @UpdateDateColumn({ name: "updated_at" })
+        updatedAt: Date;
+    }
+    ```
+
+2. **Migrations**
+
+    ```typescript
+    // ✅ BOM - Migration
+    import { MigrationInterface, QueryRunner, Table } from "typeorm";
+
+    export class CreateMessagesTable1234567890 implements MigrationInterface {
+        public async up(queryRunner: QueryRunner): Promise<void> {
+            await queryRunner.createTable(
+                new Table({
+                    name: "messages",
+                    columns: [
+                        {
+                            name: "id",
+                            type: "uuid",
+                            isPrimary: true,
+                            generationStrategy: "uuid",
+                            default: "uuid_generate_v4()",
+                        },
+                        {
+                            name: "chat_id",
+                            type: "uuid",
+                        },
+                        {
+                            name: "sender_id",
+                            type: "uuid",
+                        },
+                        {
+                            name: "text",
+                            type: "text",
+                        },
+                        {
+                            name: "encrypted",
+                            type: "boolean",
+                            default: false,
+                        },
+                        {
+                            name: "created_at",
+                            type: "timestamp",
+                            default: "now()",
+                        },
+                        {
+                            name: "updated_at",
+                            type: "timestamp",
+                            default: "now()",
+                        },
+                    ],
+                })
+            );
+
+            // Criar índices
+            await queryRunner.query(
+                `CREATE INDEX idx_messages_chat_id ON messages(chat_id, created_at DESC)`
+            );
+        }
+
+        public async down(queryRunner: QueryRunner): Promise<void> {
+            await queryRunner.dropTable("messages");
+        }
+    }
+    ```
+
+3. **Comandos de Migration**
+    ```bash
+    # Gerar migration a partir de mudanças nas entities
+    npm run migration:generate -- src/infra/database/migrations/MigrationName
+    # Executar migrations pendentes
+    npm run migration:run
+    # Reverter última migration
+    npm run migration:revert
+    ```
+
+### Validação com class-validator
+
+1. **DTOs**
+
+    ```typescript
+    // ✅ BOM - DTO com validação completa
+    import {
+        IsString,
+        IsUUID,
+        IsNotEmpty,
+        MaxLength,
+        IsBoolean,
+        IsOptional,
+    } from "class-validator";
+
+    export class CreateMessageDto {
+        @IsUUID()
+        @IsNotEmpty()
+        chatId: string;
+
+        @IsString()
+        @IsNotEmpty()
+        @MaxLength(10000)
+        text: string;
+
+        @IsBoolean()
+        @IsOptional()
+        encrypted?: boolean;
+    }
+    ```
+
+2. **Validação Global**
+
+    ```typescript
+    // ✅ BOM - Habilitar validação global em main.ts
+    import { ValidationPipe } from "@nestjs/common";
+
+    async function bootstrap() {
+        const app = await NestFactory.create(AppModule);
+
+        app.useGlobalPipes(
+            new ValidationPipe({
+                whitelist: true, // Remove propriedades não definidas no DTO
+                forbidNonWhitelisted: true, // Retorna erro se propriedades extras
+                transform: true, // Transforma tipos automaticamente
+            })
+        );
+
+        await app.listen(3000);
+    }
+    ```
+
+### Autenticação JWT
+
+1. **JWT Strategy**
+
+    ```typescript
+    // ✅ BOM - JWT Strategy
+    import { Injectable } from "@nestjs/common";
+    import { PassportStrategy } from "@nestjs/passport";
+    import { ExtractJwt, Strategy } from "passport-jwt";
+    import { ConfigService } from "@nestjs/config";
+
+    @Injectable()
+    export class JwtStrategy extends PassportStrategy(Strategy) {
+        constructor(private configService: ConfigService) {
+            super({
+                jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+                ignoreExpiration: false,
+                secretOrKey: configService.get<string>("JWT_SECRET"),
+            });
+        }
+
+        async validate(payload: any) {
+            return { id: payload.sub, email: payload.email };
+        }
+    }
+    ```
+
+2. **Auth Guard**
+
+    ```typescript
+    // ✅ BOM - JWT Auth Guard
+    import { Injectable } from "@nestjs/common";
+    import { AuthGuard } from "@nestjs/passport";
+
+    @Injectable()
+    export class JwtAuthGuard extends AuthGuard("jwt") {}
+    ```
+
+3. **Current User Decorator**
+
+    ```typescript
+    // ✅ BOM - Decorator para obter usuário atual
+    import { createParamDecorator, ExecutionContext } from "@nestjs/common";
+
+    export const CurrentUser = createParamDecorator(
+        (data: unknown, ctx: ExecutionContext) => {
+            const request = ctx.switchToHttp().getRequest();
+            return request.user;
+        }
+    );
+    ```
+
+### WebSockets (Socket.IO)
+
+1. **Gateway**
+
+    ```typescript
+    // ✅ BOM - WebSocket Gateway
+    import {
+        WebSocketGateway,
+        WebSocketServer,
+        SubscribeMessage,
+        OnGatewayConnection,
+        OnGatewayDisconnect,
+    } from "@nestjs/websockets";
+    import { Server, Socket } from "socket.io";
+    import { UseGuards } from "@nestjs/common";
+    import { WsJwtGuard } from "@/shared/guards/ws-jwt.guard";
+
+    @WebSocketGateway({
+        cors: {
+            origin: "*", // Configure apropriadamente em produção
+        },
+    })
+    @UseGuards(WsJwtGuard)
+    export class ChatGateway
+        implements OnGatewayConnection, OnGatewayDisconnect
+    {
+        @WebSocketServer()
+        server: Server;
+
+        handleConnection(client: Socket) {
+            console.log(`Client connected: ${client.id}`);
+        }
+
+        handleDisconnect(client: Socket) {
+            console.log(`Client disconnected: ${client.id}`);
+        }
+
+        @SubscribeMessage("sendMessage")
+        async handleMessage(client: Socket, payload: any) {
+            // Processar mensagem
+            const message = await this.messagesService.create(payload);
+
+            // Emitir para outros usuários no chat
+            this.server.to(payload.chatId).emit("newMessage", message);
+
+            return { success: true, message };
+        }
+
+        @SubscribeMessage("joinChat")
+        handleJoinChat(client: Socket, chatId: string) {
+            client.join(chatId);
+            return { success: true };
+        }
+    }
+    ```
+
+2. **WebSocket Auth Guard**
+
+    ```typescript
+    // ✅ BOM - Guard para WebSockets
+    import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
+    import { JwtService } from "@nestjs/jwt";
+
+    @Injectable()
+    export class WsJwtGuard implements CanActivate {
+        constructor(private jwtService: JwtService) {}
+
+        canActivate(context: ExecutionContext): boolean {
+            const client = context.switchToWs().getClient();
+            const token = client.handshake?.auth?.token;
+
+            if (!token) {
+                return false;
+            }
+
+            try {
+                const payload = this.jwtService.verify(token);
+                client.user = payload;
+                return true;
+            } catch {
+                return false;
+            }
+        }
+    }
+    ```
+
+### Configuração (ConfigModule)
+
+1. **Variáveis de Ambiente**
+
+    ```typescript
+    // ✅ BOM - ConfigModule em AppModule
+    import { Module } from "@nestjs/common";
+    import { ConfigModule } from "@nestjs/config";
+
+    @Module({
+        imports: [
+            ConfigModule.forRoot({
+                isGlobal: true, // Disponível em todos os módulos
+                envFilePath: ".env",
+            }),
+            // ... outros módulos
+        ],
+    })
+    export class AppModule {}
+    ```
+
+2. **Uso de Configurações**
+
+    ```typescript
+    // ✅ BOM - Injetar ConfigService
+    import { Injectable } from "@nestjs/common";
+    import { ConfigService } from "@nestjs/config";
+
+    @Injectable()
+    export class SomeService {
+        constructor(private configService: ConfigService) {}
+
+        someMethod() {
+            const dbUrl = this.configService.get<string>("DATABASE_URL");
+            const jwtSecret = this.configService.get<string>("JWT_SECRET");
+            // ...
+        }
+    }
+    ```
+
+### Tratamento de Erros
+
+1. **Exception Filters**
+
+    ```typescript
+    // ✅ BOM - Global exception filter
+    import {
+        ExceptionFilter,
+        Catch,
+        ArgumentsHost,
+        HttpException,
+        HttpStatus,
+    } from "@nestjs/common";
+
+    @Catch()
+    export class AllExceptionsFilter implements ExceptionFilter {
+        catch(exception: unknown, host: ArgumentsHost) {
+            const ctx = host.switchToHttp();
+            const response = ctx.getResponse();
+            const request = ctx.getRequest();
+
+            const status =
+                exception instanceof HttpException
+                    ? exception.getStatus()
+                    : HttpStatus.INTERNAL_SERVER_ERROR;
+
+            const message =
+                exception instanceof HttpException
+                    ? exception.getResponse()
+                    : "Internal server error";
+
+            console.error("Exception:", exception);
+
+            response.status(status).json({
+                statusCode: status,
+                timestamp: new Date().toISOString(),
+                path: request.url,
+                message,
+            });
+        }
+    }
+    ```
+
+2. **Usar Exceptions Apropriadas**
+
+    ```typescript
+    // ✅ BOM - Usar exceptions do NestJS
+    import {
+        NotFoundException,
+        BadRequestException,
+        UnauthorizedException,
+        ForbiddenException,
+    } from "@nestjs/common";
+
+    async findOne(id: string) {
+        const message = await this.messagesRepository.findOne({
+            where: { id },
+        });
+
+        if (!message) {
+            throw new NotFoundException(`Message with ID ${id} not found`);
+        }
+
+        return message;
+    }
+    ```
+
+### Testing
+
+1. **Unit Tests**
+
+    ```typescript
+    // ✅ BOM - Unit test de service
+    import { Test, TestingModule } from "@nestjs/testing";
+    import { MessagesService } from "./messages.service";
+    import { getRepositoryToken } from "@nestjs/typeorm";
+    import { Message } from "./entities/message.entity";
+
+    describe("MessagesService", () => {
+        let service: MessagesService;
+        let mockRepository: any;
+
+        beforeEach(async () => {
+            mockRepository = {
+                create: jest.fn(),
+                save: jest.fn(),
+                find: jest.fn(),
+            };
+
+            const module: TestingModule = await Test.createTestingModule({
+                providers: [
+                    MessagesService,
+                    {
+                        provide: getRepositoryToken(Message),
+                        useValue: mockRepository,
+                    },
+                ],
+            }).compile();
+
+            service = module.get<MessagesService>(MessagesService);
+        });
+
+        it("should create a message", async () => {
+            const dto = {
+                chatId: "chat-1",
+                text: "Hello",
+            };
+            const userId = "user-1";
+
+            mockRepository.create.mockReturnValue(dto);
+            mockRepository.save.mockResolvedValue({ id: "msg-1", ...dto });
+
+            const result = await service.create(dto, userId);
+
+            expect(result).toHaveProperty("id");
+            expect(mockRepository.create).toHaveBeenCalledWith({
+                ...dto,
+                senderId: userId,
+            });
+        });
+    });
+    ```
+
+2. **E2E Tests**
+
+    ```typescript
+    // ✅ BOM - E2E test
+    import { Test, TestingModule } from "@nestjs/testing";
+    import { INestApplication } from "@nestjs/common";
+    import * as request from "supertest";
+    import { AppModule } from "./../src/app.module";
+
+    describe("MessagesController (e2e)", () => {
+        let app: INestApplication;
+        let authToken: string;
+
+        beforeAll(async () => {
+            const moduleFixture: TestingModule =
+                await Test.createTestingModule({
+                    imports: [AppModule],
+                }).compile();
+
+            app = moduleFixture.createNestApplication();
+            await app.init();
+
+            // Login para obter token
+            const loginResponse = await request(app.getHttpServer())
+                .post("/auth/login")
+                .send({ email: "test@test.com", password: "password" });
+
+            authToken = loginResponse.body.access_token;
+        });
+
+        it("/messages (POST)", () => {
+            return request(app.getHttpServer())
+                .post("/messages")
+                .set("Authorization", `Bearer ${authToken}`)
+                .send({
+                    chatId: "chat-1",
+                    text: "Test message",
+                })
+                .expect(201)
+                .expect((res) => {
+                    expect(res.body).toHaveProperty("id");
+                    expect(res.body.text).toBe("Test message");
+                });
+        });
+
+        afterAll(async () => {
+            await app.close();
+        });
+    });
+    ```
+
+### Performance e Otimização Backend
+
+1. **Database Queries**
+
+    ```typescript
+    // ✅ BOM - Usar select específico e joins eficientes
+    const messages = await this.messagesRepository
+        .createQueryBuilder("message")
+        .select(["message.id", "message.text", "message.createdAt"])
+        .leftJoinAndSelect("message.sender", "sender")
+        .where("message.chatId = :chatId", { chatId })
+        .orderBy("message.createdAt", "DESC")
+        .limit(50)
+        .getMany();
+
+    // ❌ EVITAR - Carregar tudo
+    const messages = await this.messagesRepository.find({
+        where: { chatId },
+    });
+    ```
+
+2. **Caching**
+
+    ```typescript
+    // ✅ BOM - Cache com Redis (se disponível)
+    import { CACHE_MANAGER } from "@nestjs/cache-manager";
+    import { Inject, Injectable } from "@nestjs/common";
+    import { Cache } from "cache-manager";
+
+    @Injectable()
+    export class MessagesService {
+        constructor(
+            @Inject(CACHE_MANAGER) private cacheManager: Cache,
+            @InjectRepository(Message)
+            private messagesRepository: Repository<Message>
+        ) {}
+
+        async findByChatId(chatId: string): Promise<Message[]> {
+            const cacheKey = `messages:${chatId}`;
+            const cached = await this.cacheManager.get<Message[]>(cacheKey);
+
+            if (cached) {
+                return cached;
+            }
+
+            const messages = await this.messagesRepository.find({
+                where: { chatId },
+            });
+
+            await this.cacheManager.set(cacheKey, messages, 300); // 5 min TTL
+
+            return messages;
+        }
+    }
+    ```
+
+3. **Pagination**
+
+    ```typescript
+    // ✅ BOM - Paginação eficiente
+    async findAll(page: number = 1, limit: number = 20) {
+        const [items, total] = await this.messagesRepository.findAndCount({
+            skip: (page - 1) * limit,
+            take: limit,
+            order: { createdAt: 'DESC' },
+        });
+
+        return {
+            items,
+            meta: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
+            },
+        };
+    }
+    ```
+
+### Segurança Backend
+
+1. **Helmet e CORS**
+
+    ```typescript
+    // ✅ BOM - Configurar segurança em main.ts
+    import helmet from "helmet";
+
+    async function bootstrap() {
+        const app = await NestFactory.create(AppModule);
+
+        // Helmet para headers de segurança
+        app.use(helmet());
+
+        // CORS configurado apropriadamente
+        app.enableCors({
+            origin: process.env.FRONTEND_URL || "http://localhost:8081",
+            credentials: true,
+        });
+
+        await app.listen(3000);
+    }
+    ```
+
+2. **Rate Limiting**
+
+    ```typescript
+    // ✅ BOM - Rate limiting
+    import { ThrottlerModule } from "@nestjs/throttler";
+
+    @Module({
+        imports: [
+            ThrottlerModule.forRoot([
+                {
+                    ttl: 60000, // 1 minuto
+                    limit: 10, // 10 requisições
+                },
+            ]),
+        ],
+    })
+    export class AppModule {}
+    ```
+
+3. **Sanitização de Inputs**
+    ```typescript
+    // ✅ BOM - Sanitizar inputs
+    import { Transform } from "class-transformer";
+    import { IsString } from "class-validator";
+
+    export class CreateMessageDto {
+        @IsString()
+        @Transform(({ value }) => value.trim()) // Remove espaços
+        text: string;
+    }
+    ```
+
+
 ## Checklist Antes de Commitar
+
+### Frontend
 
 -   [ ] Código compila sem erros TypeScript
 -   [ ] Não há warnings do linter
@@ -710,13 +2124,70 @@ src/
 -   [ ] **Traduções foram adicionadas em todos os idiomas** (pt-BR, en, es)
 -   [ ] **Chaves de tradução seguem estrutura hierárquica consistente**
 
+### ElectricSQL
+
+-   [ ] Tabelas sincronizadas têm `ALTER TABLE ... ENABLE ELECTRIC`
+-   [ ] Queries SQLite têm índices apropriados
+-   [ ] Sincronização seletiva está configurada (não sincronizar tudo)
+-   [ ] Status de sincronização é monitorado em desenvolvimento
+-   [ ] Dados antigos são limpos periodicamente
+
+### Backend
+
+-   [ ] DTOs têm validação com class-validator
+-   [ ] Rotas protegidas usam JwtAuthGuard
+-   [ ] Migrations foram criadas para mudanças de schema
+-   [ ] Testes unitários passam (`npm run test`)
+-   [ ] Testes E2E passam (`npm run test:e2e`)
+-   [ ] Exceptions apropriadas são lançadas (NotFoundException, etc.)
+-   [ ] Queries de banco têm índices e são otimizadas
+-   [ ] Variáveis de ambiente estão documentadas
+
+### Docker
+
+-   [ ] PostgreSQL tem `wal_level=logical` configurado
+-   [ ] ElectricSQL depende de PostgreSQL healthcheck
+-   [ ] Variáveis de ambiente estão corretas em docker-compose.yml
+-   [ ] Volumes estão configurados para persistência de dados
+-   [ ] docker-compose up funciona sem erros
+
 ## Recursos e Referências
+
+### Frontend
 
 -   Expo Router Docs: https://docs.expo.dev/router/introduction/
 -   React Query Docs: https://tanstack.com/query/latest
--   Firebase Docs: https://firebase.google.com/docs
 -   Styled Components: https://styled-components.com/docs
 -   React Native Performance: https://reactnative.dev/docs/performance
 -   i18next Docs: https://www.i18next.com/
 -   react-i18next Docs: https://react.i18next.com/
 -   expo-localization Docs: https://docs.expo.dev/versions/latest/sdk/localization/
+-   expo-sqlite Docs: https://docs.expo.dev/versions/latest/sdk/sqlite/
+-   **Feature-Sliced Design (FSD)**: https://feature-sliced.design/docs/get-started/tutorial
+-   **FSD Overview**: https://feature-sliced.design/docs/get-started/overview
+-   **FSD Examples**: https://feature-sliced.design/examples
+-   **FSD Linter (Steiger)**: https://github.com/feature-sliced/steiger
+
+### ElectricSQL
+
+-   ElectricSQL Docs: https://electric-sql.com/docs
+-   ElectricSQL GitHub: https://github.com/electric-sql/electric
+-   TanStack React DB: https://tanstack.com/db/latest/docs/react/overview
+-   ElectricSQL Quickstart: https://electric-sql.com/docs/quickstart
+
+### Backend (NestJS)
+
+-   NestJS Docs: https://docs.nestjs.com/
+-   TypeORM Docs: https://typeorm.io/
+-   NestJS Authentication: https://docs.nestjs.com/security/authentication
+-   NestJS WebSockets: https://docs.nestjs.com/websockets/gateways
+-   class-validator: https://github.com/typestack/class-validator
+-   Passport JWT: http://www.passportjs.org/packages/passport-jwt/
+
+### Docker
+
+-   Docker Compose Docs: https://docs.docker.com/compose/
+-   PostgreSQL Docker: https://hub.docker.com/_/postgres
+-   ElectricSQL Docker: https://electric-sql.com/docs/deployment/docker
+-   Docker Best Practices: https://docs.docker.com/develop/dev-best-practices/
+

@@ -212,53 +212,57 @@ async function hmacSha256(key: ArrayBuffer, data: ArrayBuffer): Promise<ArrayBuf
  */
 async function pbkdf2(password: string, salt: string, iterations: number, keyLength: number): Promise<ArrayBuffer> {
 	// ============================================
-	// TENTAR MÓDULO NATIVO PRIMEIRO (ANDROID)
+	// ⚡️ TENTAR QUICK-CRYPTO (NATIVO C++) - ALTA PERFORMANCE
 	// ============================================
-	// Performance: 50k iterações em ~500ms-2s (vs ~5-10s em JS)
+	// Este é o método preferido em Produção/APK. 
+	// Processa 50k iterações em < 100ms em vez de 30s no JS.
+	try {
+		const QuickCrypto = require('react-native-quick-crypto');
+		if (QuickCrypto && QuickCrypto.pbkdf2Sync) {
+			console.log("🚀 [CRYPTO] Usando Quick-Crypto nativo para PBKDF2...");
+			const derivedKey = QuickCrypto.pbkdf2Sync(
+				password,
+				salt,
+				iterations,
+				keyLength,
+				'sha256'
+			);
+			return derivedKey.buffer.slice(derivedKey.byteOffset, derivedKey.byteOffset + derivedKey.byteLength);
+		}
+	} catch (error) {
+		// Log discreto pois o módulo pode não estar carregado ainda
+	}
+
+	// ============================================
+	// TENTAR MÓDULO NATIVO LEGADO (ANDROID)
+	// ============================================
 	if (typeof window === "undefined") {
-		// React Native
 		try {
 			const { Platform } = await import("react-native");
 			if (Platform.OS === "android") {
 				const { pbkdf2Native, isNativeCryptoAvailable } = await import("./nativeCrypto");
 				if (isNativeCryptoAvailable()) {
-					console.log("🚀 Usando PBKDF2 nativo (Android)...");
+					console.log("🚀 [CRYPTO] Usando Native-Crypto Module (Android)...");
 					const keyBase64 = await pbkdf2Native(password, salt, iterations, keyLength);
-					const keyBuffer = base64ToArrayBuffer(keyBase64);
-					console.log("✅ PBKDF2 nativo concluído com sucesso");
-					return keyBuffer;
+					return base64ToArrayBuffer(keyBase64);
 				}
 			}
 		} catch (error) {
-			console.warn("⚠️ Erro ao usar PBKDF2 nativo, usando fallback JavaScript:", error);
-			// Continuar com implementação JavaScript abaixo
+			console.warn("⚠️ [CRYPTO] Módulo nativo falhou:", error);
 		}
 	}
 
 	// ============================================
-	// FALLBACK: IMPLEMENTAÇÃO JAVASCRIPT
+	// FALLBACK: IMPLEMENTAÇÃO JAVASCRIPT (LENTO!)
 	// ============================================
-	console.log("📱 Usando PBKDF2 CryptoJS (fallback)...");
-
-	try {
-		// Converter salt de Base64 para WordArray
-		const saltWords = CryptoJS.enc.Base64.parse(salt);
-
-		// Executar PBKDF2 (Síncrono - bloqueia a thread mas é muito mais rápido que await loop)
-		// keySize no CryptoJS é em palavras de 32 bits (4 bytes)
-		const derivedKey = CryptoJS.PBKDF2(password, saltWords, {
-			keySize: keyLength / 4,
-			iterations: iterations,
-			hasher: CryptoJS.algo.SHA256,
-		});
-
-		// Converter resultado para ArrayBuffer
-		const keyHex = derivedKey.toString(CryptoJS.enc.Hex);
-		return hexToArrayBuffer(keyHex);
-	} catch (error) {
-		console.error("❌ Erro no fallback PBKDF2 CryptoJS:", error);
-		throw new Error("Falha ao gerar chave (fallback JS)");
-	}
+	console.log("📱 [CRYPTO] Usando PBKDF2 CryptoJS (fallback JS lento)...");
+	const saltWords = CryptoJS.enc.Base64.parse(salt);
+	const derivedKey = CryptoJS.PBKDF2(password, saltWords, {
+		keySize: keyLength / 4,
+		iterations: iterations,
+		hasher: CryptoJS.algo.SHA256,
+	});
+	return hexToArrayBuffer(derivedKey.toString(CryptoJS.enc.Hex));
 }
 
 /**

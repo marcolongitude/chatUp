@@ -17,7 +17,7 @@
             "env": {
                 "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "510679848324-uicijmb0d26ebf3rlo0qil5pjuk9d1ea.apps.googleusercontent.com",
                 "EXPO_PUBLIC_API_URL": "http://192.168.0.18:3000",
-                "EXPO_PUBLIC_ELECTRIC_URL": "ws://192.168.0.18:5133",
+                "EXPO_PUBLIC_ELECTRIC_URL": "http://192.168.0.18:5133/v1/shape",
                 "EXPO_PUBLIC_ELECTRIC_API_URL": "http://192.168.0.18:5133"
             }
         },
@@ -42,7 +42,7 @@
                 "NODE_ENV": "production",
                 "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "510679848324-uicijmb0d26ebf3rlo0qil5pjuk9d1ea.apps.googleusercontent.com",
                 "EXPO_PUBLIC_API_URL": "http://192.168.0.18:3000",
-                "EXPO_PUBLIC_ELECTRIC_URL": "ws://192.168.0.18:5133",
+                "EXPO_PUBLIC_ELECTRIC_URL": "http://192.168.0.18:5133/v1/shape",
                 "EXPO_PUBLIC_ELECTRIC_API_URL": "http://192.168.0.18:5133"
             }
         }

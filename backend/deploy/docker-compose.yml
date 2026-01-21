@@ -25,6 +25,7 @@ services:
     image: electricsql/electric:latest
     environment:
       DATABASE_URL: postgresql://admin:password@postgres:5432/chatup
+      ELECTRIC_INSECURE: "true"
       ELECTRIC_LOG_LEVEL: info
     ports:
       - "5133:3000"
