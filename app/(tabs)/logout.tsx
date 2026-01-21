@@ -3,7 +3,7 @@ import { View, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import styled, { useTheme } from 'styled-components/native';
 import { useAuth } from '@/modules/auth';
-import { useTranslation } from '@/core/i18n';
+import { useTranslation } from '@/app/providers/i18n';
 
 const Container = styled.View`
 	flex: 1;

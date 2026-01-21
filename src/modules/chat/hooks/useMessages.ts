@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/modules/auth";
-import { ensureSignalSession } from "@/core/security";
+import { ensureSignalSession } from "@/shared/lib/crypto";
 import { useLiveQuery, eq, or, and } from "@tanstack/react-db";
-import { messagesCollection, insertEncryptedMessage, decryptMessageRow } from "@/core/collections";
-import { useElectric } from "@/core/electric";
+import { messagesCollection, insertEncryptedMessage, decryptMessageRow } from "@/shared/lib/database/collections";
+import { useElectric } from "@/app/providers/electric";
 import type { Message, CreateMessageData } from "../types";
 
 // Helper to generate a consistent chat ID (users sorted alphabetically)
@@ -234,7 +234,7 @@ export function useMessages(contactId: string) {
 		let isMounted = true;
 		const fetchLocal = async () => {
 			try {
-				const { getMessages: getLocalMessages } = require("@/core/database");
+				const { getMessages: getLocalMessages } = require("@/shared/lib/database");
 				const localData = await getLocalMessages(chatId, 50); // Fetch last 50 messages
 				if (isMounted && localData.length > 0) {
 					console.log(`📂 [useMessages] Carregado ${localData.length} mensagens do SQLite local`);
@@ -283,7 +283,7 @@ export function useMessages(contactId: string) {
 		sendMessage: async (data: CreateMessageData) => {
 			await sendMessage(data);
 			// Trigger local refresh after send
-			const { getMessages: getLocalMessages } = require("@/core/database");
+			const { getMessages: getLocalMessages } = require("@/shared/lib/database");
 			if (chatId) {
 				const freshLocal = await getLocalMessages(chatId, 50);
 				setLocalMessages(freshLocal);

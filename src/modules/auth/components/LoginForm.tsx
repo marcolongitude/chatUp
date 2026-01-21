@@ -5,8 +5,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import styled, { useTheme } from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
-import { Input, Button, Link } from "@/shared/components";
-import { useTranslation } from "@/core/i18n";
+import { Input, Button, Link } from "@/shared/ui";
+import { useTranslation } from "@/app/providers/i18n";
 import type { LoginCredentials } from "../types";
 
 const logoImage = require("../../../../assets/logo-chatup.png");

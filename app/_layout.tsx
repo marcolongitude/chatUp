@@ -1,19 +1,14 @@
 // MUST BE THE VERY FIRST IMPORT
-import "@/core/polyfills";
+import "@/app/config/polyfills";
 
 import { Stack } from "expo-router";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "@/core/queryClient";
-import { SafeAreaProvider } from "react-native-safe-area-context";
-import { ThemeProvider } from "@/core/theme/ThemeProvider";
-import { I18nProvider } from "@/core/i18n/I18nProvider";
-import { ElectricProvider } from "@/core/electric";
-import { UpdateDialog, CryptoLoadingProvider } from "@/shared/components";
+import { Providers } from "@/app/providers";
+import { UpdateDialog } from "@/shared/ui";
 import React, { Suspense, useEffect } from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { requestNotificationPermissions } from "@/services/notifications";
 
-// Polyfill global crypto (keep as backup if not handled in polyfills/index.ts)
+// Polyfill global crypto
 import * as Crypto from "expo-crypto";
 if (typeof (global as any).crypto === "undefined") {
 	(global as any).crypto = {} as any;
@@ -36,9 +31,6 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 		console.error("❌ Erro capturado pelo ErrorBoundary:", error);
 		console.error("❌ Stack trace:", error.stack);
 		console.error("❌ Component stack:", errorInfo.componentStack);
-		if (__DEV__) {
-			console.error("❌ Error info completo:", errorInfo);
-		}
 	}
 
 	render() {
@@ -99,8 +91,6 @@ function AppContent() {
 	useEffect(() => {
 		(async () => {
 			try {
-				// Electric SQL handles database initialization automatically
-				// Solicitar permissões de notificação
 				await requestNotificationPermissions();
 			} catch (error) {
 				console.error("❌ Erro ao inicializar app:", error);
@@ -147,20 +137,10 @@ function AppContent() {
 export default function RootLayout() {
 	return (
 		<ErrorBoundary>
-			<SafeAreaProvider>
-				<I18nProvider>
-					<ThemeProvider>
-						<CryptoLoadingProvider>
-							<QueryClientProvider client={queryClient}>
-								<ElectricProvider>
-									<AppContent />
-									<UpdateDialog />
-								</ElectricProvider>
-							</QueryClientProvider>
-						</CryptoLoadingProvider>
-					</ThemeProvider>
-				</I18nProvider>
-			</SafeAreaProvider>
+			<Providers>
+				<AppContent />
+				<UpdateDialog />
+			</Providers>
 		</ErrorBoundary>
 	);
 }

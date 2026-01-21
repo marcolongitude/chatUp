@@ -2,9 +2,9 @@ import React, { useState } from "react";
 import { ActivityIndicator, TouchableOpacity, Text, Alert } from "react-native";
 import { useTheme } from "styled-components/native";
 import { useAuth } from "@/modules/auth";
-import { Card } from "@/shared/components";
-import { useTranslation } from "@/core/i18n";
-import { clearAllLocalMessages } from "@/core/database/utils";
+import { Card } from "@/shared/ui";
+import { useTranslation } from "@/app/providers/i18n";
+import { clearAllLocalMessages } from "@/shared/lib/database/utils";
 import {
 	ProfileContainer,
 	ProfileCenterContainer,

@@ -3,7 +3,7 @@ import { useLocation } from "@/modules/location";
 import { useNearbyUsers } from "@/modules/location";
 import { useContacts } from "@/modules/chat/hooks/useContacts";
 import { useAuth } from "@/modules/auth";
-import { ensureSignalSession } from "@/core/security";
+import { ensureSignalSession } from "@/shared/lib/crypto";
 import type { Contact } from "@/modules/chat/types";
 
 interface UseConversationsReturn {

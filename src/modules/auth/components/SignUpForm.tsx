@@ -3,8 +3,8 @@ import { useForm, Controller } from "react-hook-form";
 import { KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import styled, { useTheme } from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
-import { Input, Button, Link } from "@/shared/components";
-import { useTranslation } from "@/core/i18n";
+import { Input, Button, Link } from "@/shared/ui";
+import { useTranslation } from "@/app/providers/i18n";
 import type { RegisterData } from "../types";
 
 interface SignUpFormProps {

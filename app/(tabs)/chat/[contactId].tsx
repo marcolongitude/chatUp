@@ -16,9 +16,9 @@ import styled, { useTheme } from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useMessages } from "@/modules/chat/hooks/useMessages";
 import { useAuth } from "@/modules/auth";
-import { useTranslation } from "@/core/i18n";
+import { useTranslation } from "@/app/providers/i18n";
 import { mockContacts } from "@/modules/chat";
-import { MessageStatus } from "@/shared/components/MessageStatus";
+import { MessageStatus } from "@/shared/ui/MessageStatus";
 import type { CreateMessageData, Message } from "@/modules/chat/types";
 import { setCurrentChatSenderId } from "@/services/notifications";
 

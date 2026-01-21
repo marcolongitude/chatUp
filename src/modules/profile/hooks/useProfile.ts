@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { axiosInstance } from '@/api/axiosClient';
+import { axiosInstance } from '@/shared/api/axiosClient';
 import type { Profile, UpdateProfileData } from '../types';
-import { useRefreshOnFocus } from '@/core/hooks/useRefreshOnFocus';
+import { useRefreshOnFocus } from '@/shared/lib/hooks/useRefreshOnFocus';
 
 /**
  * Hook para buscar o perfil do usuário

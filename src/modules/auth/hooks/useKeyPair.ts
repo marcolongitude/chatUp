@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "./useAuth";
-import { getOrCreateKeyPair, hasPublicKey } from "@/core/security/keyManagement";
+import { getOrCreateKeyPair, hasPublicKey } from "@/shared/lib/crypto/keyManagement";
 
 export interface UseKeyPairReturn {
 	isLoading: boolean;

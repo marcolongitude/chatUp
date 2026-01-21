@@ -5,7 +5,7 @@
 import { useMemo } from 'react';
 import { useAuth } from '@/modules/auth';
 import { useLiveQuery, eq, or, and } from '@tanstack/react-db';
-import { messagesCollection } from '@/core/collections';
+import { messagesCollection } from '@/shared/lib/database/collections';
 import type { Contact } from '../types';
 import type { NearbyUser } from '@/modules/location/types';
 

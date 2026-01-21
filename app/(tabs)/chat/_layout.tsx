@@ -2,7 +2,7 @@ import { Stack, useRouter, useLocalSearchParams } from "expo-router";
 import { TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "styled-components/native";
-import { useTranslation } from "@/core/i18n";
+import { useTranslation } from "@/app/providers/i18n";
 import { Image } from "expo-image";
 import { useState, useEffect } from "react";
 import { userService } from "@/services/api/user.service";

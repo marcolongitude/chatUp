@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { authService } from "@/services/api/auth.service";
 import type { UserProfile, CreateProfileData, AuthResponse } from "../types";
-import { getOrCreateKeyPair } from "@/core/security";
-import { bootstrapSignalAccount } from "@/core/security/signal";
+import { getOrCreateKeyPair } from "@/shared/lib/crypto";
+import { bootstrapSignalAccount } from "@/shared/lib/crypto/signal";
 
 const STORAGE_KEY_TOKEN = "auth.token";
 const STORAGE_KEY_USER = "auth.user";

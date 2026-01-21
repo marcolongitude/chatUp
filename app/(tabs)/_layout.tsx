@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from 'styled-components/native';
-import { useTranslation } from '@/core/i18n';
+import { useTranslation } from '@/app/providers/i18n';
 
 export default function TabsLayout() {
   const theme = useTheme();

@@ -5,9 +5,9 @@ import { Ionicons } from "@expo/vector-icons";
 import Constants from "expo-constants";
 import * as Updates from "expo-updates";
 import styled from "styled-components/native";
-import { Card } from "@/shared/components";
-import { useTranslation } from "@/core/i18n";
-import { saveLanguage } from "@/core/i18n";
+import { Card } from "@/shared/ui";
+import { useTranslation } from "@/app/providers/i18n";
+import { saveLanguage } from "@/app/providers/i18n";
 
 const Container = styled.ScrollView`
 	flex: 1;

@@ -1,5 +1,5 @@
 import api from "@/services/api";
-import { encryptMessage } from "@/core/security";
+import { encryptMessage } from "@/shared/lib/crypto";
 import type { Message } from "@/modules/chat/types";
 
 /**
@@ -172,7 +172,7 @@ export async function decryptImageUrl(
 	senderId: string,
 	receiverId: string
 ): Promise<string> {
-	const { decryptMessage } = await import("@/core/security");
+	const { decryptMessage } = await import("@/shared/lib/crypto");
 	return await decryptMessage(encryptedUrl, chatId, userId, senderId, receiverId);
 }
 
