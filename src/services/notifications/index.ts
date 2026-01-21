@@ -1,7 +1,7 @@
 import * as Notifications from "expo-notifications";
 import { Platform, AppState, AppStateStatus } from "react-native";
 import { userService } from "@/services/api/user.service";
-import type { UserProfile } from "@/modules/auth/types";
+import type { UserProfile } from "@/features/auth/types";
 import type { Message } from "@/entities/message";
 
 /**

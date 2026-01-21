@@ -3,9 +3,9 @@ import { StatusBar } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import styled from "styled-components/native";
-import { LoginForm } from "@/modules/auth/components";
-import { useAuth } from "@/modules/auth";
-import type { LoginCredentials } from "@/modules/auth/types";
+import { LoginForm } from "@/features/auth/components";
+import { useAuth } from "@/features/auth";
+import type { LoginCredentials } from "@/features/auth/types";
 
 const Container = styled(SafeAreaView)`
 	flex: 1;

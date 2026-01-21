@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import styled, { useTheme } from 'styled-components/native';
-import { useAuth } from '@/modules/auth';
+import { useAuth } from '@/features/auth';
 import { useTranslation } from '@/app/providers/i18n';
 
 const Container = styled.View`

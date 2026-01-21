@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import styled, { useTheme } from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useMessages, MessageStatus, Message, CreateMessageData } from "@/entities/message";
-import { useAuth } from "@/modules/auth";
+import { useAuth } from "@/features/auth";
 import { useTranslation } from "@/app/providers/i18n";
 import { mockContacts } from "@/entities/contact";
 import { setCurrentChatSenderId } from "@/services/notifications";

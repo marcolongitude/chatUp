@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 // Provisoriamente importando useAuth de modules até fase 4
-import { useAuth } from "@/modules/auth";
+import { useAuth } from "@/features/auth";
 import { ensureSignalSession } from "@/shared/lib/crypto";
 import { useLiveQuery, eq, or, and } from "@tanstack/react-db";
 import { messagesCollection, insertEncryptedMessage, decryptMessageRow } from "@/shared/lib/database/collections";

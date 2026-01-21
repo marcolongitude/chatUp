@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import styled, { useTheme } from "styled-components/native";
-import { useAuth } from "@/modules/auth";
+import { useAuth } from "@/features/auth";
 
 const Container = styled.View`
 	flex: 1;

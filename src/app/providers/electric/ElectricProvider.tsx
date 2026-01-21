@@ -5,7 +5,7 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { initElectricClient, disconnectElectricClient, getElectricClient, isElectricConnected, ElectricClient } from './electricClient';
-import { useAuth } from '@/modules/auth';
+import { useAuth } from '@/features/auth';
 
 interface ElectricContextValue {
   client: ElectricClient | null;

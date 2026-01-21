@@ -7,7 +7,7 @@ import { Image } from "expo-image";
 import { useState, useEffect } from "react";
 import { userService } from "@/services/api/user.service";
 import { formatShortName } from "@/shared/utils";
-import type { UserProfile } from "@/modules/auth/types";
+import type { UserProfile } from "@/features/auth/types";
 import styled from "styled-components/native";
 
 const AvatarContainer = styled.View`

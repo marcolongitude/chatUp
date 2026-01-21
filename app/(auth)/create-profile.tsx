@@ -2,9 +2,9 @@ import React from "react";
 import { StatusBar, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import styled from "styled-components/native";
-import { CreateProfileForm } from "@/modules/auth/components";
-import { useAuth } from "@/modules/auth";
-import type { CreateProfileData } from "@/modules/auth/types";
+import { CreateProfileForm } from "@/features/auth/components";
+import { useAuth } from "@/features/auth";
+import type { CreateProfileData } from "@/features/auth/types";
 
 const Container = styled.View`
 	flex: 1;

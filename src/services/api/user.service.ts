@@ -1,5 +1,5 @@
 import api from './index';
-import type { UserProfile } from '@/modules/auth/types';
+import type { UserProfile } from '@/features/auth/types';
 
 export const userService = {
   getUserById: async (userId: string): Promise<UserProfile> => {

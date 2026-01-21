@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 // Provisoriamente importando useAuth de modules até fase 4
-import { useAuth } from '@/modules/auth';
+import { useAuth } from '@/features/auth';
 import { messagesCollection } from '@/shared/lib/database/collections';
 // NearbyUser virá de features later, por enquanto importando de onde estiver
-import type { NearbyUser } from '@/modules/location/types';
+import type { NearbyUser } from '@/features/location/types';
 import type { Contact } from './types';
 
 /**

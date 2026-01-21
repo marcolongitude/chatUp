@@ -1,8 +1,8 @@
 import { useRouter } from "expo-router";
-import { useLocation } from "@/modules/location";
-import { useNearbyUsers } from "@/modules/location";
+import { useLocation } from "@/features/location";
+import { useNearbyUsers } from "@/features/location";
 import { useContacts } from "@/entities/contact";
-import { useAuth } from "@/modules/auth";
+import { useAuth } from "@/features/auth";
 import { ensureSignalSession } from "@/shared/lib/crypto";
 import type { Contact } from "@/entities/message";
 
