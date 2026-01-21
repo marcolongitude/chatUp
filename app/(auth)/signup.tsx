@@ -1,81 +1,51 @@
 import React from "react";
-import { StatusBar, Alert } from "react-native";
+import { StatusBar } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import styled from "styled-components/native";
-import { SignUpForm } from "@/features/auth/components";
-import { useAuth } from "@/features/auth";
-import type { RegisterData } from "@/features/auth/types";
+import { SignUpForm, useAuth, RegisterData } from "@/features/auth";
 
-const Container = styled.View`
+const Container = styled(SafeAreaView)`
 	flex: 1;
-	background-color: #ffffff;
+	background-color: ${(props) => props.theme.colors.background.primary};
 `;
 
-const Header = styled.View`
-	padding: 24px;
-	padding-top: 60px;
-	background-color: #667eea;
-	align-items: center;
-`;
-
-const LogoContainer = styled.View`
-	width: 80px;
-	height: 80px;
-	border-radius: 40px;
-	background-color: #ffffff;
-	align-items: center;
-	justify-content: center;
-	margin-bottom: 16px;
-	shadow-color: #000;
-	shadow-offset: 0px 4px;
-	shadow-opacity: 0.2;
-	shadow-radius: 8px;
-	elevation: 8;
-`;
-
-const LogoText = styled.Text`
-	font-size: 32px;
-	font-weight: 800;
-	color: #667eea;
-`;
-
-const Slogan = styled.Text`
-	font-size: 14px;
-	color: #ffffff;
-	font-weight: 600;
-	opacity: 0.9;
-	letter-spacing: 0.5px;
-`;
-
-export default function SignUpScreen() {
+/**
+ * Página de Cadastro
+ * Camada: Pages (FSD)
+ */
+export default function SignUpPage() {
 	const router = useRouter();
-	const { register, isLoading, error } = useAuth();
+	const { signup, isAuthenticated, hasCompleteProfile } = useAuth();
 
-	const handleSignUp = async (data: RegisterData) => {
-		try {
-			await register(data);
-			// Após registro bem-sucedido, redirecionar para criação de perfil
-			router.replace("/(auth)/create-profile");
-		} catch (err: any) {
-			Alert.alert("Erro", err.message || "Não foi possível criar a conta. Tente novamente.");
+	const [error, signupAction, isPending] = React.useActionState(
+		async (prevState: string | null, data: RegisterData) => {
+			try {
+				await signup(data.email, data.password, data.name);
+				return null;
+			} catch (err: any) {
+				return err.message || "Erro ao realizar cadastro";
+			}
+		},
+		null
+	);
+
+	React.useEffect(() => {
+		if (isAuthenticated && !isPending) {
+			if (hasCompleteProfile) router.replace("/(tabs)");
+			else router.replace("/(auth)/create-profile");
 		}
-	};
-
-	const handleGoToLogin = () => {
-		router.replace("/(auth)/login");
-	};
+	}, [isAuthenticated, hasCompleteProfile, isPending]);
 
 	return (
 		<Container>
-			<StatusBar barStyle="light-content" />
-			<Header>
-				<LogoContainer>
-					<LogoText>💬</LogoText>
-				</LogoContainer>
-				<Slogan>Crie sua conta</Slogan>
-			</Header>
-			<SignUpForm onSubmit={handleSignUp} onGoToLogin={handleGoToLogin} isLoading={isLoading} error={error} />
+			<StatusBar barStyle="dark-content" />
+			<SignUpForm
+				onSubmit={signupAction}
+				onSignIn={() => router.back()}
+				isLoading={isPending}
+				error={error}
+			/>
 		</Container>
 	);
 }
-
