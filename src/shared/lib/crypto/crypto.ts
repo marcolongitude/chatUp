@@ -14,7 +14,26 @@
 import * as Crypto from "expo-crypto";
 import CryptoJS from "crypto-js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { storage } from "@/services/storage";
+
+// Local storage wrapper around AsyncStorage to provide the interface expected by this module
+const storage = {
+	getItem: async <T>(key: string): Promise<T | null> => {
+		const val = await AsyncStorage.getItem(key);
+		if (!val) return null;
+		try {
+			return JSON.parse(val) as T;
+		} catch {
+			return val as unknown as T;
+		}
+	},
+	setItem: async (key: string, value: any): Promise<void> => {
+		const val = typeof value === 'string' ? value : JSON.stringify(value);
+		await AsyncStorage.setItem(key, val);
+	},
+	removeItem: async (key: string): Promise<void> => {
+		await AsyncStorage.removeItem(key);
+	}
+};
 import {
 	arrayBufferToBase64,
 	arrayBufferToString,
@@ -24,7 +43,7 @@ import {
 	arrayBufferToBase64URL,
 	base64URLToArrayBuffer,
 } from "./utils";
-import { MessageEnvelopeCodec, type MessageEnvelope } from "@/modules/chat/proto/messageEnvelope";
+import { MessageEnvelopeCodec, type MessageEnvelope } from "@/shared/lib/proto/messageEnvelope";
 import { encryptWithSignal, decryptWithSignal, clearSignalSessions } from "./signal";
 import { trackEncryptionError, trackEncryptionEvent } from "./telemetry";
 import { removePrivateKey } from "./keyManagement";

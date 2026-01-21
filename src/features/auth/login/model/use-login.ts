@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { authService } from "@/services/api/auth.service";
+import { authService } from "@/shared/api/auth.service";
 import { getOrCreateKeyPair } from "@/shared/lib/crypto";
 import { bootstrapSignalAccount } from "@/shared/lib/crypto/signal";
 import { useAuthSession, AuthUser } from "../../model/use-auth-session";

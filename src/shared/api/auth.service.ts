@@ -1,5 +1,5 @@
-import api from './index';
-import type { LoginCredentials, RegisterData, AuthResponse, CreateProfileData } from '@/features/auth/types';
+import { axiosInstance as api } from './index';
+import type { LoginCredentials, RegisterData, AuthResponse, CreateProfileData } from '@/features/auth';
 
 export const authService = {
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {

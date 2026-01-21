@@ -11,7 +11,7 @@ import * as Keychain from "react-native-keychain";
 import { x25519 } from "@noble/curves/ed25519";
 import { randomBytes } from "@noble/hashes/utils";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils";
-import api from "@/services/api";
+import { axiosInstance as api } from '@/shared/api';
 import * as Crypto from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
 
@@ -136,8 +136,8 @@ export async function getPrivateKey(userId: string): Promise<Uint8Array | null> 
 					console.warn("⚠️ Keychain retornou credenciais inválidas ou username não corresponde", {
 						userId,
 						hasCredentials: !!credentials,
-						hasPassword: !!credentials?.password,
-						username: credentials?.username,
+						hasPassword: credentials ? !!credentials.password : false,
+						username: credentials ? credentials.username : undefined,
 					});
 				}
 			} catch (keychainError: any) {

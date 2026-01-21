@@ -1,10 +1,8 @@
 import { useMemo } from 'react';
-// Provisoriamente importando useAuth de modules até fase 4
 import { useAuth } from '@/features/auth';
 import { messagesCollection } from '@/shared/lib/database/collections';
-// NearbyUser virá de features later, por enquanto importando de onde estiver
-import type { NearbyUser } from '@/features/location/types';
-import type { Contact } from './types';
+import type { NearbyUser } from '@/entities/contact';
+import type { Contact } from '@/entities/contact';
 
 /**
  * Hook para buscar informações de chat para uma lista de usuários

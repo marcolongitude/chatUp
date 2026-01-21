@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { authService } from "@/services/api/auth.service";
+import { authService } from "@/shared/api/auth.service";
 import { useLogin } from "../../login/model/use-login";
 
 /**

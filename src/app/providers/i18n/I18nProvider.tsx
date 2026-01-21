@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, View, StyleSheet } from "react-native";
-import { initI18n } from "./index";
+import { initI18n } from "./config";
 
 interface I18nProviderProps {
 	children: React.ReactNode;

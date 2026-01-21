@@ -1,4 +1,4 @@
-import api from "@/services/api";
+import { axiosInstance as api } from "@/shared/api";
 import { encryptMessage } from "@/shared/lib/crypto";
 import type { Message } from "@/entities/message";
 

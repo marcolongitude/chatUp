@@ -1,4 +1,4 @@
-import api from './index';
+import { axiosInstance as api } from './index';
 
 export interface SendMessagePayload {
   receiverId: string;

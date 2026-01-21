@@ -5,7 +5,7 @@ import styled, { useTheme } from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
 import { Input, Button } from "@/shared/ui";
 import { useTranslation } from "@/app/providers/i18n";
-import type { CreateProfileData } from "../types";
+import type { CreateProfileData } from "@/features/auth";
 
 interface CreateProfileFormProps {
 	onSubmit: (data: CreateProfileData) => void;

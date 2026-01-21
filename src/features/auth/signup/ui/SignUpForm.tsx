@@ -5,11 +5,11 @@ import styled, { useTheme } from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
 import { Input, Button, Link } from "@/shared/ui";
 import { useTranslation } from "@/app/providers/i18n";
-import type { RegisterData } from "../types";
+import type { RegisterData } from "@/features/auth";
 
 interface SignUpFormProps {
 	onSubmit: (data: RegisterData) => void;
-	onGoToLogin: () => void;
+	onSignIn: () => void;
 	isLoading?: boolean;
 	error?: string | null;
 }
@@ -72,7 +72,7 @@ const FooterText = styled.Text`
 	color: ${(props) => props.theme.colors.text.secondary};
 `;
 
-export const SignUpForm: React.FC<SignUpFormProps> = ({ onSubmit, onGoToLogin, isLoading = false, error }) => {
+export const SignUpForm: React.FC<SignUpFormProps> = ({ onSubmit, onSignIn, isLoading = false, error }) => {
 	const theme = useTheme();
 	const { t } = useTranslation();
 	const {
@@ -192,7 +192,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSubmit, onGoToLogin, i
 
 					<FooterContainer>
 						<FooterText>{t("auth.alreadyHaveAccount")}</FooterText>
-						<Link onPress={onGoToLogin} variant="primary">
+						<Link onPress={onSignIn} variant="primary">
 							{t("auth.login")}
 						</Link>
 					</FooterContainer>

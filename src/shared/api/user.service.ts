@@ -1,5 +1,5 @@
-import api from './index';
-import type { UserProfile } from '@/features/auth/types';
+import { axiosInstance as api } from './index';
+import type { UserProfile } from '@/features/auth';
 
 export const userService = {
   getUserById: async (userId: string): Promise<UserProfile> => {

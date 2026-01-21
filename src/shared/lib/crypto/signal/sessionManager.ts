@@ -13,7 +13,7 @@ import {
 	type RemotePreKeyBundle,
 } from "./preKeyService";
 import { getSignalStorage } from "./SignalStorage";
-import api from "@/services/api";
+import { axiosInstance as api } from '@/shared/api';
 
 const DEVICE_ID = 1;
 

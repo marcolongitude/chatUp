@@ -1,7 +1,7 @@
 import "@/app/config/polyfills";
 
 import { KeyHelper, type KeyPairType, type PreKeyPairType } from "libsignal-protocol-typescript";
-import api from "@/services/api";
+import { axiosInstance as api } from '@/shared/api';
 import { arrayBufferToBase64, base64ToArrayBuffer } from "@/shared/lib/crypto/utils";
 import { getSignalStorage, SignalStorage } from "./SignalStorage";
 

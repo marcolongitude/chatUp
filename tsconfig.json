@@ -17,6 +17,7 @@
 	"include": ["**/*.ts", "**/*.tsx"],
 	"exclude": [
 		"node_modules",
+		"backend",
 		"scripts",
 		"build-*.apk",
 		"*.apk",

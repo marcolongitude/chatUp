@@ -4,6 +4,12 @@ import { useSignup } from './signup';
 import { useLogout } from './logout';
 import { useCreateProfile } from './create-profile';
 
+export * from './model/types';
+export * from './model/use-auth-session';
+export { LoginForm } from './login';
+export { SignUpForm } from './signup';
+export { CreateProfileForm } from './create-profile';
+
 /**
  * Hook central de Auth (Facade)
  * Mantém compatibilidade com o código legado enquanto delega para novas features FSD.
@@ -25,7 +31,7 @@ export function useAuth() {
     error: loginError || signupError || profileError || null,
     // Compatibilidade com nomes antigos
     isAuthenticated: session.isAuthenticated,
-    hasCompleteProfile: session.isAuthenticated, // Simplificado
+    hasCompleteProfile: session.isAuthenticated,
     signIn: login,
     signUp: signup,
     signInWithGoogle: async () => { console.warn("Google Sign-In not implemented"); },
@@ -33,9 +39,3 @@ export function useAuth() {
     refreshProfile: async () => {},
   };
 }
-
-export * from './model/types';
-export * from './model/use-auth-session';
-export { LoginForm } from './login';
-export { SignUpForm } from './signup';
-export { CreateProfileForm } from './create-profile';

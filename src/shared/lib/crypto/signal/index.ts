@@ -1,2 +1,7 @@
-export { ensureSignalSession } from './signalSession';
-// Adicione outras exportações do Signal conforme necessário
+export { bootstrapSignalAccount } from './preKeyService';
+export { 
+    ensureSignalSession, 
+    encryptWithSignal, 
+    decryptWithSignal, 
+    clearSignalSessions 
+} from './sessionManager';

@@ -1,63 +1,74 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios';
+import axios from "axios";
+import { Platform } from "react-native";
+import Constants from "expo-constants";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// Configuração base do Axios
-const baseURL = process.env.EXPO_PUBLIC_API_URL || 'https://api.example.com';
+const STORAGE_KEY_TOKEN = "auth.token";
 
-// Criação da instância do Axios
-export const axiosInstance: AxiosInstance = axios.create({
-  baseURL,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+/**
+ * Determina a URL da API com base no ambiente (FSD Shared)
+ */
+const getApiUrl = () => {
+    if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
+    if (Constants.expoConfig?.extra?.apiUrl) return Constants.expoConfig.extra.apiUrl;
+
+    const hostUri = Constants.expoConfig?.hostUri;
+    if (hostUri) {
+        const ip = hostUri.split(":")[0];
+        if (ip && ip !== "localhost" && ip !== "127.0.0.1") {
+            return `http://${ip}:3000`;
+        }
+    }
+
+    if (Platform.OS === "android" && !Constants.isDevice) return "http://10.0.2.2:3000";
+    return "http://192.168.0.18:3000"; // Fallback para IP de rede local conhecido
+};
+
+export const API_URL = getApiUrl();
+
+const axiosInstance = axios.create({
+	baseURL: API_URL,
+	timeout: 10000,
+	headers: {
+		"Content-Type": "application/json",
+	},
 });
 
-// Interceptor para adicionar token de autenticação (se necessário)
+// Interceptor para adicionar token de autenticação
 axiosInstance.interceptors.request.use(
-  (config) => {
-    // Aqui você pode adicionar lógica para incluir tokens de autenticação
-    // Exemplo: const token = await AsyncStorage.getItem('token');
-    // if (token) config.headers.Authorization = `Bearer ${token}`;
-    return config;
-  },
-  (error: AxiosError) => {
-    return Promise.reject(error);
-  }
+	async (config) => {
+		try {
+			const token = await AsyncStorage.getItem(STORAGE_KEY_TOKEN);
+			if (token) {
+				if (config.headers.set) {
+					config.headers.set("Authorization", `Bearer ${token}`);
+				} else {
+					(config.headers as any).Authorization = `Bearer ${token}`;
+				}
+			}
+		} catch (error) {
+			console.error("[Shared/API] Error getting auth token:", error);
+		}
+		return config;
+	},
+	(error) => Promise.reject(error)
 );
 
-// Interceptor para tratamento de erros
+// Interceptor para tratamento de erros centralizado
 axiosInstance.interceptors.response.use(
-  (response) => response,
-  (error: AxiosError) => {
-    // Tratamento centralizado de erros
-    if (error.response) {
-      // Erro com resposta do servidor
-      switch (error.response.status) {
-        case 401:
-          // Não autorizado - redirecionar para login
-          break;
-        case 403:
-          // Proibido
-          break;
-        case 404:
-          // Não encontrado
-          break;
-        case 500:
-          // Erro interno do servidor
-          break;
-        default:
-          break;
-      }
-    } else if (error.request) {
-      // Erro de rede
-      console.error('Network error:', error.request);
-    } else {
-      // Erro na configuração da requisição
-      console.error('Error:', error.message);
-    }
-    return Promise.reject(error);
-  }
+	(response) => response,
+	(error) => {
+		if (error.response) {
+			const { status } = error.response;
+			if (status === 401) console.warn("[Shared/API] Unauthorized (401)");
+			if (status === 403) console.warn("[Shared/API] Forbidden (403)");
+		} else if (error.request) {
+			console.error("[Shared/API] Network error (No response)");
+		} else {
+			console.error("[Shared/API] Error setting up request:", error.message);
+		}
+		return Promise.reject(error);
+	}
 );
 
-export default axiosInstance;
-
+export { axiosInstance };

@@ -5,9 +5,9 @@ import { useTheme } from "styled-components/native";
 import { useTranslation } from "@/app/providers/i18n";
 import { Image } from "expo-image";
 import { useState, useEffect } from "react";
-import { userService } from "@/services/api/user.service";
-import { formatShortName } from "@/shared/utils";
-import type { UserProfile } from "@/features/auth/types";
+import { userService } from "@/shared/api/user.service";
+import { formatShortName } from "@/shared/lib/utils";
+import type { UserProfile } from "@/features/auth";
 import styled from "styled-components/native";
 
 const AvatarContainer = styled.View`

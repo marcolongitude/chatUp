@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMessages, MessageStatus, Message, CreateMessageData } from "@/entities/message";
 import { useAuth } from "@/features/auth";
 import { useTranslation } from "@/app/providers/i18n";
-import { setCurrentChatSenderId } from "@/services/notifications";
+import { setCurrentChatSenderId } from "@/shared/lib/notifications";
 
 // --- Styled Components ---
 const ContainerWrapper = styled.View`
@@ -166,7 +166,7 @@ export function ChatWindow({ contactId }: ChatWindowProps) {
 			if (!acc.find((m) => m.id === msg.id)) acc.push(msg);
 			return acc;
 		}, [] as Message[]);
-		return unique.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+		return unique.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 	}, [optimisticMessages]);
 
 	useEffect(() => {
@@ -191,7 +191,7 @@ export function ChatWindow({ contactId }: ChatWindowProps) {
 			<MessageBubble isOwn={isOwn}>
 				<MessageText isOwn={isOwn}>{message.text}</MessageText>
 				<MessageFooter isOwn={isOwn}>
-					<MessageTime isOwn={isOwn}>{formatTime(message.timestamp)}</MessageTime>
+					<MessageTime isOwn={isOwn}>{formatTime(new Date(message.timestamp))}</MessageTime>
 					{isOwn && <MessageStatus isRead={message.read} isViewed={message.viewedAt !== null} />}
 				</MessageFooter>
 			</MessageBubble>

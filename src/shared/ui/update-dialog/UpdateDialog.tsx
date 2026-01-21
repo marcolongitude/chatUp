@@ -1,7 +1,7 @@
 import React from "react";
 import { Modal, View, Text, ActivityIndicator } from "react-native";
 import styled, { useTheme } from "styled-components/native";
-import { Button } from "./Button";
+import { Button } from "../button";
 import { useTranslation } from "@/app/providers/i18n";
 import { useUpdates } from "@/shared/lib/hooks/useUpdates";
 

@@ -3,7 +3,7 @@
  * Define a estrutura das tabelas e índices
  */
 
-export interface MessageRow {
+export interface LocalMessageRow {
 	id: string; // ID do Firestore (PRIMARY KEY)
 	chatId: string; // ID da conversa
 	senderId: string; // ID do remetente

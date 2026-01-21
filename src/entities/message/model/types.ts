@@ -1,17 +1,21 @@
+/**
+ * Interface core para as mensagens do sistema
+ */
 export interface Message {
 	id: string;
-	chatId: string; // ID da conversa (combinação ordenada dos IDs dos usuários)
-	senderId: string; // ID do usuário que enviou
-	receiverId: string; // ID do usuário que recebeu
+	chatId: string;
+	senderId: string;
+	receiverId: string;
 	text: string;
-	timestamp: Date;
+	timestamp: Date | number | string;
 	read: boolean;
-	viewedAt?: Date | any | null; // Timestamp do Firestore - quando a mensagem foi visualizada
-	createdAt: any; // Timestamp do Firestore
-	updatedAt?: any; // Timestamp do Firestore
+	viewedAt?: Date | number | null;
+	createdAt?: Date | number | null;
+	updatedAt?: Date | number | null;
+	isLocal?: boolean;
 }
 
 export interface CreateMessageData {
-	text: string;
 	receiverId: string;
+	text: string;
 }

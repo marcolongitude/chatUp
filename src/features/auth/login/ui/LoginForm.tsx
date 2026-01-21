@@ -7,7 +7,7 @@ import styled, { useTheme } from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
 import { Input, Button, Link } from "@/shared/ui";
 import { useTranslation } from "@/app/providers/i18n";
-import type { LoginCredentials } from "../types";
+import type { LoginCredentials } from "@/features/auth";
 
 const logoImage = require("../../../../assets/logo-chatup.png");
 

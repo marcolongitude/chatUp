@@ -2,7 +2,7 @@
  * Utilitários para cálculos geográficos
  */
 
-import type { Location } from "../types";
+import type { Location } from "@/entities/user";
 
 /**
  * Raio da Terra em metros

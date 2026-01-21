@@ -2,7 +2,7 @@
  * Tipos relacionados ao módulo de autenticação
  */
 
-import type { Location } from '@/features/location/types';
+import type { Location } from '@/entities/user/model/types';
 
 export interface LoginCredentials {
 	email: string;

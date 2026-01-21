@@ -6,7 +6,7 @@ import { Providers } from "@/app/providers";
 import { UpdateDialog } from "@/shared/ui";
 import React, { Suspense, useEffect } from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
-import { requestNotificationPermissions } from "@/services/notifications";
+import { requestNotificationPermissions } from "@/shared/lib/notifications";
 
 // Polyfill global crypto
 import * as Crypto from "expo-crypto";

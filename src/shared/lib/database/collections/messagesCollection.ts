@@ -9,7 +9,7 @@ import { messageSchema, type MessageRow } from './schemas';
 import { encryptMessage, decryptMessage } from '@/shared/lib/crypto';
 import type { Collection } from '@tanstack/db';
 import { ELECTRIC_CONFIG } from '@/app/providers/electric/config';
-import { chatService } from '@/services/api/chat.service';
+import { chatService } from '@/shared/api/chat.service';
 
 // Helper to generate chat ID (consistent with existing logic)
 function generateChatId(userId1: string, userId2: string): string {
