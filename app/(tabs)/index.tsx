@@ -6,7 +6,7 @@ import { Button } from "@/shared/ui";
 import { useTranslation } from "@/app/providers/i18n";
 import { useConversations } from "./_hooks";
 import api from "@/services/api";
-import type { Contact } from "@/modules/chat/types";
+import type { Contact } from "@/entities/message";
 import {
 	Container,
 	ContactItem,

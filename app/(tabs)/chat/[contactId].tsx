@@ -14,12 +14,10 @@ import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import styled, { useTheme } from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
-import { useMessages } from "@/modules/chat/hooks/useMessages";
+import { useMessages, MessageStatus, Message, CreateMessageData } from "@/entities/message";
 import { useAuth } from "@/modules/auth";
 import { useTranslation } from "@/app/providers/i18n";
-import { mockContacts } from "@/modules/chat";
-import { MessageStatus } from "@/shared/ui/MessageStatus";
-import type { CreateMessageData, Message } from "@/modules/chat/types";
+import { mockContacts } from "@/entities/contact";
 import { setCurrentChatSenderId } from "@/services/notifications";
 
 const ContainerWrapper = styled.View`

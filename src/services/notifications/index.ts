@@ -2,7 +2,7 @@ import * as Notifications from "expo-notifications";
 import { Platform, AppState, AppStateStatus } from "react-native";
 import { userService } from "@/services/api/user.service";
 import type { UserProfile } from "@/modules/auth/types";
-import type { Message } from "@/modules/chat/types";
+import type { Message } from "@/entities/message";
 
 /**
  * Configuração de notificações

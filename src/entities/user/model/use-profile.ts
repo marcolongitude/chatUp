@@ -1,10 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { axiosInstance } from '@/shared/api/axiosClient';
-import type { Profile, UpdateProfileData } from '../types';
-import { useRefreshOnFocus } from '@/shared/lib/hooks/useRefreshOnFocus';
+import { axiosInstance } from '@/shared/api';
+import { useRefreshOnFocus } from '@/shared/lib/hooks';
+import type { User as Profile, UpdateProfileData } from './types';
 
 /**
- * Hook para buscar o perfil do usuário
+ * Hook de domínio para buscar o perfil do usuário
+ * Nota: Ação de update deve ser movida para features futuramente
  */
 export function useProfile(userId?: string) {
   const queryClient = useQueryClient();
@@ -28,7 +29,6 @@ export function useProfile(userId?: string) {
     },
     onSuccess: (data) => {
       queryClient.setQueryData(['profile', 'me'], data);
-      // Invalidar outras queries relacionadas se necessário
       queryClient.invalidateQueries({ queryKey: ['profile'] });
     },
   });
@@ -42,4 +42,3 @@ export function useProfile(userId?: string) {
     refetch,
   };
 }
-

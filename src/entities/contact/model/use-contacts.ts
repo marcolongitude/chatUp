@@ -1,41 +1,24 @@
-/**
- * Hook para buscar informações de contatos (contagem de não lidas)
- */
-
 import { useMemo } from 'react';
+// Provisoriamente importando useAuth de modules até fase 4
 import { useAuth } from '@/modules/auth';
-import { useLiveQuery, eq, or, and } from '@tanstack/react-db';
 import { messagesCollection } from '@/shared/lib/database/collections';
-import type { Contact } from '../types';
+// NearbyUser virá de features later, por enquanto importando de onde estiver
 import type { NearbyUser } from '@/modules/location/types';
+import type { Contact } from './types';
 
 /**
- * Gera um ID de chat único baseado nos IDs dos participantes
- */
-function generateChatId(userId1: string, userId2: string): string {
-	const sorted = [userId1, userId2].sort();
-	return `${sorted[0]}_${sorted[1]}`;
-}
-
-/**
- * Hook para buscar informações de chat para uma lista de usuários próximos
+ * Hook para buscar informações de chat para uma lista de usuários
  * Retorna contatos com contagem de mensagens não lidas
  */
-export function useContacts(nearbyUsers: NearbyUser[]): {
-	contacts: Contact[];
-	isLoading: boolean;
-} {
+export function useContacts(nearbyUsers: NearbyUser[]) {
 	const { user } = useAuth();
 	const currentUserId = user?.id;
 
-	// Live query for unread messages - automatically updates when Electric syncs
-	// Return empty array for now until Electric SQL is fully configured
-	// The error "Unknown expression type: undefined" suggests the collection
-	// or Electric SQL integration needs to be properly initialized first
+	// No momento a contagem de não lidas está simplificada
+	// Em uma versão futura usaríamos useLiveQuery aqui
 	const unreadMessages: any[] = [];
 	const messagesLoading = false;
 
-	// Calculate unread counts per contact
 	const contacts = useMemo(() => {
 		if (!user || nearbyUsers.length === 0) {
 			return [];
@@ -43,7 +26,6 @@ export function useContacts(nearbyUsers: NearbyUser[]): {
 
 		const contactsMap = new Map<string, Contact>();
 
-		// Init base contacts
 		nearbyUsers.forEach((nearbyUser) => {
 			contactsMap.set(nearbyUser.id, {
 				id: nearbyUser.id,
@@ -53,7 +35,6 @@ export function useContacts(nearbyUsers: NearbyUser[]): {
 			});
 		});
 
-		// Count unread messages per contact
 		if (unreadMessages) {
 			unreadMessages.forEach((msg) => {
 				if (msg.receiver_id === currentUserId && !msg.is_read) {
@@ -74,4 +55,3 @@ export function useContacts(nearbyUsers: NearbyUser[]): {
 		isLoading: messagesLoading,
 	};
 }
-

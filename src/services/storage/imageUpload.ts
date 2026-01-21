@@ -1,6 +1,6 @@
 import api from "@/services/api";
 import { encryptMessage } from "@/shared/lib/crypto";
-import type { Message } from "@/modules/chat/types";
+import type { Message } from "@/entities/message";
 
 /**
  * Serviço otimizado para upload de imagens no Backend

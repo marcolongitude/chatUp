@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
-import api from '@/services/api';
+// Usando o axiosClient do shared
+import { axiosInstance } from '@/shared/api';
 
 export interface SearchedUser {
     id: string;
@@ -9,6 +10,9 @@ export interface SearchedUser {
     bio?: string;
 }
 
+/**
+ * Hook de domínio para buscar usuários
+ */
 export function useUserSearch() {
     const [results, setResults] = useState<SearchedUser[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -24,12 +28,12 @@ export function useUserSearch() {
         setError(null);
 
         try {
-            const response = await api.get<SearchedUser[]>(`/users/search`, {
+            const response = await axiosInstance.get<SearchedUser[]>(`/users/search`, {
                 params: { q: query }
             });
             setResults(response.data);
         } catch (err: any) {
-            console.error('❌ Error searching users:', err);
+            console.error('❌ [Entities/Contact] Error searching users:', err);
             setError('Falha ao buscar usuários');
         } finally {
             setIsLoading(false);

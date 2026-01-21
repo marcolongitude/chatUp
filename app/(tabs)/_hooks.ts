@@ -1,10 +1,10 @@
 import { useRouter } from "expo-router";
 import { useLocation } from "@/modules/location";
 import { useNearbyUsers } from "@/modules/location";
-import { useContacts } from "@/modules/chat/hooks/useContacts";
+import { useContacts } from "@/entities/contact";
 import { useAuth } from "@/modules/auth";
 import { ensureSignalSession } from "@/shared/lib/crypto";
-import type { Contact } from "@/modules/chat/types";
+import type { Contact } from "@/entities/message";
 
 interface UseConversationsReturn {
 	contacts: Contact[];

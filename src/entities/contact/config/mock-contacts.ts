@@ -1,7 +1,4 @@
-/**
- * Dados mockados de contatos para desenvolvimento
- */
-import type { Contact } from '../types';
+import type { Contact } from '../model/types';
 
 export const mockContacts: Contact[] = [
 	{
@@ -85,4 +82,3 @@ export const mockContacts: Contact[] = [
 		lastMessageTime: '10/01',
 	},
 ];
-
