@@ -21,7 +21,9 @@ interface ElectricProviderProps {
 }
 
 export function ElectricProvider({ children }: ElectricProviderProps) {
+  console.log("🔍 ElectricProvider: Renderizando...");
   const { user } = useAuth();
+  console.log("🔍 ElectricProvider: user =", user?.id || "null");
   const [client, setClient] = useState<ElectricClient | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(true);

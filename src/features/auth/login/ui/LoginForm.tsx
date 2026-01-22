@@ -9,7 +9,7 @@ import { Input, Button, Link } from "@/shared/ui";
 import { useTranslation } from "@/app/providers/i18n";
 import type { LoginCredentials } from "@/features/auth";
 
-const logoImage = require("../../../../assets/logo-chatup.png");
+const logoImage = require("~/assets/logo-chatup.png");
 
 interface LoginFormProps {
 	onSubmit: (data: LoginCredentials) => void;

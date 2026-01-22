@@ -1,4 +1,4 @@
-import { axiosInstance as api } from './index';
+import { axiosInstance as api } from './axiosClient';
 import type { UserProfile } from '@/features/auth';
 
 export const userService = {

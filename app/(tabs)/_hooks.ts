@@ -4,7 +4,7 @@ import { useNearbyUsers } from "@/features/location";
 import { useContacts } from "@/entities/contact";
 import { useAuth } from "@/features/auth";
 import { ensureSignalSession } from "@/shared/lib/crypto";
-import type { Contact } from "@/entities/message";
+import type { Contact } from "@/entities/contact";
 
 interface UseConversationsReturn {
 	contacts: Contact[];

@@ -7,15 +7,18 @@ interface I18nProviderProps {
 }
 
 export const I18nProvider: React.FC<I18nProviderProps> = ({ children }) => {
+	console.log("🔍 I18nProvider: Renderizando...");
 	const [isReady, setIsReady] = useState(false);
 
 	useEffect(() => {
+		console.log("🔍 I18nProvider: Inicializando i18n...");
 		const initialize = async () => {
 			try {
 				await initI18n();
+				console.log("✅ I18nProvider: i18n inicializado com sucesso");
 				setIsReady(true);
 			} catch (error) {
-				console.error("❌ Erro ao inicializar i18n:", error);
+				console.error("❌ I18nProvider: Erro ao inicializar i18n:", error);
 				setIsReady(true); // Continuar mesmo com erro
 			}
 		};
@@ -24,6 +27,7 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({ children }) => {
 	}, []);
 
 	if (!isReady) {
+		console.log("🔍 I18nProvider: Ainda carregando, mostrando loading...");
 		return (
 			<View style={styles.container}>
 				<ActivityIndicator size="large" color="#007AFF" />
@@ -31,6 +35,8 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({ children }) => {
 		);
 	}
 
+	console.log("✅ I18nProvider: Pronto, renderizando children");
+	// Sempre renderizar children, mesmo se houver erro
 	return <>{children}</>;
 };
 

@@ -4,6 +4,10 @@
 		"strict": true,
 		"baseUrl": ".",
 		"paths": {
+			"@/app/providers": ["./src/app/providers"],
+			"@/app/providers/*": ["./src/app/providers/*"],
+			"@/app/config": ["./src/app/config"],
+			"@/app/config/*": ["./src/app/config/*"],
 			"@/*": ["./src/*"],
 			"~/*": ["./*"]
 		},

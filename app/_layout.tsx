@@ -1,5 +1,6 @@
 // MUST BE THE VERY FIRST IMPORT
-import "@/app/config/polyfills";
+// Import polyfills - usar require para evitar que Expo Router trate como rota
+require("@/app/config/polyfills/index");
 
 import { Stack } from "expo-router";
 import { Providers } from "@/app/providers";
@@ -88,6 +89,8 @@ const LoadingFallback = () => (
 );
 
 function AppContent() {
+	console.log("🔍 AppContent: Renderizando...");
+	
 	useEffect(() => {
 		(async () => {
 			try {
@@ -98,6 +101,7 @@ function AppContent() {
 		})();
 	}, []);
 
+	console.log("🔍 AppContent: Renderizando Stack...");
 	return (
 		<Suspense fallback={<LoadingFallback />}>
 			<Stack
@@ -135,6 +139,7 @@ function AppContent() {
 }
 
 export default function RootLayout() {
+	console.log("🔍 RootLayout: Renderizando...");
 	return (
 		<ErrorBoundary>
 			<Providers>

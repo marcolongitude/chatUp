@@ -52,7 +52,12 @@ module.exports = () => {
 				favicon: "./assets/favicon.png",
 			},
 			plugins: [
-				"expo-router",
+				[
+					"expo-router",
+					{
+						root: "./app",
+					},
+				],
 				[
 					"expo-location",
 					{
@@ -72,7 +77,9 @@ module.exports = () => {
 			},
 			runtimeVersion: "1.0.2",
 			extra: {
-				router: {},
+				router: {
+					origin: false,
+				},
 				eas: {
 					projectId: "d662ef19-e2a8-4cf3-b18a-564a4faa4a3d",
 				},

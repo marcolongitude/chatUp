@@ -1,36 +1,36 @@
 import React, { useEffect } from "react";
-import { ActivityIndicator } from "react-native";
+import { ActivityIndicator, View, Text, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
-import styled, { useTheme } from "styled-components/native";
 import { useAuth } from "@/features/auth";
 
-const Container = styled.View`
-	flex: 1;
-	justify-content: center;
-	align-items: center;
-	background-color: ${(props) => props.theme.colors.background.primary};
-	padding: ${(props) => props.theme.spacing.lg}px;
-`;
-
-const ErrorText = styled.Text`
-	color: ${(props) => props.theme.colors.status.error};
-	font-size: 16px;
-	text-align: center;
-	margin-top: ${(props) => props.theme.spacing.md}px;
-	margin-bottom: ${(props) => props.theme.spacing.md}px;
-`;
-
-const ErrorHint = styled.Text`
-	color: ${(props) => props.theme.colors.text.secondary};
-	font-size: 14px;
-	text-align: center;
-	margin-top: ${(props) => props.theme.spacing.sm}px;
-`;
+const styles = StyleSheet.create({
+	container: {
+		flex: 1,
+		justifyContent: "center",
+		alignItems: "center",
+		backgroundColor: "#0f1a1f",
+		padding: 24,
+	},
+	errorText: {
+		color: "#ff6b6b",
+		fontSize: 16,
+		textAlign: "center",
+		marginTop: 16,
+		marginBottom: 16,
+	},
+	hintText: {
+		color: "#b8c5d1",
+		fontSize: 14,
+		textAlign: "center",
+		marginTop: 8,
+	},
+});
 
 export default function IndexScreen() {
+	console.log("🔍 IndexScreen: Componente renderizado");
+	
 	const router = useRouter();
 	const { isAuthenticated, hasCompleteProfile, isLoading, error } = useAuth();
-	const theme = useTheme();
 
 	useEffect(() => {
 		console.log("🔍 IndexScreen: Inicializando...");
@@ -72,27 +72,28 @@ export default function IndexScreen() {
 				console.error("❌ IndexScreen: Erro ao navegar:", err);
 			}
 		}
-	}, [isAuthenticated, hasCompleteProfile, isLoading, error]);
+	}, [isAuthenticated, hasCompleteProfile, isLoading, error, router]);
 
 	// Se houver erro de configuração do Firebase, mostrar mensagem
 	if (!isLoading && error && error.includes("Firebase não está configurado")) {
 		return (
-			<Container>
-				<ErrorText>Erro de Configuração</ErrorText>
-				<ErrorText>{error}</ErrorText>
-				<ErrorHint>
+			<View style={styles.container}>
+				<Text style={styles.errorText}>Erro de Configuração</Text>
+				<Text style={styles.errorText}>{error}</Text>
+				<Text style={styles.hintText}>
 					Verifique se as variáveis de ambiente do Firebase estão configuradas corretamente.
-				</ErrorHint>
-			</Container>
+				</Text>
+			</View>
 		);
 	}
 
+	console.log("🔍 IndexScreen: Renderizando loading...");
 	return (
-		<Container>
-			<ActivityIndicator size="large" color={theme.colors.button.primary} />
+		<View style={styles.container}>
+			<ActivityIndicator size="large" color="#5b9bd5" />
 			{error && !error.includes("Firebase não está configurado") && (
-				<ErrorText style={{ marginTop: theme.spacing.md }}>{error}</ErrorText>
+				<Text style={[styles.errorText, { marginTop: 16 }]}>{error}</Text>
 			)}
-		</Container>
+		</View>
 	);
 }

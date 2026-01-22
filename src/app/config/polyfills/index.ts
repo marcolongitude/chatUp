@@ -3,6 +3,8 @@
  * Required for libraries like Electric SQL and Signal Protocol to work in React Native
  */
 
+import React from 'react';
+
 // Basic crypto placeholder (will be fully polyfilled in app/_layout.tsx with expo-crypto)
 // We use react-native-quick-crypto for full WebCrypto support (SubtleCrypto) required by libsignal
 try {
@@ -136,3 +138,12 @@ const originalInherits = util.inherits;
 
 
 console.log('✅ Node.js polyfills initialized');
+
+// Default export para evitar que Expo Router trate este arquivo como rota
+// Este arquivo não deve ser usado como rota, apenas como polyfill
+// Retorna um componente vazio caso Expo Router tente renderizá-lo
+const PolyfillsRoute = () => {
+	return null;
+};
+
+export default PolyfillsRoute;

@@ -148,39 +148,14 @@ export function useMessages(contactId: string) {
 		}
 	}, [user, contactId, chatId, messageRows]);
 
-	// Local SQLite state (Offline Fallback)
-	const [localMessages, setLocalMessages] = useState<Message[]>([]);
-
-	useEffect(() => {
-		if (!chatId) return;
-
-		let isMounted = true;
-		const fetchLocal = async () => {
-			try {
-				const { getMessages: getLocalMessages } = require("@/shared/lib/database");
-				const localData = await getLocalMessages(chatId, 50);
-				if (isMounted && localData.length > 0) {
-					setLocalMessages(localData);
-				}
-			} catch (err) {
-				console.error("❌ [Entities/Message] Erro ao buscar mensagens locais:", err);
-			}
-		};
-
-		fetchLocal();
-	}, [chatId]);
-
-	// Combinação do estado Local + Electric
+	// Mensagens finais: usa Electric SQL diretamente
+	// O Electric SQL já fornece sincronização offline-first, então não precisamos de fallback manual
 	const allMessages = useMemo(() => {
-		const combined = new Map<string, Message>();
-		
-		localMessages.forEach(msg => combined.set(msg.id, msg));
-		decryptedMessages.forEach(msg => combined.set(msg.id, msg));
-		
-		return Array.from(combined.values()).sort((a, b) => 
+		// Ordenar mensagens por timestamp
+		return [...decryptedMessages].sort((a, b) => 
 			new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
 		);
-	}, [localMessages, decryptedMessages]);
+	}, [decryptedMessages]);
 
 	// Lógica de carregamento inteligente
 	const shouldShowLoading = useMemo(() => {

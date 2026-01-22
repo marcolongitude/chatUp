@@ -1,4 +1,4 @@
-import { axiosInstance as api } from './index';
+import { axiosInstance as api } from './axiosClient';
 import type { LoginCredentials, RegisterData, AuthResponse, CreateProfileData } from '@/features/auth';
 
 export const authService = {
