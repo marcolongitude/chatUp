@@ -111,6 +111,12 @@ export async function insertEncryptedMessage(
     is_read: false,
   };
   
+  // **NOVO**: Cache plaintext para mensagens próprias antes de enviar
+  // NOTA: Usamos o ciphertext como chave pois o ID muda após sync com servidor
+  const { cacheOwnMessage } = require('@/shared/lib/crypto/ownMessageCache');
+  cacheOwnMessage(encryptedContent, messageData.content);
+  console.log("💾 Plaintext cacheado pelo CIPHERTEXT para mensagem própria");
+  
   // 1. Upstream (Device -> Postgres)
   // In Electric 1.0 (Next), writes should go through your API to Postgres.
   // Electric then handles the real-time sync back to all devices (Downstream).
@@ -126,27 +132,10 @@ export async function insertEncryptedMessage(
     // Offline resilience: the message is still saved locally below
   }
 
-  // 2. Dual Write: Also write to Local SQLite for immediate UI persistence (Offline First)
-  try {
-    const { insertMessage } = require('@/shared/lib/database');
-    console.log(`💾 Saving message to Local SQLite...`);
-    await insertMessage({
-      id: messageRow.id,
-      chatId,
-      senderId: messageRow.sender_id,
-      receiverId: messageRow.receiver_id,
-      text: messageData.content, // Store plaintext locally for UI
-      encryptedText: encryptedContent,
-      timestamp: messageRow.timestamp,
-      read: false,
-      createdAt: messageRow.timestamp,
-      updatedAt: messageRow.timestamp,
-      isLocal: true
-    });
-    console.log(`✅ Message backed up to Local SQLite`);
-  } catch (serializationError) {
-    console.warn(`⚠️ Failed to backup message to Local SQLite:`, serializationError);
-  }
+  // 2. Electric SQL já faz a sincronização local automaticamente
+  // Não precisamos mais de backup manual - Electric sincroniza com SQLite local
+  // A mensagem já foi inserida via insertEncryptedMessage que usa Electric
+  console.log(`💾 Message will be synced to local SQLite via Electric automatically`);
   
   return messageRow.id;
 }
@@ -160,6 +149,17 @@ export async function decryptMessageRow(
 ): Promise<{ id: string; text: string; timestamp: Date; senderId: string; receiverId: string; read: boolean }> {
   const chatId = generateChatId(messageRow.sender_id, messageRow.receiver_id);
   
+  // Debug: Log IDs para verificar comparação
+  const isOwnMessage = String(messageRow.sender_id).trim() === String(currentUserId).trim();
+  console.log('🔍 [decryptMessageRow] Decrypting message:', {
+    messageId: messageRow.id,
+    senderId: messageRow.sender_id,
+    receiverId: messageRow.receiver_id,
+    currentUserId: currentUserId,
+    isOwnMessage,
+    contentPreview: messageRow.content.substring(0, 50) + '...'
+  });
+  
   // Decrypt the content
   let decryptedText = messageRow.content;
   try {
@@ -168,11 +168,30 @@ export async function decryptMessageRow(
       chatId,
       currentUserId,
       messageRow.sender_id,
-      messageRow.receiver_id
+      messageRow.receiver_id,
+      messageRow.id // NOVO: passa messageId para permitir cache
     );
-  } catch (error) {
-    console.warn('Failed to decrypt message:', error);
-    // Keep encrypted text if decryption fails
+    
+    // Se descriptografou com sucesso mas retornou placeholder de mensagem própria,
+    // isso significa que a mensagem foi detectada como própria durante descriptografia
+    if (decryptedText === "[Mensagem própria]") {
+      console.warn('⚠️ [decryptMessageRow] Mensagem própria retornou placeholder após descriptografia');
+      // Para mensagens próprias, não podemos descriptografar (Signal Protocol limitation)
+      // Mas podemos tentar retornar o texto original se disponível
+      // Por enquanto, retornamos uma mensagem mais amigável
+      decryptedText = "[Sua mensagem]";
+    }
+  } catch (error: any) {
+    const errorMsg = error?.message || String(error);
+    console.warn('⚠️ [decryptMessageRow] Failed to decrypt message:', errorMsg);
+    
+    // Se for mensagem própria e erro de "sending chain", mostrar mensagem amigável
+    if (isOwnMessage && (errorMsg.includes('sending chain') || errorMsg.includes('mensagem própria'))) {
+      decryptedText = "[Sua mensagem]";
+    } else {
+      // Para outros erros, manter texto criptografado ou mostrar erro
+      decryptedText = "[Erro ao descriptografar]";
+    }
   }
   
   return {

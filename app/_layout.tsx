@@ -9,13 +9,58 @@ import React, { Suspense, useEffect } from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { requestNotificationPermissions } from "@/shared/lib/notifications";
 
-// Polyfill global crypto
+// Polyfill global crypto - NÃO sobrescrever crypto se já foi configurado nos polyfills
 import * as Crypto from "expo-crypto";
-if (typeof (global as any).crypto === "undefined") {
-	(global as any).crypto = {} as any;
-}
-if (typeof (global as any).crypto.randomUUID !== "function") {
-	(global as any).crypto.randomUUID = () => Crypto.randomUUID().toLowerCase();
+
+console.log('🔍 [_layout] Verificando estado do crypto após polyfills...');
+console.log('🔍 [_layout] crypto existe:', !!(global as any).crypto);
+console.log('🔍 [_layout] crypto.subtle existe:', !!(global as any).crypto?.subtle);
+
+// Verificar se crypto já foi configurado pelos polyfills
+const cryptoAlreadyConfigured = (global as any).crypto && (global as any).crypto.subtle;
+
+if (!cryptoAlreadyConfigured) {
+	console.warn('⚠️ [_layout] crypto.subtle não foi configurado pelos polyfills!');
+	// Se crypto não foi configurado, inicializar básico
+	if (typeof (global as any).crypto === "undefined") {
+		(global as any).crypto = {} as any;
+	}
+	
+	// Adicionar randomUUID
+	if (typeof (global as any).crypto.randomUUID !== "function") {
+		(global as any).crypto.randomUUID = () => Crypto.randomUUID().toLowerCase();
+	}
+} else {
+	console.log('✅ [_layout] crypto.subtle já está configurado pelos polyfills');
+	// Crypto já foi configurado pelos polyfills, apenas adicionar randomUUID se não existir
+	if (typeof (global as any).crypto.randomUUID !== "function") {
+		(global as any).crypto.randomUUID = () => Crypto.randomUUID().toLowerCase();
+	}
+	
+	// Verificar se subtle ainda está disponível
+	if (!(global as any).crypto.subtle) {
+		console.error("❌ [_layout] crypto.subtle foi perdido após polyfills! Tentando restaurar...");
+		// Tentar recarregar react-native-quick-crypto
+		try {
+			const QuickCrypto = require('react-native-quick-crypto');
+			if (QuickCrypto.subtle) {
+				(global as any).crypto.subtle = QuickCrypto.subtle;
+				console.log("✅ [_layout] crypto.subtle restaurado");
+			} else {
+				console.error("❌ [_layout] QuickCrypto.subtle não está disponível!");
+			}
+		} catch (e) {
+			console.error("❌ [_layout] Falha ao restaurar crypto.subtle:", e);
+		}
+	} else {
+		console.log('✅ [_layout] crypto.subtle ainda está disponível');
+		// Verificar importKey
+		if ((global as any).crypto.subtle.importKey) {
+			console.log('✅ [_layout] crypto.subtle.importKey está disponível');
+		} else {
+			console.error('❌ [_layout] crypto.subtle.importKey não está disponível!');
+		}
+	}
 }
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {

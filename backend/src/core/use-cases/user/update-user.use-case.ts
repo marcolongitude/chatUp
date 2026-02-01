@@ -15,6 +15,7 @@ export class UpdateUserUseCase {
     if (dto.photoURL !== undefined) user.photoURL = dto.photoURL;
     if (dto.bio !== undefined) user.bio = dto.bio;
     if (dto.phoneNumber !== undefined) user.phoneNumber = dto.phoneNumber;
+    if (dto.publicKey !== undefined) user.publicKey = dto.publicKey;
     // Email updates might require verification, skipping for now unless explicit
 
     // TypeORM save() acts as upsert if ID exists.

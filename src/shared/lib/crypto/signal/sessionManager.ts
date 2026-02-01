@@ -1,4 +1,57 @@
 import "react-native-get-random-values";
+import "@/app/config/polyfills";
+
+// Garantir que crypto.subtle está disponível antes de importar libsignal
+function ensureCryptoSubtleForSession() {
+  if (typeof globalThis === 'undefined') {
+    console.error('❌ [sessionManager] globalThis não está disponível!');
+    return false;
+  }
+  
+  // Verificar se já está configurado
+  if (globalThis.crypto && globalThis.crypto.subtle && globalThis.crypto.subtle.importKey) {
+    return true;
+  }
+  
+  // Tentar configurar
+  try {
+    const QuickCrypto = require('react-native-quick-crypto');
+    
+    if (!QuickCrypto || !QuickCrypto.subtle) {
+      console.error('❌ [sessionManager] QuickCrypto.subtle não está disponível!');
+      return false;
+    }
+    
+    // Configurar globalThis.crypto completamente
+    if (!globalThis.crypto) {
+      globalThis.crypto = QuickCrypto;
+    } else {
+      globalThis.crypto.subtle = QuickCrypto.subtle;
+      if (!globalThis.crypto.getRandomValues) {
+        globalThis.crypto.getRandomValues = QuickCrypto.getRandomValues;
+      }
+    }
+    
+    // Verificação final
+    if (globalThis.crypto.subtle && globalThis.crypto.subtle.importKey) {
+      console.log('✅ [sessionManager] crypto.subtle.importKey configurado');
+      return true;
+    } else {
+      console.error('❌ [sessionManager] crypto.subtle.importKey ainda não está disponível!');
+      return false;
+    }
+  } catch (e) {
+    console.error('❌ [sessionManager] Falha ao configurar crypto.subtle:', e);
+    return false;
+  }
+}
+
+// Executar antes de importar libsignal
+const cryptoReadyForSession = ensureCryptoSubtleForSession();
+if (!cryptoReadyForSession) {
+  console.error('❌ [sessionManager] ATENÇÃO: crypto.subtle não está disponível!');
+}
+
 import { SignalProtocolAddress, SessionBuilder, SessionCipher } from "libsignal-protocol-typescript";
 import {
 	stringToArrayBuffer,
@@ -125,8 +178,17 @@ export async function ensureSignalSession(currentUserId: string, contactId: stri
 				);
 			}
 
-			const builder = new SessionBuilder(storage, address);
-			await builder.processPreKey({
+		// Verificar crypto.subtle antes de criar SessionBuilder
+		if (!globalThis.crypto || !globalThis.crypto.subtle || !globalThis.crypto.subtle.importKey) {
+			console.error('❌ [ensureSignalSession] crypto.subtle.importKey não está disponível antes de criar SessionBuilder!');
+			const cryptoReady = ensureCryptoSubtleForSession();
+			if (!cryptoReady) {
+				throw new Error('crypto.subtle.importKey não está disponível. Não é possível criar sessão Signal.');
+			}
+		}
+
+		const builder = new SessionBuilder(storage, address);
+		await builder.processPreKey({
 				identityKey: remoteBundle.identityKey,
 				signedPreKey: {
 					keyId: remoteBundle.signedPreKey.keyId,
@@ -237,6 +299,12 @@ export async function decryptWithSignal(options: {
 		const isSendingChainError =
 			errorMessage.includes("Tried to decrypt on a sending chain") || errorMessage.includes("sending chain");
 
+        // Detectar erro de Bad Decrypt (chave incorreta ou corrompida)
+        const isBadDecrypt = 
+            errorMessage.includes("bad decrypt") || 
+            errorMessage.includes("Cipher final failed") ||
+            errorMessage.includes("invalid key");
+
 		if (isSendingChainError) {
 			console.warn("⚠️ [Signal] Erro de 'sending chain' detectado - mensagem própria ou sessão invertida", {
 				contactId,
@@ -245,8 +313,8 @@ export async function decryptWithSignal(options: {
 			throw new Error("Não é possível descriptografar mensagem na cadeia de envio (mensagem própria)");
 		}
 
-		if (isMessageCounterError) {
-			console.warn("⚠️ [Signal] Erro de contador de mensagens detectado, resetando sessão...", {
+		if (isMessageCounterError || isBadDecrypt) {
+			console.warn(`⚠️ [Signal] Erro de criptografia detectado (${isBadDecrypt ? 'Bad Decrypt' : 'Counter'}), resetando sessão...`, {
 				contactId,
 				error: errorMessage,
 			});
@@ -256,8 +324,9 @@ export async function decryptWithSignal(options: {
 				await deleteSignalSession(currentUserId, contactId);
 
 				// Tentar descriptografar novamente (isso vai criar uma nova sessão se necessário)
-				// Mas primeiro precisamos tentar descriptografar como PreKey message
-				// já que a sessão foi deletada
+				// NOTA: Se for 'bad decrypt', o retry provavelmente falhará também se a mensagem
+                // foi encriptada para a identidade antiga. Mas limpar a sessão é vital
+                // para que NOVAS mensagens forcem uma negociação limpa (PreKey).
 				if (type !== 3) {
 					// Se não era PreKey, tentar como PreKey agora
 					const plaintext = await cipher.decryptPreKeyWhisperMessage(normalizedPayload);
@@ -271,6 +340,12 @@ export async function decryptWithSignal(options: {
 				}
 			} catch (retryError: any) {
 				console.error("❌ [Signal] Falha ao descriptografar mesmo após reset de sessão:", retryError);
+                
+                // Se for Bad Decrypt persistente, retornamos erro específico para a UI não crashar
+                if (isBadDecrypt) {
+                    throw new Error("Mensagem ilegível (chave antiga ou sessão inválida)");
+                }
+
 				throw new Error(
 					`Falha ao descriptografar mensagem Signal após reset de sessão: ${
 						retryError?.message || String(retryError)

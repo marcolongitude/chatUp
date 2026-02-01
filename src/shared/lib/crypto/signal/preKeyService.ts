@@ -1,5 +1,82 @@
 import "@/app/config/polyfills";
 
+// Garantir que crypto.subtle está disponível antes de importar libsignal
+// libsignal-protocol-typescript usa globalThis.crypto na inicialização
+function ensureCryptoSubtle() {
+  if (typeof globalThis === 'undefined') {
+    console.error('❌ [preKeyService] globalThis não está disponível!');
+    return false;
+  }
+  
+  // Verificar se já está configurado
+  if (globalThis.crypto && globalThis.crypto.subtle && globalThis.crypto.subtle.importKey) {
+    console.log('✅ [preKeyService] crypto.subtle.importKey já está disponível');
+    return true;
+  }
+  
+  // Tentar configurar
+  try {
+    let QuickCrypto;
+    try {
+      // Tentar carregar o módulo - pode lançar erro se NitroModules não estiver disponível
+      QuickCrypto = require('react-native-quick-crypto');
+    } catch (requireError: any) {
+      const errorMsg = requireError?.message || String(requireError);
+      // Verificar se é erro de NitroModules
+      if (errorMsg.includes('NitroModules') || errorMsg.includes('TurboModule') || errorMsg.includes('Turbo/Native-Module')) {
+        console.error('❌ [preKeyService] NitroModules não está disponível!');
+        console.error('❌ [preKeyService] O app precisa ser reconstruído após habilitar TurboModules.');
+        console.error('❌ [preKeyService] Execute: cd android && ./gradlew clean && cd .. && npm run android');
+      } else {
+        console.error('❌ [preKeyService] Falha ao carregar react-native-quick-crypto:', errorMsg);
+        console.error('❌ [preKeyService] O módulo nativo pode não estar compilado. Reconstrua o app Android.');
+      }
+      return false;
+    }
+    
+    if (!QuickCrypto) {
+      console.error('❌ [preKeyService] QuickCrypto é null após require!');
+      return false;
+    }
+    
+    if (!QuickCrypto.subtle) {
+      console.error('❌ [preKeyService] QuickCrypto.subtle não está disponível!');
+      console.error('❌ [preKeyService] Isso geralmente significa que TurboModules não está funcionando.');
+      console.error('❌ [preKeyService] Verifique se newArchEnabled=true e reconstrua o app.');
+      return false;
+    }
+    
+    // Configurar globalThis.crypto completamente
+    if (!globalThis.crypto) {
+      globalThis.crypto = QuickCrypto;
+    } else {
+      // Preservar propriedades existentes e adicionar subtle
+      globalThis.crypto.subtle = QuickCrypto.subtle;
+      if (!globalThis.crypto.getRandomValues) {
+        globalThis.crypto.getRandomValues = QuickCrypto.getRandomValues;
+      }
+    }
+    
+    // Verificação final
+    if (globalThis.crypto.subtle && globalThis.crypto.subtle.importKey) {
+      console.log('✅ [preKeyService] crypto.subtle.importKey configurado com sucesso');
+      return true;
+    } else {
+      console.error('❌ [preKeyService] crypto.subtle.importKey ainda não está disponível após configuração!');
+      return false;
+    }
+  } catch (e) {
+    console.error('❌ [preKeyService] Falha ao configurar crypto.subtle:', e);
+    return false;
+  }
+}
+
+// Executar antes de importar libsignal
+const cryptoReady = ensureCryptoSubtle();
+if (!cryptoReady) {
+  console.error('❌ [preKeyService] ATENÇÃO: crypto.subtle não está disponível! Signal Protocol pode falhar!');
+}
+
 import { KeyHelper, type KeyPairType, type PreKeyPairType } from "libsignal-protocol-typescript";
 import { axiosInstance as api } from '@/shared/api';
 import { arrayBufferToBase64, base64ToArrayBuffer } from "@/shared/lib/crypto/utils";
@@ -31,10 +108,20 @@ export interface RemotePreKeyBundle {
 export async function bootstrapSignalAccount(userId: string): Promise<SignalStorage> {
     // No db check needed
 
+	// Verificar novamente se crypto.subtle está disponível antes de usar KeyHelper
+	if (!globalThis.crypto || !globalThis.crypto.subtle || !globalThis.crypto.subtle.importKey) {
+		console.error('❌ [bootstrapSignalAccount] crypto.subtle.importKey não está disponível! Tentando configurar...');
+		const cryptoReady = ensureCryptoSubtle();
+		if (!cryptoReady) {
+			throw new Error('crypto.subtle.importKey não está disponível. Signal Protocol não pode funcionar sem isso.');
+		}
+	}
+
 	const storage = getSignalStorage(userId);
 
 	let identity = await storage.getIdentityKeyPair();
 	if (!identity) {
+		// KeyHelper.generateIdentityKeyPair() precisa de crypto.subtle.importKey
 		identity = await KeyHelper.generateIdentityKeyPair();
 		await storage.setIdentityKeyPair(identity);
 	}
@@ -75,11 +162,22 @@ export async function bootstrapSignalAccount(userId: string): Promise<SignalStor
 }
 
 export async function fetchRemotePreKeyBundle(userId: string): Promise<RemotePreKeyBundle | null> {
+    console.log(`🔍 [preKeyService] Fetching remote bundle for: ${userId}`);
     try {
         const response = await api.get(`/keys/${userId}`);
         const data = response.data;
+        console.log(`📦 [preKeyService] API Response for ${userId}:`, JSON.stringify(data, null, 2));
 
-        if (!data || !data.identityKey || !data.signedPreKey) {
+        if (!data) {
+            console.warn(`⚠️ [preKeyService] Response data is empty for ${userId}`);
+            return null;
+        }
+
+        if (!data.identityKey || !data.signedPreKey) {
+            console.warn(`⚠️ [preKeyService] Missing critical keys in bundle for ${userId}:`, { 
+                hasIdentity: !!data.identityKey, 
+                hasSigned: !!data.signedPreKey 
+            });
             return null;
         }
 
@@ -95,12 +193,11 @@ export async function fetchRemotePreKeyBundle(userId: string): Promise<RemotePre
                 ? {
                         keyId: data.preKey.keyId,
                         publicKey: base64ToArrayBuffer(data.preKey.publicKey),
-                        // rawEntry removed
                   }
                 : undefined,
         };
-    } catch (e) {
-        console.error("Error fetching remote bundle", e);
+    } catch (e: any) {
+        console.error(`❌ [preKeyService] Error fetching remote bundle for ${userId}:`, e.message, e.response?.status);
         return null;
     }
 }

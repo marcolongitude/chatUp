@@ -1,116 +1,86 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { openDatabaseSync, type SQLiteDatabase } from 'expo-sqlite';
 import type { Direction, KeyPairType, StorageType } from "libsignal-protocol-typescript";
 import { arrayBufferToBase64, base64ToArrayBuffer } from "@/shared/lib/crypto/utils";
 
-type SignalKeyValueStore = {
-	getString(key: string): Promise<string | undefined>;
-	set(key: string, value: string): Promise<void>;
-	remove(key: string): Promise<void>;
-	getAllKeys(): Promise<readonly string[]>;
-};
+/**
+ * SignalStorage implementation using direct SQLite (Expo SQLite)
+ * 
+ * Replaces AsyncStorage/MMKV to centralize data in the 'chatup.db' database files.
+ * Uses direct SQL because accessing the TanStack DB imperative client is complex in this context.
+ */
 
-const createSignalStore = (): SignalKeyValueStore => {
-	try {
-		const mmkvModule = require("react-native-mmkv") as {
-			createMMKV?: typeof import("react-native-mmkv").createMMKV;
-		};
-		if (typeof mmkvModule.createMMKV === "function") {
-			const kv = mmkvModule.createMMKV({ id: "signal-protocol" });
-			console.log("✅ SignalStorage: MMKV inicializado com sucesso");
-			return {
-				getString: async (key) => {
-					try {
-						const value = kv.getString(key) ?? undefined;
-						return value;
-					} catch (error: any) {
-						console.error("❌ SignalStorage: erro ao ler do MMKV", { key, error: error?.message });
-						throw error;
-					}
-				},
-				set: async (key, value) => {
-					try {
-						kv.set(key, value);
-					} catch (error: any) {
-						console.error("❌ SignalStorage: erro ao escrever no MMKV", { key, error: error?.message });
-						throw error;
-					}
-				},
-				remove: async (key) => {
-					try {
-						kv.remove(key);
-					} catch (error: any) {
-						console.error("❌ SignalStorage: erro ao remover do MMKV", { key, error: error?.message });
-						throw error;
-					}
-				},
-				getAllKeys: async () => {
-					try {
-						return kv.getAllKeys();
-					} catch (error: any) {
-						console.error("❌ SignalStorage: erro ao listar chaves do MMKV", { error: error?.message });
-						return [];
-					}
-				},
-			};
-		}
-	} catch (error: any) {
-		console.warn("⚠️ SignalStorage: falha ao inicializar MMKV, usando AsyncStorage", {
-			error: error?.message || String(error),
-		});
-	}
+const DB_NAME = 'chatup.db';
+let _db: SQLiteDatabase | null = null;
 
-	console.log("ℹ️ SignalStorage: usando AsyncStorage como fallback");
-	return {
-		getString: async (key) => {
-			try {
-				const value = await AsyncStorage.getItem(key);
-				return value ?? undefined;
-			} catch (error: any) {
-				console.error("❌ SignalStorage: erro ao ler do AsyncStorage", { key, error: error?.message });
-				return undefined;
-			}
-		},
-		set: async (key, value) => {
-			try {
-				await AsyncStorage.setItem(key, value);
-			} catch (error: any) {
-				console.error("❌ SignalStorage: erro ao escrever no AsyncStorage", { key, error: error?.message });
-				throw error;
-			}
-		},
-		remove: async (key) => {
-			try {
-				await AsyncStorage.removeItem(key);
-			} catch (error: any) {
-				console.error("❌ SignalStorage: erro ao remover do AsyncStorage", { key, error: error?.message });
-				throw error;
-			}
-		},
-		getAllKeys: async () => {
-			try {
-				return await AsyncStorage.getAllKeys();
-			} catch (error: any) {
-				console.error("❌ SignalStorage: erro ao listar chaves do AsyncStorage", { error: error?.message });
-				return [];
-			}
-		},
-	};
-};
+function getDb(): SQLiteDatabase {
+    if (!_db) {
+        // Use synchronous open for simplicity in accessing via methods, 
+        // though methods themselves are async.
+        _db = openDatabaseSync(DB_NAME);
+        initTables(_db);
+    }
+    return _db;
+}
 
-const signalKv = createSignalStore();
+function initTables(db: SQLiteDatabase) {
+    // Identity Key Store
+    db.execSync(`
+        CREATE TABLE IF NOT EXISTS local_signal_identity (
+            user_id TEXT PRIMARY KEY,
+            identity_public_key TEXT,
+            identity_private_key TEXT,
+            registration_id INTEGER
+        );
+    `);
 
-const KEY_PREFIX = "signal";
-const IDENTITY_KEY = "identity";
-const REGISTRATION_KEY = "registration";
-const SIGNED_PREKEY_META = "signedPreKey:lastId";
-const PREKEY_META = "preKey:lastId";
+    // Pre-Keys Store
+    db.execSync(`
+        CREATE TABLE IF NOT EXISTS local_signal_pre_keys (
+            key_id INTEGER PRIMARY KEY,
+            user_id TEXT,
+            public_key TEXT,
+            private_key TEXT
+        );
+    `);
 
-const SESSION_PREFIX = "session";
-const TRUSTED_PREFIX = "trusted";
-const PREKEY_PREFIX = "preKey";
-const SIGNED_PREKEY_PREFIX = "signedPreKey";
-const SIGNED_PREKEY_SIG_PREFIX = "signedPreKeySig";
-const ACTIVE_SIGNED_PREKEY_KEY = "signedPreKey:active";
+    // Signed Pre-Keys Store
+    db.execSync(`
+        CREATE TABLE IF NOT EXISTS local_signal_signed_pre_keys (
+            key_id INTEGER PRIMARY KEY,
+            user_id TEXT,
+            public_key TEXT,
+            private_key TEXT,
+            signature TEXT,
+            created_at INTEGER
+        );
+    `);
+
+    // Sessions Store
+    db.execSync(`
+        CREATE TABLE IF NOT EXISTS local_signal_sessions (
+            session_id TEXT PRIMARY KEY,
+            user_id TEXT,
+            record TEXT
+        );
+    `);
+
+    // Trusted Identities (TOFU)
+    db.execSync(`
+        CREATE TABLE IF NOT EXISTS local_signal_trusted_identities (
+            identifier TEXT PRIMARY KEY,
+            public_key TEXT,
+            added_at INTEGER
+        );
+    `);
+    
+    // Metadata (Counters)
+    db.execSync(`
+        CREATE TABLE IF NOT EXISTS local_signal_metadata (
+            key TEXT PRIMARY KEY,
+            value INTEGER
+        );
+    `);
+}
 
 interface EncodedKeyPair {
 	pubKey: string;
@@ -123,7 +93,7 @@ const encodePair = (pair: KeyPairType): EncodedKeyPair => ({
 });
 
 const decodePair = (encoded?: EncodedKeyPair | null): KeyPairType | undefined => {
-	if (!encoded) {
+	if (!encoded || !encoded.pubKey || !encoded.privKey) {
 		return undefined;
 	}
 	return {
@@ -135,161 +105,237 @@ const decodePair = (encoded?: EncodedKeyPair | null): KeyPairType | undefined =>
 export class SignalStorage implements StorageType {
 	constructor(private readonly userId: string) {}
 
-	private key(segment: string): string {
-		return `${KEY_PREFIX}:${this.userId}:${segment}`;
-	}
+    private get db() {
+        return getDb();
+    }
 
-	private async readObject<T>(segment: string): Promise<T | undefined> {
-		try {
-			const storageKey = this.key(segment);
-			const raw = await signalKv.getString(storageKey);
-			if (!raw) {
-				return undefined;
-			}
-			try {
-				return JSON.parse(raw) as T;
-			} catch (parseError: any) {
-				console.warn("⚠️ SignalStorage: falha ao fazer parse de JSON", {
-					segment,
-					storageKey,
-					error: parseError?.message,
-					rawLength: raw.length,
-					rawPrefix: raw.substring(0, 50),
-				});
-				return undefined;
-			}
-		} catch (error: any) {
-			console.error("❌ SignalStorage: erro ao ler objeto", {
-				segment,
-				storageKey: this.key(segment),
-				error: error?.message,
-			});
-			return undefined;
-		}
-	}
-
-	private async writeObject<T>(segment: string, value: T): Promise<void> {
-		await signalKv.set(this.key(segment), JSON.stringify(value));
-	}
-
-	private async remove(segment: string): Promise<void> {
-		await signalKv.remove(this.key(segment));
-	}
-
+	// IDENTITY KEYS
 	async getIdentityKeyPair(): Promise<KeyPairType | undefined> {
-		return decodePair(await this.readObject<EncodedKeyPair>(IDENTITY_KEY));
+        try {
+            const result = await this.db.getFirstAsync<{ identity_public_key: string, identity_private_key: string }>(
+                'SELECT identity_public_key, identity_private_key FROM local_signal_identity WHERE user_id = ?', 
+                [this.userId]
+            );
+            if (!result) return undefined;
+            return decodePair({ pubKey: result.identity_public_key, privKey: result.identity_private_key });
+        } catch (error) {
+            console.error("SignalStorage: Error fetching identity key", error);
+            return undefined;
+        }
 	}
 
 	async setIdentityKeyPair(pair: KeyPairType): Promise<void> {
-		await this.writeObject(IDENTITY_KEY, encodePair(pair));
+        const encoded = encodePair(pair);
+        try {
+            // Check existence
+            const existing = await this.db.getFirstAsync('SELECT user_id FROM local_signal_identity WHERE user_id = ?', [this.userId]);
+            if (existing) {
+                await this.db.runAsync(
+                    'UPDATE local_signal_identity SET identity_public_key = ?, identity_private_key = ? WHERE user_id = ?',
+                    [encoded.pubKey, encoded.privKey, this.userId]
+                );
+            } else {
+                await this.db.runAsync(
+                    'INSERT INTO local_signal_identity (user_id, identity_public_key, identity_private_key, registration_id) VALUES (?, ?, ?, ?)',
+                    [this.userId, encoded.pubKey, encoded.privKey, 0]
+                );
+            }
+        } catch (error) {
+             console.error("SignalStorage: Error setting identity key", error);
+        }
 	}
 
 	async getLocalRegistrationId(): Promise<number | undefined> {
-		const raw = await signalKv.getString(this.key(REGISTRATION_KEY));
-		return raw ? Number.parseInt(raw, 10) : undefined;
+        try {
+            const result = await this.db.getFirstAsync<{ registration_id: number }>(
+                'SELECT registration_id FROM local_signal_identity WHERE user_id = ?', 
+                [this.userId]
+            );
+            return (result && result.registration_id !== 0) ? result.registration_id : undefined;
+        } catch (error) { return undefined; }
 	}
 
 	async setLocalRegistrationId(id: number): Promise<void> {
-		await signalKv.set(this.key(REGISTRATION_KEY), id.toString());
+        try {
+            const existing = await this.db.getFirstAsync('SELECT user_id FROM local_signal_identity WHERE user_id = ?', [this.userId]);
+            if (existing) {
+                await this.db.runAsync('UPDATE local_signal_identity SET registration_id = ? WHERE user_id = ?', [id, this.userId]);
+            } else {
+                 await this.db.runAsync(
+                    'INSERT INTO local_signal_identity (user_id, identity_public_key, identity_private_key, registration_id) VALUES (?, ?, ?, ?)',
+                    [this.userId, "", "", id]
+                );
+            }
+        } catch (e) { console.error("SignalStorage: Error setting registration ID", e); }
 	}
 
-	async getLastSignedPreKeyId(): Promise<number> {
-		const raw = await signalKv.getString(this.key(SIGNED_PREKEY_META));
-		return raw ? Number.parseInt(raw, 10) : 1;
+    // PRE-KEYS
+	async loadPreKey(keyId: number | string): Promise<KeyPairType | undefined> {
+        const id = Number(keyId);
+        try {
+            const row = await this.db.getFirstAsync<{ public_key: string, private_key: string }>(
+                'SELECT public_key, private_key FROM local_signal_pre_keys WHERE key_id = ?', 
+                [id]
+            );
+            if (!row) return undefined;
+            return decodePair({ pubKey: row.public_key, privKey: row.private_key });
+        } catch { return undefined; }
 	}
 
-	async setLastSignedPreKeyId(id: number): Promise<void> {
-		await signalKv.set(this.key(SIGNED_PREKEY_META), id.toString());
+	async storePreKey(keyId: number | string, keyPair: KeyPairType): Promise<void> {
+        const id = Number(keyId);
+        const encoded = encodePair(keyPair);
+        try {
+            await this.db.runAsync(
+                'INSERT OR REPLACE INTO local_signal_pre_keys (key_id, user_id, public_key, private_key) VALUES (?, ?, ?, ?)',
+                [id, this.userId, encoded.pubKey, encoded.privKey]
+            );
+        } catch (e) { console.error("SignalStorage: prekey store error", e); }
 	}
 
-	async getActiveSignedPreKeyId(): Promise<number | undefined> {
-		const raw = await signalKv.getString(this.key(ACTIVE_SIGNED_PREKEY_KEY));
-		return raw ? Number.parseInt(raw, 10) : undefined;
+	async removePreKey(keyId: number | string): Promise<void> {
+        const id = Number(keyId);
+        try { await this.db.runAsync('DELETE FROM local_signal_pre_keys WHERE key_id = ?', [id]); } catch {}
 	}
 
-	async setActiveSignedPreKeyId(id: number): Promise<void> {
-		await signalKv.set(this.key(ACTIVE_SIGNED_PREKEY_KEY), id.toString());
+    // SIGNED PRE-KEYS
+	async loadSignedPreKey(keyId: number | string): Promise<KeyPairType | undefined> {
+        const id = Number(keyId);
+        try {
+            const row = await this.db.getFirstAsync<{ public_key: string, private_key: string }>(
+                'SELECT public_key, private_key FROM local_signal_signed_pre_keys WHERE key_id = ?',
+                [id]
+            );
+            if (!row) return undefined;
+            return decodePair({ pubKey: row.public_key, privKey: row.private_key });
+        } catch { return undefined; }
 	}
 
-	async getLastPreKeyId(): Promise<number> {
-		const raw = await signalKv.getString(this.key(PREKEY_META));
-		return raw ? Number.parseInt(raw, 10) : 1;
+	async storeSignedPreKey(keyId: number | string, keyPair: KeyPairType): Promise<void> {
+        const id = Number(keyId);
+        const encoded = encodePair(keyPair);
+        try {
+            // Check if exists to preserve signature
+            const existing = await this.db.getFirstAsync('SELECT key_id FROM local_signal_signed_pre_keys WHERE key_id = ?', [id]);
+            if (existing) {
+                await this.db.runAsync(
+                    'UPDATE local_signal_signed_pre_keys SET public_key = ?, private_key = ? WHERE key_id = ?',
+                    [encoded.pubKey, encoded.privKey, id]
+                );
+            } else {
+                await this.db.runAsync(
+                    'INSERT INTO local_signal_signed_pre_keys (key_id, user_id, public_key, private_key, signature, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+                    [id, this.userId, encoded.pubKey, encoded.privKey, "", Date.now()]
+                );
+            }
+        } catch(e) { console.error("SignalStorage: signed prekey store error", e); }
 	}
 
-	async setLastPreKeyId(id: number): Promise<void> {
-		await signalKv.set(this.key(PREKEY_META), id.toString());
+	async removeSignedPreKey(keyId: number | string): Promise<void> {
+        const id = Number(keyId);
+        try { await this.db.runAsync('DELETE FROM local_signal_signed_pre_keys WHERE key_id = ?', [id]); } catch {}
 	}
 
+	async storeSignedPreKeySignature(keyId: number | string, signature: ArrayBuffer): Promise<void> {
+		const id = Number(keyId);
+        const sigBase64 = arrayBufferToBase64(signature);
+        try {
+            await this.db.runAsync(
+                'UPDATE local_signal_signed_pre_keys SET signature = ? WHERE key_id = ?',
+                [sigBase64, id]
+            );
+        } catch(e) { console.error(e); }
+	}
+
+	async loadSignedPreKeySignature(keyId: number | string): Promise<ArrayBuffer | undefined> {
+		const id = Number(keyId);
+        try {
+            const row = await this.db.getFirstAsync<{ signature: string }>('SELECT signature FROM local_signal_signed_pre_keys WHERE key_id = ?', [id]);
+            return (row && row.signature) ? base64ToArrayBuffer(row.signature) : undefined;
+        } catch { return undefined; }
+	}
+
+    // SESSIONS
+	async storeSession(encodedAddress: string, record: string): Promise<void> {
+        try {
+            await this.db.runAsync(
+                'INSERT OR REPLACE INTO local_signal_sessions (session_id, user_id, record) VALUES (?, ?, ?)',
+                [encodedAddress, this.userId, record]
+            );
+        } catch(e) { console.error("SignalStorage: store session error", e); }
+	}
+
+	async loadSession(encodedAddress: string): Promise<string | undefined> {
+        try {
+            const row = await this.db.getFirstAsync<{ record: string }>('SELECT record FROM local_signal_sessions WHERE session_id = ?', [encodedAddress]);
+            return row?.record;
+        } catch { return undefined; }
+	}
+
+	async deleteSession(encodedAddress: string): Promise<void> {
+        try { await this.db.runAsync('DELETE FROM local_signal_sessions WHERE session_id = ?', [encodedAddress]); } catch {}
+	}
+    
+    // TRUSTED IDENTITIES
 	async isTrustedIdentity(identifier: string, identityKey: ArrayBuffer, _direction: Direction): Promise<boolean> {
-		const stored = await signalKv.getString(this.key(`${TRUSTED_PREFIX}:${identifier}`));
-		if (!stored) {
-			return true; // TOFU
-		}
-		return stored === arrayBufferToBase64(identityKey);
+        try {
+            const row = await this.db.getFirstAsync<{ public_key: string }>('SELECT public_key FROM local_signal_trusted_identities WHERE identifier = ?', [identifier]);
+            if (!row) return true; // TOFU
+            return row.public_key === arrayBufferToBase64(identityKey);
+        } catch { return true; }
 	}
 
 	async saveIdentity(identifier: string, publicKey: ArrayBuffer): Promise<boolean> {
 		const encoded = arrayBufferToBase64(publicKey);
-		const storageKey = this.key(`${TRUSTED_PREFIX}:${identifier}`);
-		const current = await signalKv.getString(storageKey);
-		if (current === encoded) {
-			return false;
-		}
-		await signalKv.set(storageKey, encoded);
-		return true;
+        try {
+            const row = await this.db.getFirstAsync<{ public_key: string }>('SELECT public_key FROM local_signal_trusted_identities WHERE identifier = ?', [identifier]);
+            if (row && row.public_key === encoded) return false;
+            
+            await this.db.runAsync(
+                'INSERT OR REPLACE INTO local_signal_trusted_identities (identifier, public_key, added_at) VALUES (?, ?, ?)',
+                [identifier, encoded, Date.now()]
+            );
+            return true;
+        } catch { return false; }
 	}
+    
+    // METADATA
+    private async getCounter(key: string): Promise<number> {
+        // Need to namespace key by user? or assume counters are somewhat global per signal store instance of a user context
+        // The original code passed userId to constructor.
+        // Let's use namespaced key: `{userId}_{key}`
+        const fullKey = `${this.userId}_${key}`;
+        try {
+            const row = await this.db.getFirstAsync<{ value: number }>('SELECT value FROM local_signal_metadata WHERE key = ?', [fullKey]);
+            return row ? row.value : 0;
+        } catch { return 0; }
+    }
+    
+    private async setCounter(key: string, val: number): Promise<void> {
+        const fullKey = `${this.userId}_${key}`;
+        try {
+            await this.db.runAsync('INSERT OR REPLACE INTO local_signal_metadata (key, value) VALUES (?, ?)', [fullKey, val]);
+        } catch {}
+    }
 
-	async loadPreKey(keyId: number | string): Promise<KeyPairType | undefined> {
-		return decodePair(await this.readObject<EncodedKeyPair>(`${PREKEY_PREFIX}:${keyId}`));
-	}
+	async getLastSignedPreKeyId(): Promise<number> { return this.getCounter('lastSignedPreKeyId'); }
+	async setLastSignedPreKeyId(id: number): Promise<void> { await this.setCounter('lastSignedPreKeyId', id); }
 
-	async storePreKey(keyId: number | string, keyPair: KeyPairType): Promise<void> {
-		await this.writeObject(`${PREKEY_PREFIX}:${keyId}`, encodePair(keyPair));
-	}
+	async getActiveSignedPreKeyId(): Promise<number | undefined> { return this.getCounter('activeSignedPreKeyId'); }
+	async setActiveSignedPreKeyId(id: number): Promise<void> { await this.setCounter('activeSignedPreKeyId', id); }
 
-	async removePreKey(keyId: number | string): Promise<void> {
-		await this.remove(`${PREKEY_PREFIX}:${keyId}`);
-	}
-
-	async loadSignedPreKey(keyId: number | string): Promise<KeyPairType | undefined> {
-		return decodePair(await this.readObject<EncodedKeyPair>(`${SIGNED_PREKEY_PREFIX}:${keyId}`));
-	}
-
-	async storeSignedPreKey(keyId: number | string, keyPair: KeyPairType): Promise<void> {
-		await this.writeObject(`${SIGNED_PREKEY_PREFIX}:${keyId}`, encodePair(keyPair));
-	}
-
-	async removeSignedPreKey(keyId: number | string): Promise<void> {
-		await this.remove(`${SIGNED_PREKEY_PREFIX}:${keyId}`);
-		await this.remove(`${SIGNED_PREKEY_SIG_PREFIX}:${keyId}`);
-	}
-
-	async storeSignedPreKeySignature(keyId: number | string, signature: ArrayBuffer): Promise<void> {
-		await signalKv.set(this.key(`${SIGNED_PREKEY_SIG_PREFIX}:${keyId}`), arrayBufferToBase64(signature));
-	}
-
-	async loadSignedPreKeySignature(keyId: number | string): Promise<ArrayBuffer | undefined> {
-		const raw = await signalKv.getString(this.key(`${SIGNED_PREKEY_SIG_PREFIX}:${keyId}`));
-		return raw ? base64ToArrayBuffer(raw) : undefined;
-	}
-
-	async storeSession(encodedAddress: string, record: string): Promise<void> {
-		await signalKv.set(this.key(`${SESSION_PREFIX}:${encodedAddress}`), record);
-	}
-
-	async loadSession(encodedAddress: string): Promise<string | undefined> {
-		return (await signalKv.getString(this.key(`${SESSION_PREFIX}:${encodedAddress}`))) ?? undefined;
-	}
-
-	async deleteSession(encodedAddress: string): Promise<void> {
-		await this.remove(`${SESSION_PREFIX}:${encodedAddress}`);
-	}
+	async getLastPreKeyId(): Promise<number> { return this.getCounter('lastPreKeyId'); }
+	async setLastPreKeyId(id: number): Promise<void> { await this.setCounter('lastPreKeyId', id); }
 
 	async clearAll(): Promise<void> {
-		const prefix = this.key("");
-		const keys = await signalKv.getAllKeys();
-		const scopedKeys = keys.filter((key) => key.startsWith(prefix));
-		await Promise.all(scopedKeys.map((key) => signalKv.remove(key)));
+        try {
+             await this.db.runAsync('DELETE FROM local_signal_sessions WHERE user_id = ?', [this.userId]);
+             await this.db.runAsync('DELETE FROM local_signal_identity WHERE user_id = ?', [this.userId]);
+             await this.db.runAsync('DELETE FROM local_signal_pre_keys WHERE user_id = ?', [this.userId]);
+             await this.db.runAsync('DELETE FROM local_signal_signed_pre_keys WHERE user_id = ?', [this.userId]);
+             // Metadata
+             await this.db.runAsync('DELETE FROM local_signal_metadata WHERE key LIKE ?', [`${this.userId}_%`]);
+        } catch(e) { console.error("SignalStorage: clearAll error", e); }
 	}
 }
 

@@ -196,15 +196,28 @@ export async function storePublicKey(userId: string, publicKey: Uint8Array): Pro
         // Se estivermos apenas com a chave pública legacy, enviamos apenas se o backend suportar.
         // Para evitar erros de NotNull no banco, tentamos enviar mas capturamos erro silenciosamente
         try {
+            // 1. Tentar salvar no endpoint específico de chaves (se existir/suportado)
             await api.post('/keys', {
                 publicKey: publicKeyBase64
-                // Opcional: Se tivéssemos os dados do Signal aqui, enviaríamos.
-                // Mas este é o fluxo Legacy.
             });
-            console.log("✅ Chave pública legacy armazenada na API");
+            console.log("✅ Chave pública armazenada na API (/keys)");
         } catch (apiError: any) {
-            console.warn("⚠️ Não foi possível salvar chave legacy na API (provavelmente backend exige Signal bundle):", apiError.message);
-            // Não relançamos o erro para não travar o app
+            console.warn("⚠️ Falha ao salvar em /keys (pode ser esperado se backend exigir Signal):", apiError.message);
+        }
+
+        try {
+            // 2. Tentar atualizar o PERFIL do usuário com a chave pública
+            // Isso garante que o campo 'public_key' na tabela 'users' seja preenchido
+            // para compatibilidade com E2EE legacy e discovery.
+            console.log("🔄 Atualizando public_key no perfil do usuário...");
+            await api.put(`/users/${userId}`, {
+                public_key: publicKeyBase64, // Campo no banco de dados (snake_case)
+                publicKey: publicKeyBase64   // Campo alternativo (camelCase) por precaução
+            });
+            console.log("✅ Chave pública vinculada ao perfil do usuário (/users/:id)");
+        } catch (profileError: any) {
+            console.error("❌ Falha crítica ao vincular chave pública ao perfil:", profileError.message);
+            // Não relançamos para não quebrar o fluxo de login, mas isso impedirá E2EE legacy
         }
 
 		// Atualizar cache

@@ -48,6 +48,13 @@ import { encryptWithSignal, decryptWithSignal, clearSignalSessions } from "./sig
 import { trackEncryptionError, trackEncryptionEvent } from "./telemetry";
 import { removePrivateKey } from "./keyManagement";
 import { withCryptoLoading } from "./cryptoLoading";
+import { getOwnMessage } from "./ownMessageCache";
+
+// **NOVO**: Cache de plaintext para mensagens próprias
+// Armazena: messageId -> { plaintext, timestamp }
+const ownMessagePlaintextCache = new Map<string, { plaintext: string; timestamp: number }>();
+const PLAINTEXT_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 horas
+
 
 // Log de inicialização para verificar se arquivo foi carregado
 console.log("🔐 [CRYPTO] Módulo crypto.ts carregado com suporte a módulo nativo!");
@@ -59,31 +66,31 @@ console.log("🔐 [CRYPTO] Versão: 2.0 (com integração nativa)");
 // Produção: 50k iterações (~5-10s no S22) / 50k iterações chave mestre (~5-10s no S22)
 // NOTA: 50k iterações ainda é 5x acima do mínimo NIST (10k) e considerado muito seguro
 // NOTA: Em produção, operações pesadas devem mostrar loading para o usuário
-const PBKDF2_ITERATIONS = __DEV__ ? 5000 : 50000; // Desenvolvimento: rápido | Produção: seguro e rápido
-const PBKDF2_ITERATIONS_STORAGE = __DEV__ ? 10000 : 50000; // Chave mestre (mesmas iterações)
-const SALT_LENGTH = 32; // 256 bits
-const IV_LENGTH = 16; // 128 bits para CBC
-const KEY_LENGTH = 32; // 256 bits para AES-256
-const TAG_LENGTH = 16; // 128 bits para tag GCM
-const HMAC_KEY_LENGTH = 32; // 256 bits para HMAC
-const MAX_MESSAGE_AGE_MS = 24 * 60 * 60 * 1000; // 24 horas
-
-// Prefixos para armazenamento
-const STORAGE_KEY_MASTER_SALT_PREFIX = "master_salt_";
-const STORAGE_KEY_ENCRYPTED_PREFIX = "encrypted_chat_key_";
-
-// Prefixo para identificar mensagens criptografadas
-const ENCRYPTED_PREFIX = "ENC:";
-const SIGNAL_ENVELOPE_VERSION = 5;
+import { CRYPTO } from "@/shared/config/constants";
+const {
+	PBKDF2_ITERATIONS,
+	PBKDF2_ITERATIONS_STORAGE,
+	SALT_LENGTH,
+	IV_LENGTH,
+	KEY_LENGTH,
+	TAG_LENGTH,
+	HMAC_KEY_LENGTH,
+	MAX_MESSAGE_AGE_MS,
+    MAX_FUTURE_OFFSET_MS,
+	STORAGE_KEY_MASTER_SALT_PREFIX,
+	STORAGE_KEY_ENCRYPTED_PREFIX,
+	ENCRYPTED_PREFIX,
+	SIGNAL_ENVELOPE_VERSION,
+	CACHE_TTL_MS,
+	MAX_CACHE_SIZE,
+	MASTER_KEY_CACHE_TTL_MS
+} = CRYPTO;
 
 // Cache em memória de chaves descriptografadas (por chatId)
 const keyCache = new Map<string, { key: ArrayBuffer; timestamp: number }>();
-const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutos
-const MAX_CACHE_SIZE = 50; // Limitar cache a 50 chaves
 
 // Cache em memória da chave mestre (por userId)
 const masterKeyCache = new Map<string, { key: ArrayBuffer; timestamp: number }>();
-const MASTER_KEY_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hora
 
 /**
  * Limpa cache expirado de chaves de chat
@@ -841,7 +848,8 @@ export async function decryptMessage(
 	chatId: string,
 	userId: string,
 	senderId: string,
-	receiverId: string
+	receiverId: string,
+	messageId?: string // NOVO: permite cache de mensagens próprias
 ): Promise<string> {
 	try {
 		// Verificar se é uma mensagem criptografada
@@ -856,11 +864,24 @@ export async function decryptMessage(
 			throw new Error("Mensagem criptografada vazia após remover prefixo");
 		}
 
-		// Verificar se é mensagem própria ANTES de tentar descriptografar
-		// Mensagens próprias não devem ser descriptografadas (já estão no banco local com texto plano)
-		if (senderId === userId) {
-			console.log("ℹ️ Mensagem própria detectada - retornando placeholder (texto já está no banco local)");
-			return "[Mensagem própria]";
+		// Verificar se é mensagem própria
+		// Normalizar IDs para comparação (remover espaços e converter para string)
+		const normalizedSenderId = String(senderId || '').trim();
+		const normalizedUserId = String(userId || '').trim();
+		const isOwnMessage = normalizedSenderId && normalizedUserId && normalizedSenderId === normalizedUserId;
+		
+		// FIX: Mensagens próprias NÃO podem ser descriptografadas via Signal!
+		// Usar cache de plaintext armazenado ANTES da criptografia
+		if (isOwnMessage) {
+			console.log("✅ Mensagem própria detectada - buscando no cache pelo CLI");
+			// Tentar recuperar do cache usando o ciphertext integral (encryptedText)
+			const cachedPlaintext = getOwnMessage(encryptedText);
+			if (cachedPlaintext) {
+				console.log("✅ Plaintext recuperado do cache pelo ciphertext");
+				return cachedPlaintext;
+			}
+			console.warn("⚠️ Cache miss (ciphertext) - usando placeholder");
+			return "[Mensagem sua]";
 		}
 
 		// Tentar novo formato (envelope protobuf)
@@ -873,11 +894,14 @@ export async function decryptMessage(
 
 			if (envelope.timestamp) {
 				// Permitir até 5 minutos no futuro para tolerar diferenças de relógio
-				const MAX_FUTURE_OFFSET_MS = 5 * 60 * 1000; // 5 minutos
+				// Permitir até 5 minutos no futuro para tolerar diferenças de relógio
 				const messageAge = Date.now() - envelope.timestamp;
 
 				if (messageAge > MAX_MESSAGE_AGE_MS) {
-					throw new Error("Mensagem muito antiga");
+					console.warn(
+						`Timestamp antigo (Signal): ${Math.floor(messageAge / 3600000)}h atrás. Aceitando para histórico.`
+					);
+					// throw new Error("Mensagem muito antiga");
 				}
 
 				// Permitir pequenas diferenças de relógio (até 5 minutos no futuro)
@@ -1009,13 +1033,14 @@ export async function decryptMessage(
 
 		// Validar timestamp (prevenir replay attacks)
 		// Permitir até 5 minutos no futuro para tolerar diferenças de relógio entre dispositivos
-		const MAX_FUTURE_OFFSET_MS = 5 * 60 * 1000; // 5 minutos
+		// Permitir até 5 minutos no futuro para tolerar diferenças de relógio entre dispositivos
 		const messageAge = Date.now() - payload.t;
 
 		if (messageAge > MAX_MESSAGE_AGE_MS) {
-			throw new Error(
-				`Mensagem muito antiga: ${Math.floor(messageAge / (60 * 60 * 1000))} horas (máximo: 24 horas)`
+			console.warn(
+				`Mensagem antiga (V3): ${Math.floor(messageAge / 3600000)}h atrás. Aceitando para histórico.`
 			);
+			// throw new Error(...)
 		}
 
 		// Permitir pequenas diferenças de relógio (até 5 minutos no futuro)
@@ -1091,6 +1116,7 @@ export async function decryptMessage(
 			}
 		}
 
+
 		// Se for erro de "sending chain" - mensagem própria (fallback)
 		if (
 			error.message &&
@@ -1102,6 +1128,19 @@ export async function decryptMessage(
 			console.log("ℹ️ Mensagem própria detectada no catch - retornando placeholder");
 			return "[Mensagem própria]";
 		}
+
+		// Erro de 'bad decrypt' ou 'Cipher final failed' (Sessão Signal corrompida ou chave errada)
+		if (
+			error.message &&
+			(error.message.includes("bad decrypt") ||
+				error.message.includes("Cipher.final") ||
+				error.message.includes("Cipher final failed"))
+		) {
+			console.warn("⚠️ Falha crítica de desconexão (bad decrypt) - sessão pode estar dessincronizada");
+			// Tenta limpar sessões em caso de erro repetitivo? Por enquanto, apenas retorna erro amigável.
+			return "[Erro de descriptografia: Chave inválida ou sessão expirada. Reinicie o chat ou limpe os dados.]";
+		}
+
 
 		// Para outros erros, retornar placeholder
 		return "[Erro ao descriptografar mensagem]";

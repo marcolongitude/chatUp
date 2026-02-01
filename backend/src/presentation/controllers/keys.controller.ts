@@ -43,14 +43,19 @@ export class KeysController {
   @UseGuards(JwtAuthGuard)
   @Get(':userId')
   async getKeyBundle(@Param('userId') userId: string) {
+    console.log(`🔑 [KeysController] Getting key bundle for user: ${userId}`);
     const bundle = await this.keyRepo.getKeyBundle(userId);
+    
     if (!bundle) {
+      console.warn(`⚠️ [KeysController] Bundle NOT found for user: ${userId}`);
       // Retornar objeto vazio em vez de 404 para evitar crash no Axios de alguns frontends
       return { 
         success: false, 
         message: 'Key bundle not found for user' 
       };
     }
+
+    console.log(`✅ [KeysController] Bundle found for user: ${userId}. Has PreKey? ${!!bundle.preKey}`);
 
     // Format for frontend
     return {

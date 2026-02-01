@@ -5,4 +5,5 @@ export class UpdateUserDto {
   photoURL?: string;
   bio?: string;
   phoneNumber?: string;
+  publicKey?: string;
 }

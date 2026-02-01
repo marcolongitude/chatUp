@@ -49,6 +49,12 @@ export function ElectricProvider({ children }: ElectricProviderProps) {
           setClient(electricClient);
           setIsConnected(true);
           setIsLoading(false);
+          
+          // Debug keys status on connection
+          if (user?.id) {
+             const { checkSignalKeysStatus } = require('@/shared/lib/debug/checkKeys');
+             checkSignalKeysStatus(user.id).catch((e: any) => console.error("Key check failed", e));
+          }
         }
 
         // Note: Event listeners removed as we are using a simplified connectivity check
