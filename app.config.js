@@ -53,12 +53,6 @@ module.exports = () => {
 			},
 			plugins: [
 				[
-					"expo-router",
-					{
-						root: "./app",
-					},
-				],
-				[
 					"expo-location",
 					{
 						locationAlwaysAndWhenInUsePermission:

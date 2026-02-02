@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { authService } from "@/shared/api/auth.service";
-import { getOrCreateKeyPair } from "@/shared/lib/crypto";
-import { bootstrapSignalAccount } from "@/shared/lib/crypto/signal";
+import { loginApi } from "../api/login.api";
+import { initializeCrypto } from "../lib/crypto-init";
 import { useAuthSession, AuthUser } from "../../model/use-auth-session";
 
 /**
@@ -16,7 +15,7 @@ export function useLogin() {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await authService.login({ email, password });
+      const response = await loginApi({ email, password });
       
       const backendUser: AuthUser = {
         id: response.user.id,
@@ -34,12 +33,7 @@ export function useLogin() {
       });
 
       // Initialize Crypto
-      try {
-          await getOrCreateKeyPair(backendUser.id);
-          await bootstrapSignalAccount(backendUser.id);
-      } catch(e) {
-          console.warn("[Feature/Login] Crypto init failed", e);
-      }
+      await initializeCrypto(backendUser.id);
 
       return response;
     } catch (err: any) {

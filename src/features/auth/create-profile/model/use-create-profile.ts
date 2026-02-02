@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { authService } from "@/shared/api/auth.service";
+import { updateProfileApi } from "../api/profile.api";
 import { useAuthSession } from "../../model/use-auth-session";
 import type { CreateProfileData } from "../../model/types";
 
@@ -17,7 +17,7 @@ export function useCreateProfile() {
     setIsLoading(true);
     setError(null);
     try {
-      await authService.updateProfile(user.id, data);
+      await updateProfileApi(user.id, data);
       
       const newProfile = {
         id: user.id,

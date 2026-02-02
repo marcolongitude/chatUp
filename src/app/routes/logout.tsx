@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
-import { View, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
+import { ActivityIndicator } from 'react-native';
 import styled, { useTheme } from 'styled-components/native';
+import { useRouter } from '@tanstack/react-router';
 import { useAuth } from '@/features/auth';
 import { useTranslation } from '@/app/providers/i18n';
 
@@ -18,7 +18,7 @@ const LoadingText = styled.Text`
 	color: ${(props) => props.theme.colors.text.secondary};
 `;
 
-export default function LogoutScreen() {
+export function LogoutPage() {
 	const router = useRouter();
 	const { logout } = useAuth();
 	const theme = useTheme();
@@ -28,16 +28,15 @@ export default function LogoutScreen() {
 		const performLogout = async () => {
 			try {
 				await logout();
-				router.replace('/(auth)/login');
+				router.navigate({ to: '/auth/login' });
 			} catch (error) {
 				console.error('Logout error:', error);
-				// Mesmo com erro, redireciona para login
-				router.replace('/(auth)/login');
+				router.navigate({ to: '/auth/login' });
 			}
 		};
 
 		performLogout();
-	}, []);
+	}, [logout, router]);
 
 	return (
 		<Container>
@@ -46,4 +45,3 @@ export default function LogoutScreen() {
 		</Container>
 	);
 }
-

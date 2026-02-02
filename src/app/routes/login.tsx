@@ -1,7 +1,7 @@
 import React from "react";
 import { StatusBar } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter } from "@tanstack/react-router";
 import styled from "styled-components/native";
 import { LoginForm, useAuth, LoginCredentials } from "@/features/auth";
 
@@ -10,11 +10,7 @@ const Container = styled(SafeAreaView)`
 	background-color: ${(props) => props.theme.colors.background.primary};
 `;
 
-/**
- * Página de Login
- * Camada: Pages (FSD)
- */
-export default function LoginPage() {
+export function LoginPage() {
 	const router = useRouter();
 	const { login, signInWithGoogle, isAuthenticated, hasCompleteProfile } = useAuth();
 
@@ -32,10 +28,10 @@ export default function LoginPage() {
 
 	React.useEffect(() => {
 		if (isAuthenticated && !isPending) {
-			if (hasCompleteProfile) router.replace("/(tabs)");
-			else router.replace("/(auth)/create-profile");
+			if (hasCompleteProfile) router.navigate({ to: "/main/conversations" });
+			else router.navigate({ to: "/auth/create-profile" });
 		}
-	}, [isAuthenticated, hasCompleteProfile, isPending]);
+	}, [isAuthenticated, hasCompleteProfile, isPending, router]);
 
 	return (
 		<Container>
@@ -43,7 +39,7 @@ export default function LoginPage() {
 			<LoginForm
 				onSubmit={loginAction}
 				onForgotPassword={() => {}}
-				onSignUp={() => router.push("/(auth)/signup")}
+				onSignUp={() => router.navigate({ to: "/auth/signup" })}
 				onGoogleSignIn={signInWithGoogle}
 				onFacebookSignIn={() => {}}
 				isLoading={isPending}

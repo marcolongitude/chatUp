@@ -1,7 +1,7 @@
 import React from "react";
 import { StatusBar } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter } from "@tanstack/react-router";
 import styled from "styled-components/native";
 import { CreateProfileForm, useAuth, CreateProfileData } from "@/features/auth";
 
@@ -10,11 +10,7 @@ const Container = styled(SafeAreaView)`
 	background-color: ${(props) => props.theme.colors.background.primary};
 `;
 
-/**
- * Página de Criação de Perfil Inicial
- * Camada: Pages (FSD)
- */
-export default function CreateProfilePage() {
+export function CreateProfilePage() {
 	const router = useRouter();
 	const { createProfile, isAuthenticated, hasCompleteProfile } = useAuth();
 
@@ -32,9 +28,9 @@ export default function CreateProfilePage() {
 
 	React.useEffect(() => {
 		if (isAuthenticated && hasCompleteProfile && !isPending) {
-			router.replace("/(tabs)");
+			router.navigate({ to: "/main/conversations" });
 		}
-	}, [isAuthenticated, hasCompleteProfile, isPending]);
+	}, [isAuthenticated, hasCompleteProfile, isPending, router]);
 
 	return (
 		<Container>

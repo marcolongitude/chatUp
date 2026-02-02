@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { ActivityIndicator, Alert, ScrollView } from "react-native";
+import React, { useState } from "react";
+import { ActivityIndicator, Alert } from "react-native";
 import { useTheme } from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
 import Constants from "expo-constants";
@@ -26,14 +26,12 @@ const Section = styled(Card)`
 const SectionTitle = styled.Text`
 	font-size: ${(props) => props.theme.typography.fontSize.lg}px;
 	font-weight: ${(props) => props.theme.typography.fontWeight.bold};
-	font-family: ${(props) => props.theme.typography.fontFamily.primary};
 	color: ${(props) => props.theme.colors.text.primary};
 	margin-bottom: ${(props) => props.theme.spacing.sm}px;
 `;
 
 const SectionDescription = styled.Text`
 	font-size: ${(props) => props.theme.typography.fontSize.sm}px;
-	font-family: ${(props) => props.theme.typography.fontFamily.secondary};
 	color: ${(props) => props.theme.colors.text.secondary};
 	margin-bottom: ${(props) => props.theme.spacing.md}px;
 `;
@@ -53,7 +51,6 @@ const LanguageOption = styled.TouchableOpacity<{ isSelected: boolean }>`
 
 const LanguageOptionText = styled.Text`
 	font-size: ${(props) => props.theme.typography.fontSize.base}px;
-	font-family: ${(props) => props.theme.typography.fontFamily.primary};
 	color: ${(props) => props.theme.colors.text.primary};
 `;
 
@@ -70,13 +67,11 @@ const VersionRow = styled.View`
 
 const VersionLabel = styled.Text`
 	font-size: ${(props) => props.theme.typography.fontSize.base}px;
-	font-family: ${(props) => props.theme.typography.fontFamily.primary};
 	color: ${(props) => props.theme.colors.text.secondary};
 `;
 
 const VersionValue = styled.Text`
 	font-size: ${(props) => props.theme.typography.fontSize.base}px;
-	font-family: ${(props) => props.theme.typography.fontFamily.primary};
 	color: ${(props) => props.theme.colors.text.primary};
 	font-weight: ${(props) => props.theme.typography.fontWeight.semibold};
 `;
@@ -93,7 +88,7 @@ interface LanguageOption {
 	label: string;
 }
 
-export default function SettingsScreen() {
+export function SettingsPage() {
 	const theme = useTheme();
 	const { t, currentLanguage } = useTranslation();
 	const [isChangingLanguage, setIsChangingLanguage] = useState(false);
@@ -110,8 +105,6 @@ export default function SettingsScreen() {
 		setIsChangingLanguage(true);
 		try {
 			await saveLanguage(languageCode);
-			// O idioma será atualizado automaticamente via i18n
-			// Não precisamos mostrar alerta, apenas atualizar o estado
 		} catch (error) {
 			console.error("❌ Erro ao alterar idioma:", error);
 			Alert.alert(t("errors.generic"), t("errors.generic"));
@@ -120,22 +113,14 @@ export default function SettingsScreen() {
 		}
 	};
 
-	// Obter informações de versão
 	const appVersion = Constants.expoConfig?.version || "1.0.0";
 	const versionCode = Constants.expoConfig?.android?.versionCode || 1;
-
-	// Obter runtime version do expo-updates (mais confiável que Constants)
-	// Em desenvolvimento, Updates pode não estar disponível
-	const runtimeVersion =
-		Updates.isEnabled && Updates.runtimeVersion ? Updates.runtimeVersion : __DEV__ ? "Development" : "N/A";
-
-	// Obter channel do expo-updates
+	const runtimeVersion = Updates.isEnabled && Updates.runtimeVersion ? Updates.runtimeVersion : __DEV__ ? "Development" : "N/A";
 	const channel = Updates.isEnabled && Updates.channel ? Updates.channel : __DEV__ ? "Development" : "N/A";
 
 	return (
 		<Container>
 			<Content>
-				{/* Seção de Idioma */}
 				<Section>
 					<SectionTitle>{t("settings.language")}</SectionTitle>
 					<SectionDescription>{t("settings.languageDescription")}</SectionDescription>
@@ -160,7 +145,6 @@ export default function SettingsScreen() {
 					)}
 				</Section>
 
-				{/* Seção de Versão */}
 				<Section>
 					<SectionTitle>{t("settings.appVersion")}</SectionTitle>
 					<VersionInfo>

@@ -1,7 +1,7 @@
 import React from "react";
 import { StatusBar } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter } from "@tanstack/react-router";
 import styled from "styled-components/native";
 import { SignUpForm, useAuth, RegisterData } from "@/features/auth";
 
@@ -10,11 +10,7 @@ const Container = styled(SafeAreaView)`
 	background-color: ${(props) => props.theme.colors.background.primary};
 `;
 
-/**
- * Página de Cadastro
- * Camada: Pages (FSD)
- */
-export default function SignUpPage() {
+export function SignUpPage() {
 	const router = useRouter();
 	const { signup, isAuthenticated, hasCompleteProfile } = useAuth();
 
@@ -32,17 +28,17 @@ export default function SignUpPage() {
 
 	React.useEffect(() => {
 		if (isAuthenticated && !isPending) {
-			if (hasCompleteProfile) router.replace("/(tabs)");
-			else router.replace("/(auth)/create-profile");
+			if (hasCompleteProfile) router.navigate({ to: "/main/conversations" });
+			else router.navigate({ to: "/auth/create-profile" });
 		}
-	}, [isAuthenticated, hasCompleteProfile, isPending]);
+	}, [isAuthenticated, hasCompleteProfile, isPending, router]);
 
 	return (
 		<Container>
 			<StatusBar barStyle="dark-content" />
 			<SignUpForm
 				onSubmit={signupAction}
-				onSignIn={() => router.back()}
+				onSignIn={() => router.history.back()}
 				isLoading={isPending}
 				error={error}
 			/>

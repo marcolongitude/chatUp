@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { authService } from "@/shared/api/auth.service";
+import { signupApi } from "../api/signup.api";
 import { useLogin } from "../../login/model/use-login";
 
 /**
@@ -14,7 +14,7 @@ export function useSignup() {
     setIsLoading(true);
     setError(null);
     try {
-      await authService.register({ email, password, name });
+      await signupApi({ email, password, name });
       
       // Auto-login after register
       return await login(email, password);

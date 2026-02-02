@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/features/auth";
 import { useLocation } from "../../update-location/model/use-location";
 import { NEARBY_RADIUS_METERS } from "../../update-location/lib/geolocation";
-import { axiosInstance } from "@/shared/api";
+import { fetchNearbyUsersApi } from "../api/nearby.api";
+import { updateLocationApi } from "../../update-location/api/location.api";
 import type { NearbyUser } from "@/entities/contact";
 
 /**
@@ -45,20 +46,16 @@ export function useNearbyUsers() {
 		const fetchNearby = async () => {
 			try {
                 // 1. Atualizar localização do usuário atual
-                axiosInstance.put('/location', {
-                    latitude: userLocation.latitude,
-                    longitude: userLocation.longitude
-                }).catch(e => console.warn("Update location failed", e));
+                updateLocationApi(userLocation.latitude, userLocation.longitude)
+                    .catch(e => console.warn("Update location failed", e));
 
                 // 2. Buscar usuários próximos
-                const response = await axiosInstance.get<NearbyUser[]>('/location/nearby', {
-                    params: {
-                        latitude: userLocation.latitude,
-                        longitude: userLocation.longitude,
-                        radius: NEARBY_RADIUS_METERS / 1000
-                    }
+                const data = await fetchNearbyUsersApi({
+                    latitude: userLocation.latitude,
+                    longitude: userLocation.longitude,
+                    radius: NEARBY_RADIUS_METERS / 1000
                 });
-                setNearbyUsers(response.data);
+                setNearbyUsers(data);
                 setIsLoading(false);
 			} catch (err: any) {
 				setError("Erro ao buscar usuários próximos");
