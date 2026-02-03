@@ -62,8 +62,11 @@ export class UsersController {
       email: user.email,
       displayName: user.displayName,
       photoURL: user.photoURL,
+      phoneNumber: user.phoneNumber,
       bio: user.bio,
       publicKey: user.publicKey ?? undefined,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
     };
   }
 }

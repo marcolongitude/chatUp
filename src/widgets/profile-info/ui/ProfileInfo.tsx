@@ -1,5 +1,5 @@
 import React from "react";
-import { ActivityIndicator, TouchableOpacity, Text } from "react-native";
+import { ActivityIndicator } from "react-native";
 import { useTheme } from "styled-components/native";
 import { Card } from "@/shared/ui";
 import { useProfileInfo } from "../model/useProfileInfo";
@@ -36,7 +36,7 @@ export function ProfileInfo() {
 		imageLoaded,
 		setImageLoaded,
 		formattedCreatedAt,
-        handleClearMessages,
+		formattedUpdatedAt,
         t
 	} = useProfileInfo();
 
@@ -94,6 +94,13 @@ export function ProfileInfo() {
 						<ProfileSectionContent>{userProfile.email}</ProfileSectionContent>
 					</ProfileSection>
 
+					{userProfile.displayName && (
+						<ProfileSection>
+							<ProfileSectionTitle>{t("profile.displayName")}</ProfileSectionTitle>
+							<ProfileSectionContent>{userProfile.displayName}</ProfileSectionContent>
+						</ProfileSection>
+					)}
+
 					{userProfile.phoneNumber && (
 						<ProfileSection>
 							<ProfileSectionTitle>{t("profile.phoneNumber")}</ProfileSectionTitle>
@@ -115,22 +122,10 @@ export function ProfileInfo() {
 						</ProfileSection>
 					)}
 
-					{__DEV__ && (
+					{formattedUpdatedAt && (
 						<ProfileSection>
-							<TouchableOpacity
-								onPress={handleClearMessages}
-								style={{ 
-                                    backgroundColor: theme.colors.status.error, 
-                                    padding: 12, 
-                                    borderRadius: 8, 
-                                    marginTop: 16, 
-                                    alignItems: "center" 
-                                }}
-							>
-								<Text style={{ color: "#fff", fontWeight: "bold" }}>
-                                    🗑️ {t("profile.clearLocalMessagesDev") || "Limpar Mensagens Locais (DEV)"}
-                                </Text>
-							</TouchableOpacity>
+							<ProfileSectionTitle>{t("profile.lastUpdate")}</ProfileSectionTitle>
+							<ProfileSectionContent>{formattedUpdatedAt}</ProfileSectionContent>
 						</ProfileSection>
 					)}
 				</Card>
