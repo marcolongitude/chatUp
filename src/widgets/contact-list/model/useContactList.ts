@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useRouter } from "expo-router";
+import { useRouter } from "@tanstack/react-router";
 import { useAuth } from "@/features/auth";
 import { useLocation, useNearbyUsers } from "@/features/location";
 import { useContacts } from "@/entities/contact";
 import { axiosInstance } from "@/shared/api";
-import { ensureSignalSession } from "@/shared/lib/crypto";
+import { ensureStableSession } from "@/shared/lib/crypto";
 
 export function useContactList() {
 	const router = useRouter();
@@ -43,12 +43,13 @@ export function useContactList() {
 
 	const handleContactPress = useCallback((contactId: string, name?: string, avatar?: string) => {
 		if (user) {
-			ensureSignalSession(user.id, contactId).catch(() => {});
+			ensureStableSession(user.id, contactId).catch(() => {});
 		}
 
-		router.push({
-			pathname: `/(tabs)/chat/${contactId}`,
-			params: { contactId, initialName: name, initialAvatar: avatar }
+		router.navigate({
+			to: "/chat/$chatId",
+			params: { chatId: contactId },
+			search: { initialName: name, initialAvatar: avatar }
 		} as any);
 	}, [user, router]);
 

@@ -1,97 +1,85 @@
 /**
- * Módulo de Criptografia End-to-End Real (E2EE)
- *
- * Implementa E2EE usando ECDH (Curve25519) para troca de chaves
- * e AES-256-GCM para criptografia de mensagens
+ * E2EE usando apenas @stablelib: X25519 + HKDF-SHA256 + XChaCha20-Poly1305.
+ * Sem CryptoJS, sem @noble. Chaves sempre 32 bytes.
  */
 
-import { x25519 } from "@noble/curves/ed25519";
+import { sharedKey } from "@stablelib/x25519";
+import { HKDF } from "@stablelib/hkdf";
+import { SHA256 } from "@stablelib/sha256";
+import { XChaCha20Poly1305 } from "@stablelib/xchacha20poly1305";
+import * as Crypto from "expo-crypto";
 import { getPrivateKey, getPublicKey } from "./keyManagement";
-import CryptoJS from "crypto-js";
-import { generateIV } from "./crypto";
 
-// Cache de chaves compartilhadas derivadas (TTL de 1 hora)
 const sharedSecretCache = new Map<string, { secret: Uint8Array; timestamp: number }>();
-const SHARED_SECRET_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hora
+const SHARED_SECRET_CACHE_TTL_MS = 60 * 60 * 1000;
+
+const HKDF_SALT = new TextEncoder().encode("chatup-e2ee-v1");
+const HKDF_INFO = new TextEncoder().encode("xchacha20poly1305");
+
+function bytesToBase64(bytes: Uint8Array): string {
+	let s = "";
+	for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+	return btoa(s);
+}
+
+function base64ToBytes(base64: string): Uint8Array {
+	const s = atob(base64);
+	const bytes = new Uint8Array(s.length);
+	for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i);
+	return bytes;
+}
 
 /**
- * Deriva chave compartilhada usando ECDH
- * sharedSecret = ECDH(privateKeyA, publicKeyB) = ECDH(privateKeyB, publicKeyA)
+ * Deriva chave compartilhada ECDH (X25519) e normaliza para 32 bytes.
  */
 export function deriveSharedSecret(privateKey: Uint8Array, publicKey: Uint8Array): Uint8Array {
-	try {
-		// ECDH: sharedSecret = privateKey * publicKey (operação na curva)
-		const sharedSecret = x25519.getSharedSecret(privateKey, publicKey);
-
-		// Usar apenas os primeiros 32 bytes como chave AES-256
-		return sharedSecret.slice(0, 32);
-	} catch (error) {
-		console.error("❌ Erro ao derivar chave compartilhada:", error);
-		throw new Error("Falha ao derivar chave compartilhada");
+	if (privateKey.length !== 32 || publicKey.length !== 32) {
+		throw new Error("X25519 keys must be 32 bytes");
 	}
+	return sharedKey(privateKey, publicKey);
 }
 
 /**
- * Obtém chave compartilhada para um chat específico
- * Usa cache para evitar recalcular toda vez
+ * Deriva chave de cifra (32 bytes) a partir do shared secret via HKDF-SHA256.
  */
-export async function getSharedSecret(chatId: string, userIdA: string, userIdB: string): Promise<Uint8Array> {
-	try {
-		// Criar chave de cache baseada nos IDs (ordem não importa)
-		const cacheKey = [userIdA, userIdB].sort().join("_");
+function deriveEncryptionKey(sharedSecret: Uint8Array): Uint8Array {
+	const hkdf = new HKDF(SHA256, sharedSecret, HKDF_SALT, HKDF_INFO);
+	return hkdf.expand(32);
+}
 
-		// Verificar cache
-		const cached = sharedSecretCache.get(cacheKey);
-		if (cached && Date.now() - cached.timestamp < SHARED_SECRET_CACHE_TTL_MS) {
-			console.log("🔑 Chave compartilhada recuperada do cache", { chatId });
-			return cached.secret;
-		}
-
-		// Buscar chaves privada e pública
-		console.log("🔍 Buscando chave privada para usuário A...", { userIdA, chatId });
-		const privateKeyA = await getPrivateKey(userIdA);
-		if (!privateKeyA) {
-			const errorMsg = `Chave privada não encontrada para usuário ${userIdA}. Verifique se o usuário fez login e tem chaves geradas.`;
-			console.error("❌", errorMsg, { userIdA, chatId });
-			throw new Error(errorMsg);
-		}
-		console.log("✅ Chave privada encontrada", { userIdA, keyLength: privateKeyA.length });
-
-		console.log("🔍 Buscando chave pública para usuário B...", { userIdB, chatId });
-		const publicKeyB = await getPublicKey(userIdB);
-		if (!publicKeyB) {
-			const errorMsg = `Chave pública não encontrada para usuário ${userIdB}. O contato pode não ter gerado chaves ainda.`;
-			console.error("❌", errorMsg, { userIdB, chatId });
-			throw new Error(errorMsg);
-		}
-		console.log("✅ Chave pública encontrada", { userIdB, keyLength: publicKeyB.length });
-
-		// Derivar chave compartilhada
-		console.log("🔐 Derivando chave compartilhada via ECDH...", { chatId });
-		const sharedSecret = deriveSharedSecret(privateKeyA, publicKeyB);
-		console.log("✅ Chave compartilhada derivada", { chatId, secretLength: sharedSecret.length });
-
-		// Armazenar no cache
-		sharedSecretCache.set(cacheKey, {
-			secret: sharedSecret,
-			timestamp: Date.now(),
-		});
-
-		return sharedSecret;
-	} catch (error: any) {
-		console.error("❌ Erro ao obter chave compartilhada:", {
-			error: error?.message || String(error),
-			chatId,
-			userIdA,
-			userIdB,
-			stack: error?.stack,
-		});
-		throw error;
+export async function getSharedSecret(
+	chatId: string,
+	userIdA: string,
+	userIdB: string
+): Promise<Uint8Array> {
+	const cacheKey = [userIdA, userIdB].sort().join("_");
+	const cached = sharedSecretCache.get(cacheKey);
+	if (cached && Date.now() - cached.timestamp < SHARED_SECRET_CACHE_TTL_MS) {
+		return cached.secret;
 	}
+
+	const privateKeyA = await getPrivateKey(userIdA);
+	if (!privateKeyA) {
+		throw new Error(`Chave privada não encontrada para ${userIdA}`);
+	}
+
+	const publicKeyB = await getPublicKey(userIdB);
+	if (!publicKeyB) {
+		throw new Error(`Chave pública não encontrada para ${userIdB}. O contato pode não ter gerado chaves ainda.`);
+	}
+
+	const rawSecret = deriveSharedSecret(privateKeyA, publicKeyB);
+	const encryptionKey = deriveEncryptionKey(rawSecret);
+
+	sharedSecretCache.set(cacheKey, {
+		secret: encryptionKey,
+		timestamp: Date.now(),
+	});
+	return encryptionKey;
 }
 
 /**
- * Criptografa mensagem usando E2EE real (ECDH + AES-256-GCM)
+ * Criptografa com XChaCha20-Poly1305 (AEAD). Payload: ENC:base64(JSON({ v:"5", n, c })).
  */
 export async function encryptMessageE2EE(
 	plaintext: string,
@@ -99,55 +87,24 @@ export async function encryptMessageE2EE(
 	senderId: string,
 	receiverId: string
 ): Promise<string> {
-	try {
-		// Obter chave compartilhada
-		const sharedSecret = await getSharedSecret(chatId, senderId, receiverId);
+	const key = await getSharedSecret(chatId, senderId, receiverId);
+	const cipher = new XChaCha20Poly1305(key);
+	const nonce = await Crypto.getRandomBytesAsync(cipher.nonceLength);
+	const plainBytes = new TextEncoder().encode(plaintext);
+	const ciphertext = cipher.seal(nonce, plainBytes);
 
-		// Converter chave compartilhada para formato do crypto-js
-		const keyWords = CryptoJS.lib.WordArray.create(new Uint8Array(sharedSecret));
-
-		// Gerar IV
-		const ivBase64 = await generateIV();
-		const ivWords = CryptoJS.enc.Base64.parse(ivBase64);
-
-		// Criptografar usando AES-256-GCM (simulado com CBC + HMAC)
-		const encrypted = CryptoJS.AES.encrypt(plaintext, keyWords, {
-			iv: ivWords,
-			mode: CryptoJS.mode.CBC,
-			padding: CryptoJS.pad.Pkcs7,
-		});
-
-		const ciphertext = encrypted.ciphertext.toString(CryptoJS.enc.Base64);
-
-		// Gerar tag de autenticação (HMAC-SHA256)
-		const tagHmac = CryptoJS.HmacSHA256(encrypted.ciphertext, keyWords);
-		const tag = tagHmac.toString(CryptoJS.enc.Base64);
-
-		// Criar payload criptografado (versão 4: E2EE com ECDH)
-		const payload = {
-			iv: ivBase64,
-			ciphertext,
-			tag,
-			t: Date.now(), // timestamp
-			v: "4", // versão 4: E2EE com ECDH
-		};
-
-		// Codificar em base64
-		const json = JSON.stringify(payload);
-		const jsonBuffer = new TextEncoder().encode(json);
-		// Converter Uint8Array para base64 (compatível com React Native)
-		const binary = Array.from(jsonBuffer, (byte) => String.fromCharCode(byte)).join("");
-		const encoded = btoa(binary);
-
-		return "ENC:" + encoded;
-	} catch (error) {
-		console.error("❌ Erro ao criptografar mensagem E2EE:", error);
-		throw new Error("Falha ao criptografar mensagem E2EE");
-	}
+	const payload = {
+		v: "5",
+		n: bytesToBase64(nonce),
+		c: bytesToBase64(ciphertext),
+	};
+	const json = JSON.stringify(payload);
+	const encoded = btoa(unescape(encodeURIComponent(json)));
+	return "ENC:" + encoded;
 }
 
 /**
- * Descriptografa mensagem usando E2EE real (ECDH + AES-256-GCM)
+ * Descriptografa payload v5 (XChaCha20-Poly1305).
  */
 export async function decryptMessageE2EE(
 	encryptedText: string,
@@ -155,74 +112,27 @@ export async function decryptMessageE2EE(
 	senderId: string,
 	receiverId: string
 ): Promise<string> {
-	try {
-		// Remover prefixo
-		if (!encryptedText.startsWith("ENC:")) {
-			throw new Error("Mensagem não criptografada");
-		}
-
-		const withoutPrefix = encryptedText.substring(4);
-
-		// Decodificar payload (compatível com React Native)
-		const binary = atob(withoutPrefix);
-		const jsonBuffer = new Uint8Array(binary.length);
-		for (let i = 0; i < binary.length; i++) {
-			jsonBuffer[i] = binary.charCodeAt(i);
-		}
-		const json = new TextDecoder().decode(jsonBuffer);
-		const payload = JSON.parse(json);
-
-		// Validar versão
-		if (payload.v !== "4") {
-			throw new Error(`Versão de criptografia não suportada: ${payload.v} (esperado: 4)`);
-		}
-
-		// Obter chave compartilhada
-		const sharedSecret = await getSharedSecret(chatId, receiverId, senderId);
-
-		// Converter chave compartilhada para formato do crypto-js
-		const keyWords = CryptoJS.lib.WordArray.create(new Uint8Array(sharedSecret));
-
-		// Converter IV
-		const ivWords = CryptoJS.enc.Base64.parse(payload.iv);
-
-		// Verificar tag de autenticação primeiro
-		const ciphertextWords = CryptoJS.enc.Base64.parse(payload.ciphertext);
-		const computedTag = CryptoJS.HmacSHA256(ciphertextWords, keyWords);
-		const computedTagBase64 = computedTag.toString(CryptoJS.enc.Base64);
-
-		if (computedTagBase64 !== payload.tag) {
-			throw new Error("Autenticação falhou: tag inválida");
-		}
-
-		// Descriptografar
-		const cipherParams = CryptoJS.lib.CipherParams.create({
-			ciphertext: ciphertextWords,
-		});
-
-		const decrypted = CryptoJS.AES.decrypt(cipherParams, keyWords, {
-			iv: ivWords,
-			mode: CryptoJS.mode.CBC,
-			padding: CryptoJS.pad.Pkcs7,
-		});
-
-		const plaintext = decrypted.toString(CryptoJS.enc.Utf8);
-
-		if (!plaintext) {
-			throw new Error("Falha ao descriptografar mensagem");
-		}
-
-		return plaintext;
-	} catch (error) {
-		console.error("❌ Erro ao descriptografar mensagem E2EE:", error);
-		throw error;
+	if (!encryptedText.startsWith("ENC:")) {
+		throw new Error("Mensagem não criptografada");
 	}
+
+	const json = decodeURIComponent(escape(atob(encryptedText.slice(4))));
+	const payload = JSON.parse(json);
+	if (payload.v !== "5") {
+		throw new Error(`Versão não suportada: ${payload.v}`);
+	}
+
+	const key = await getSharedSecret(chatId, receiverId, senderId);
+	const cipher = new XChaCha20Poly1305(key);
+	const nonce = base64ToBytes(payload.n);
+	const ciphertext = base64ToBytes(payload.c);
+	const plainBytes = cipher.open(nonce, ciphertext);
+	if (!plainBytes) {
+		throw new Error("Falha ao descriptografar (tag inválida)");
+	}
+	return new TextDecoder().decode(plainBytes);
 }
 
-/**
- * Limpa cache de chaves compartilhadas (útil para logout)
- */
 export function clearSharedSecretCache(): void {
 	sharedSecretCache.clear();
-	console.log("✅ Cache de chaves compartilhadas limpo");
 }

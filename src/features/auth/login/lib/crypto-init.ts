@@ -1,5 +1,4 @@
-import { getOrCreateKeyPair } from '@/shared/lib/crypto';
-import { bootstrapSignalAccount } from '@/shared/lib/crypto/signal';
+import { getOrCreateKeyPair, bootstrapStableAccount } from '@/shared/lib/crypto';
 
 /**
  * Inicializa as chaves criptográficas do usuário após login
@@ -7,7 +6,7 @@ import { bootstrapSignalAccount } from '@/shared/lib/crypto/signal';
 export async function initializeCrypto(userId: string): Promise<void> {
 	try {
 		await getOrCreateKeyPair(userId);
-		await bootstrapSignalAccount(userId);
+		await bootstrapStableAccount(userId);
 	} catch (e) {
 		console.warn('[Auth/Login] Crypto initialization failed', e);
 	}

@@ -9,7 +9,7 @@ export const ContainerWrapper = styled.View`
 `;
 
 export const MessagesListContainer = styled.View`
-    fle x: 1;
+    flex: 1;
     padding: ${(props) => props.theme.spacing.md}px;
 `;
 

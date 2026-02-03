@@ -33,5 +33,5 @@ export {
 	clearPublicKeyCache,
 } from './keyManagement';
 
-export { ensureSignalSession } from './signal';
-
+// Stablelib (Novo padrão E2EE)
+export * from './stable';

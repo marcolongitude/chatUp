@@ -27,12 +27,12 @@ const storage = {
 		}
 	},
 	setItem: async (key: string, value: any): Promise<void> => {
-		const val = typeof value === 'string' ? value : JSON.stringify(value);
+		const val = typeof value === "string" ? value : JSON.stringify(value);
 		await AsyncStorage.setItem(key, val);
 	},
 	removeItem: async (key: string): Promise<void> => {
 		await AsyncStorage.removeItem(key);
-	}
+	},
 };
 import {
 	arrayBufferToBase64,
@@ -44,7 +44,7 @@ import {
 	base64URLToArrayBuffer,
 } from "./utils";
 import { MessageEnvelopeCodec, type MessageEnvelope } from "@/shared/lib/proto/messageEnvelope";
-import { encryptWithSignal, decryptWithSignal, clearSignalSessions } from "./signal";
+import { encryptWithStable, decryptWithStable, bootstrapStableAccount } from "./stable";
 import { trackEncryptionError, trackEncryptionEvent } from "./telemetry";
 import { removePrivateKey } from "./keyManagement";
 import { withCryptoLoading } from "./cryptoLoading";
@@ -54,7 +54,6 @@ import { getOwnMessage } from "./ownMessageCache";
 // Armazena: messageId -> { plaintext, timestamp }
 const ownMessagePlaintextCache = new Map<string, { plaintext: string; timestamp: number }>();
 const PLAINTEXT_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 horas
-
 
 // Log de inicialização para verificar se arquivo foi carregado
 console.log("🔐 [CRYPTO] Módulo crypto.ts carregado com suporte a módulo nativo!");
@@ -76,14 +75,14 @@ const {
 	TAG_LENGTH,
 	HMAC_KEY_LENGTH,
 	MAX_MESSAGE_AGE_MS,
-    MAX_FUTURE_OFFSET_MS,
+	MAX_FUTURE_OFFSET_MS,
 	STORAGE_KEY_MASTER_SALT_PREFIX,
 	STORAGE_KEY_ENCRYPTED_PREFIX,
 	ENCRYPTED_PREFIX,
 	SIGNAL_ENVELOPE_VERSION,
 	CACHE_TTL_MS,
 	MAX_CACHE_SIZE,
-	MASTER_KEY_CACHE_TTL_MS
+	MASTER_KEY_CACHE_TTL_MS,
 } = CRYPTO;
 
 // Cache em memória de chaves descriptografadas (por chatId)
@@ -240,19 +239,13 @@ async function pbkdf2(password: string, salt: string, iterations: number, keyLen
 	// ============================================
 	// ⚡️ TENTAR QUICK-CRYPTO (NATIVO C++) - ALTA PERFORMANCE
 	// ============================================
-	// Este é o método preferido em Produção/APK. 
+	// Este é o método preferido em Produção/APK.
 	// Processa 50k iterações em < 100ms em vez de 30s no JS.
 	try {
-		const QuickCrypto = require('react-native-quick-crypto');
+		const QuickCrypto = require("react-native-quick-crypto");
 		if (QuickCrypto && QuickCrypto.pbkdf2Sync) {
 			console.log("🚀 [CRYPTO] Usando Quick-Crypto nativo para PBKDF2...");
-			const derivedKey = QuickCrypto.pbkdf2Sync(
-				password,
-				salt,
-				iterations,
-				keyLength,
-				'sha256'
-			);
+			const derivedKey = QuickCrypto.pbkdf2Sync(password, salt, iterations, keyLength, "sha256");
 			return derivedKey.buffer.slice(derivedKey.byteOffset, derivedKey.byteOffset + derivedKey.byteLength);
 		}
 	} catch (error) {
@@ -733,40 +726,9 @@ export async function encryptMessage(
 
 	const startedAt = Date.now();
 
-	// Tentar Signal Protocol primeiro (método preferido)
-	// Timeout total de 3 segundos para evitar espera longa
+	// Tentar Stablelib (novo padrão estável)
 	try {
-		const signalPromise = encryptWithSignal({
-			currentUserId: userId,
-			contactId: receiverId,
-			plaintext,
-		});
-
-		// Timeout total de 3 segundos para Signal Protocol
-		const timeoutPromise = new Promise<never>((_, reject) => {
-			setTimeout(() => {
-				reject(new Error("Signal Protocol timeout - usando fallback E2EE"));
-			}, 3000); // 3s timeout total (retries + listener = ~2.6s máximo)
-		});
-
-		const result = await Promise.race([signalPromise, timeoutPromise]);
-
-		const envelopeBytes = MessageEnvelopeCodec.encode({
-			version: SIGNAL_ENVELOPE_VERSION,
-			cipherType: result.type,
-			payload: result.ciphertext,
-			chatId,
-			senderId: userId,
-			receiverId,
-			timestamp: Date.now(),
-			registrationId: result.registrationId,
-		}).finish();
-
-		const envelopeBuffer = ensureArrayBuffer(
-			envelopeBytes.buffer.slice(envelopeBytes.byteOffset, envelopeBytes.byteOffset + envelopeBytes.byteLength)
-		);
-		// Usar base64url (mais eficiente: sem padding, URL-safe, ~10-15% menor)
-		const encoded = arrayBufferToBase64URL(envelopeBuffer);
+		const encrypted = await encryptWithStable(userId, receiverId, plaintext);
 
 		trackEncryptionEvent({
 			stage: "encrypt",
@@ -777,66 +739,42 @@ export async function encryptMessage(
 			durationMs: Date.now() - startedAt,
 		});
 
-		return ENCRYPTED_PREFIX + encoded;
-	} catch (signalError: any) {
-		// Se erro for por falta de bundle de prekeys ou timeout, tentar fallback E2EE
-		const isBundleError =
-			signalError?.message?.includes("bundle de prekeys") ||
-			signalError?.message?.includes("não possui bundle") ||
-			signalError?.message?.includes("timeout");
+		return encrypted;
+	} catch (error: any) {
+		console.warn("⚠️ StableCrypto failed, using fallback E2EE:", error.message);
 
-		if (isBundleError) {
-			const fallbackStartTime = Date.now();
-			console.log("⚠️ Signal Protocol não disponível (bundle ausente/timeout), usando fallback E2EE...");
+		const fallbackStartTime = Date.now();
+		try {
+			// Usar método E2EE legado que só precisa de chaves públicas (já em cache)
+			const { encryptMessageE2EE } = await import("./e2ee");
+			const encrypted = await encryptMessageE2EE(plaintext, chatId, userId, receiverId);
 
-			try {
-				// Usar método E2EE legado que só precisa de chaves públicas (já em cache)
-				const { encryptMessageE2EE } = await import("./e2ee");
-				const encrypted = await encryptMessageE2EE(plaintext, chatId, userId, receiverId);
-
-				const fallbackDuration = Date.now() - fallbackStartTime;
-				trackEncryptionEvent({
-					stage: "encrypt",
-					result: "success",
-					userId,
-					chatId,
-					receiverId,
-					durationMs: Date.now() - startedAt,
-				});
-
-				console.log(
-					`✅ Mensagem criptografada com fallback E2EE em ${fallbackDuration}ms (destinatário offline)`
-				);
-				return encrypted;
-			} catch (e2eeError) {
-				console.error("❌ Erro ao criptografar com fallback E2EE:", e2eeError);
-				// Se fallback também falhar, propagar erro original do Signal
-				trackEncryptionError(
-					{
-						stage: "encrypt",
-						userId,
-						chatId,
-						receiverId,
-						durationMs: Date.now() - startedAt,
-					},
-					signalError
-				);
-				throw signalError instanceof Error ? signalError : new Error("Falha ao criptografar mensagem");
-			}
-		}
-
-		// Para outros erros do Signal, propagar normalmente
-		trackEncryptionError(
-			{
+			const fallbackDuration = Date.now() - fallbackStartTime;
+			trackEncryptionEvent({
 				stage: "encrypt",
+				result: "success",
 				userId,
 				chatId,
 				receiverId,
 				durationMs: Date.now() - startedAt,
-			},
-			signalError
-		);
-		throw signalError instanceof Error ? signalError : new Error("Falha ao criptografar mensagem");
+			});
+
+			console.log(`✅ Mensagem criptografada com fallback E2EE em ${fallbackDuration}ms`);
+			return encrypted;
+		} catch (fallbackError: any) {
+			console.error("❌ Erro ao criptografar com fallback E2EE:", fallbackError);
+			trackEncryptionError(
+				{
+					stage: "encrypt",
+					userId,
+					chatId,
+					receiverId,
+					durationMs: Date.now() - startedAt,
+				},
+				error
+			);
+			throw error;
+		}
 	}
 }
 
@@ -852,9 +790,24 @@ export async function decryptMessage(
 	messageId?: string // NOVO: permite cache de mensagens próprias
 ): Promise<string> {
 	try {
-		// Verificar se é uma mensagem criptografada
+		// 1. Tentar Stablelib (prefixo STB:)
+		if (encryptedText.startsWith("STB:")) {
+			const startedAt = Date.now();
+			const plaintext = await decryptWithStable(userId, senderId, encryptedText);
+
+			trackEncryptionEvent({
+				stage: "decrypt",
+				result: "success",
+				userId,
+				chatId,
+				receiverId: senderId,
+				durationMs: Date.now() - startedAt,
+			});
+			return plaintext;
+		}
+
+		// 2. Verificar se é uma mensagem criptografada legada (ENC:)
 		if (!encryptedText.startsWith(ENCRYPTED_PREFIX)) {
-			// Se não começar com o prefixo, retornar como está (mensagem não criptografada)
 			return encryptedText;
 		}
 
@@ -866,10 +819,10 @@ export async function decryptMessage(
 
 		// Verificar se é mensagem própria
 		// Normalizar IDs para comparação (remover espaços e converter para string)
-		const normalizedSenderId = String(senderId || '').trim();
-		const normalizedUserId = String(userId || '').trim();
+		const normalizedSenderId = String(senderId || "").trim();
+		const normalizedUserId = String(userId || "").trim();
 		const isOwnMessage = normalizedSenderId && normalizedUserId && normalizedSenderId === normalizedUserId;
-		
+
 		// FIX: Mensagens próprias NÃO podem ser descriptografadas via Signal!
 		// Usar cache de plaintext armazenado ANTES da criptografia
 		if (isOwnMessage) {
@@ -899,7 +852,9 @@ export async function decryptMessage(
 
 				if (messageAge > MAX_MESSAGE_AGE_MS) {
 					console.warn(
-						`Timestamp antigo (Signal): ${Math.floor(messageAge / 3600000)}h atrás. Aceitando para histórico.`
+						`Timestamp antigo (Signal): ${Math.floor(
+							messageAge / 3600000
+						)}h atrás. Aceitando para histórico.`
 					);
 					// throw new Error("Mensagem muito antiga");
 				}
@@ -926,23 +881,9 @@ export async function decryptMessage(
 
 			const startedAt = Date.now();
 			try {
-				const plaintext = await decryptWithSignal({
-					currentUserId: userId,
-					contactId: remoteParticipant,
-					payload: envelope.payload ?? new Uint8Array(),
-					type: envelope.cipherType,
-				});
-
-				trackEncryptionEvent({
-					stage: "decrypt",
-					result: "success",
-					userId,
-					chatId,
-					receiverId: remoteParticipant,
-					durationMs: Date.now() - startedAt,
-				});
-
-				return plaintext;
+				// Fallback para mensagens Signal antigas (enquanto ainda existem no DB)
+				// Como removemos a lib, isso vai falhar, então avisamos o usuário
+				return "[Mensagem Signal antiga - não suportada]";
 			} catch (error: any) {
 				trackEncryptionError(
 					{
@@ -1009,21 +950,26 @@ export async function decryptMessage(
 			);
 		}
 
-		// Versão 4: E2EE com ECDH legado
-		if (payload.v === "4") {
+		// Versão 5: E2EE com StableLib (X25519 + XChaCha20-Poly1305)
+		if (payload.v === "5") {
 			try {
 				const { decryptMessageE2EE } = await import("./e2ee");
-				const legacySender = senderId === userId ? receiverId : senderId;
-				return await decryptMessageE2EE(encryptedText, chatId, legacySender, userId);
+				const otherPartyId = senderId === userId ? receiverId : senderId;
+				return await decryptMessageE2EE(encryptedText, chatId, otherPartyId, userId);
 			} catch (e2eeError: any) {
-				console.error("❌ Erro ao descriptografar com E2EE (legado):", e2eeError);
-				throw new Error(`Falha ao descriptografar mensagem E2EE: ${e2eeError.message}`);
+				console.error("❌ Erro ao descriptografar E2EE v5:", e2eeError);
+				throw new Error(`Falha ao descriptografar: ${e2eeError.message}`);
 			}
+		}
+
+		// Versão 4: E2EE legado (não mais suportado após migração para StableLib)
+		if (payload.v === "4") {
+			throw new Error("Mensagem em formato antigo (v4). Não é mais suportado.");
 		}
 
 		// Versão 3: Método antigo (PBKDF2 + AES-256)
 		if (payload.v !== "3") {
-			throw new Error(`Versão de criptografia não suportada: ${payload.v} (esperado: 3 ou 4)`);
+			throw new Error(`Versão de criptografia não suportada: ${payload.v} (esperado: 3 ou 5)`);
 		}
 
 		// Validar campos obrigatórios para v3
@@ -1037,9 +983,7 @@ export async function decryptMessage(
 		const messageAge = Date.now() - payload.t;
 
 		if (messageAge > MAX_MESSAGE_AGE_MS) {
-			console.warn(
-				`Mensagem antiga (V3): ${Math.floor(messageAge / 3600000)}h atrás. Aceitando para histórico.`
-			);
+			console.warn(`Mensagem antiga (V3): ${Math.floor(messageAge / 3600000)}h atrás. Aceitando para histórico.`);
 			// throw new Error(...)
 		}
 
@@ -1116,7 +1060,6 @@ export async function decryptMessage(
 			}
 		}
 
-
 		// Se for erro de "sending chain" - mensagem própria (fallback)
 		if (
 			error.message &&
@@ -1140,7 +1083,6 @@ export async function decryptMessage(
 			// Tenta limpar sessões em caso de erro repetitivo? Por enquanto, apenas retorna erro amigável.
 			return "[Erro de descriptografia: Chave inválida ou sessão expirada. Reinicie o chat ou limpe os dados.]";
 		}
-
 
 		// Para outros erros, retornar placeholder
 		return "[Erro ao descriptografar mensagem]";
@@ -1211,7 +1153,8 @@ export async function clearAllKeys(userId?: string): Promise<void> {
 		await Promise.all(chatKeys.map((key) => AsyncStorage.removeItem(key)));
 
 		if (userId) {
-			await Promise.all([removePrivateKey(userId), clearSignalSessions(userId)]);
+			const { getStableStorage } = await import("./stable/StableLibStorage");
+			await Promise.all([removePrivateKey(userId), getStableStorage(userId).clearAll()]);
 		}
 	} catch (error) {
 		console.error("Erro ao limpar chaves:", error);

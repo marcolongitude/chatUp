@@ -73,8 +73,8 @@ export function ChatWindow({ contactId }: ChatWindowProps) {
 						keyExtractor={(item) => item.id}
 						onEndReachedThreshold={0.5}
 						contentContainerStyle={{
-							paddingTop: insets.top,
-							paddingBottom: insets.bottom,
+							paddingTop: 8,
+							paddingBottom: insets.bottom + 8,
 							flexGrow: messages.length === 0 ? 1 : 0,
 						}}
 						keyboardShouldPersistTaps="handled"

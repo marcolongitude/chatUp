@@ -1,23 +1,23 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect } from "react";
 import { ActivityIndicator, FlatList } from "react-native";
 import { useTheme } from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "@/shared/ui";
 import { useTranslation } from "@/app/providers/i18n";
+import { useHeaderRightSlot } from "@/app/contexts/HeaderRightSlotContext";
+import { HeaderSearchWidget } from "@/widgets/header-search";
 
 import { useContactList } from "../model/useContactList";
 import { ContactListItem } from "./ContactListItem";
 import { SearchResultsList } from "./SearchResultsList";
-import { 
-	Container, 
-	EmptyContainer, 
-	EmptyText, 
-	ErrorText, 
-	ErrorIcon, 
-	ErrorButtonContainer, 
-	LoadingContainer, 
-	SearchBarContainer, 
-	SearchInput 
+import {
+	Container,
+	EmptyContainer,
+	EmptyText,
+	ErrorText,
+	ErrorIcon,
+	ErrorButtonContainer,
+	LoadingContainer,
 } from "./styled";
 
 /**
@@ -26,7 +26,8 @@ import {
 export function ContactList() {
 	const theme = useTheme();
 	const { t } = useTranslation();
-	
+	const { setContent } = useHeaderRightSlot();
+
 	const {
 		contacts,
 		isLoading,
@@ -39,6 +40,16 @@ export function ContactList() {
 		openSettings,
 		handleContactPress,
 	} = useContactList();
+
+	useEffect(() => {
+		setContent(
+			<HeaderSearchWidget
+				onChangeText={setSearchQuery}
+				placeholder={t("conversations.searchPlaceholder") || "Search users by name or email..."}
+			/>
+		);
+		return () => setContent(null);
+	}, [setContent, t]);
 
 	const renderContact = useCallback(
 		({ item }: { item: any }) => (
@@ -59,25 +70,6 @@ export function ContactList() {
 
 	return (
 		<Container>
-			<SearchBarContainer>
-				<Ionicons name="search" size={20} color={theme.colors.text.tertiary} />
-				<SearchInput
-					placeholder={t("conversations.searchPlaceholder") || "Buscar usuários..."}
-					placeholderTextColor={theme.colors.text.tertiary}
-					value={searchQuery}
-					onChangeText={setSearchQuery}
-					autoCapitalize="none"
-				/>
-				{searchQuery.length > 0 && (
-					<Ionicons 
-						name="close-circle" 
-						size={20} 
-						color={theme.colors.text.tertiary} 
-						onPress={() => setSearchQuery("")}
-					/>
-				)}
-			</SearchBarContainer>
-
 			{isSearchingMode && searchPromise ? (
 				<React.Suspense fallback={
 					<LoadingContainer>

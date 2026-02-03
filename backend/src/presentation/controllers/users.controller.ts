@@ -63,6 +63,7 @@ export class UsersController {
       displayName: user.displayName,
       photoURL: user.photoURL,
       bio: user.bio,
+      publicKey: user.publicKey ?? undefined,
     };
   }
 }

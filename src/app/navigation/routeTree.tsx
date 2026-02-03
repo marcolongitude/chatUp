@@ -43,12 +43,20 @@ export const createProfileRoute = createRoute({
   component: CreateProfilePage,
 });
 
-// Main Route Group (Tabs)
-export const tabsRoute = createRoute({
+// App Layout Route (Pathless) - Provides Header to both tabs and chat
+export const appLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: 'main',
+  id: 'app-layout',
   component: BottomTabLayout,
 });
+
+// Main Route Group (Tabs)
+export const tabsRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: 'main',
+});
+
+// ... (conversationsRoute, profileRoute, etc. stay same but change getParentRoute)
 
 export const conversationsRoute = createRoute({
   getParentRoute: () => tabsRoute,
@@ -76,19 +84,27 @@ export const logoutRoute = createRoute({
 
 // Individual Chat Route
 export const chatRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appLayoutRoute,
   path: 'chat/$chatId',
   component: ChatWindowPage,
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      initialName: (search.initialName as string) || undefined,
+      initialAvatar: (search.initialAvatar as string) || undefined,
+    };
+  },
 });
 
 export const routeTree = rootRoute.addChildren([
   indexRoute,
   authRoute.addChildren([loginRoute, signupRoute, createProfileRoute]),
-  tabsRoute.addChildren([
-    conversationsRoute,
-    profileRoute,
-    settingsRoute,
-    logoutRoute,
+  appLayoutRoute.addChildren([
+    tabsRoute.addChildren([
+      conversationsRoute,
+      profileRoute,
+      settingsRoute,
+      logoutRoute,
+    ]),
+    chatRoute,
   ]),
-  chatRoute,
 ]);

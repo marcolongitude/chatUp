@@ -12,6 +12,7 @@ module.exports = () => {
 			slug: "chatUp",
 			version: "1.0.2",
 			orientation: "portrait",
+			// Ícone do app (iOS, Android, splash) – assets/logoIcon.png
 			icon: "./assets/logoIcon.png",
 			userInterfaceStyle: "light",
 			newArchEnabled: true,

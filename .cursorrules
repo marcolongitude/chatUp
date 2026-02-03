@@ -2,7 +2,7 @@
 
 ## Contexto do Projeto
 
-Este é um aplicativo React Native com Expo Router para chat em tempo real com criptografia end-to-end, sincronização offline-first via ElectricSQL e backend NestJS.
+Este é um aplicativo React Native com TanStack Router para chat em tempo real com criptografia end-to-end, sincronização offline-first via ElectricSQL e backend NestJS.
 
 ### Stack Tecnológico
 
@@ -11,7 +11,7 @@ Este é um aplicativo React Native com Expo Router para chat em tempo real com c
 -   **Framework**: Expo ~54.0.0 com React Native 0.81.5
 -   **React**: 19.0.2
 -   **TypeScript**: ~5.9.2 (strict mode habilitado)
--   **Roteamento**: Expo Router ~6.0.15 (file-based routing)
+-   **Roteamento**: TanStack Router (memory history)
 -   **Estilização**: styled-components ^6.1.19
 -   **Estado Servidor**: @tanstack/react-query ^5.62.0
 -   **Sincronização Local-First**: 
@@ -75,10 +75,10 @@ Este é um aplicativo React Native com Expo Router para chat em tempo real com c
 
 ### Arquitetura do Projeto
 
-```
-app/                    # Rotas do Expo Router (file-based routing)
-  (auth)/              # Rotas de autenticação
-  (tabs)/              # Rotas com tab navigation
+src/
+  app/
+    navigation/        # Configuração do TanStack Router
+    routes/            # Componentes das rotas (Screens)
 src/
   api/                 # Cliente HTTP (Axios)
   core/                # Configurações centrais
@@ -438,25 +438,25 @@ O projeto atual pode ser migrado gradualmente:
     - Use `useCallback` para funções passadas como props
     - Evite criar objetos/arrays inline em props (use `useMemo`)
 
-### Expo Router (File-based Routing)
+### TanStack Router
 
 1. **Estrutura de Rotas**
 
-    - Rotas em `app/` seguem a estrutura de arquivos
-    - Use `(auth)` e `(tabs)` para grupos de rotas
-    - Parâmetros dinâmicos: `[contactId].tsx`
+    - Rotas e layouts são definidos em `src/app/navigation/routeTree.tsx`
+    - Componentes de tela ficam em `src/app/routes/`
+    - Parâmetros dinâmicos são acessados via `useParams`
 
 2. **Navegação**
 
     ```typescript
     // ✅ BOM
-    import { useRouter, useLocalSearchParams } from "expo-router";
+    import { useRouter, useParams } from "@tanstack/react-router";
 
     const router = useRouter();
-    const { contactId } = useLocalSearchParams<{ contactId: string }>();
+    const { chatId } = useParams({ from: '/chat/$chatId' });
 
-    router.push("/(tabs)");
-    router.replace("/(auth)/login");
+    router.navigate({ to: "/main/conversations" });
+    router.navigate({ to: "/auth/login", replace: true });
     ```
 
 3. **Layouts**

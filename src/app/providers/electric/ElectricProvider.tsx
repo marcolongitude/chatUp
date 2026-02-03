@@ -52,8 +52,8 @@ export function ElectricProvider({ children }: ElectricProviderProps) {
           
           // Debug keys status on connection
           if (user?.id) {
-             const { checkSignalKeysStatus } = require('@/shared/lib/debug/checkKeys');
-             checkSignalKeysStatus(user.id).catch((e: any) => console.error("Key check failed", e));
+             const { checkStableKeysStatus } = require('@/shared/lib/debug/checkKeys');
+             checkStableKeysStatus(user.id).catch((e: any) => console.error("Key check failed", e));
           }
         }
 

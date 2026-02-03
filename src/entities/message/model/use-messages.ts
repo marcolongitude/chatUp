@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from '@/features/auth';
-import { ensureSignalSession } from "@/shared/lib/crypto";
+import { ensureStableSession } from "@/shared/lib/crypto";
 import { useLiveQuery, eq, or, and } from "@tanstack/react-db";
 import { messagesCollection, insertEncryptedMessage, decryptMessageRow } from "@/shared/lib/database/collections";
 import { useElectric } from "@/app/providers/electric";
@@ -89,15 +89,15 @@ export function useMessages(contactId: string) {
 		})();
 	}, [messageRows, user?.id, chatId]);
 
-	// Garantir sessão Signal com o contato
+	// Garantir sessão Stablelib com o contato
 	useEffect(() => {
 		if (!user || !contactId) return;
 
 		(async () => {
 			try {
-				await ensureSignalSession(user.id, contactId);
+				await ensureStableSession(user.id, contactId);
 			} catch (e) {
-				console.warn("[Entities/Message] Signal session warning:", e);
+				console.warn("[Entities/Message] Stable session warning:", e);
 			}
 		})();
 	}, [user?.id, contactId]);

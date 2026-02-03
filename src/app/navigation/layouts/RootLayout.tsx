@@ -1,7 +1,6 @@
 import React, { Suspense, useEffect } from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { Outlet } from "@tanstack/react-router";
-import { Providers } from "@/app/providers";
 import { UpdateDialog } from "@/shared/ui";
 import { requestNotificationPermissions } from "@/shared/lib/notifications";
 
@@ -88,12 +87,10 @@ export function RootLayout() {
 
 	return (
 		<ErrorBoundary>
-			<Providers>
-				<Suspense fallback={<LoadingFallback />}>
-					<Outlet />
-				</Suspense>
-				<UpdateDialog />
-			</Providers>
+			<Suspense fallback={<LoadingFallback />}>
+				<Outlet />
+			</Suspense>
+			<UpdateDialog />
 		</ErrorBoundary>
 	);
 }

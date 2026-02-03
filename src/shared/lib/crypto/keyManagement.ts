@@ -1,19 +1,15 @@
 /**
- * Gerenciamento de Chaves Públicas/Privadas para E2EE
- *
- * Gerencia pares de chaves assimétricas (Curve25519) para criptografia End-to-End
- * - Chave privada: Armazenada no Keychain (nunca sai do dispositivo)
- * - Chave pública: Armazenada no Firestore (users/{userId}/publicKey)
+ * Gerenciamento de chaves X25519 para E2EE (apenas @stablelib + expo-crypto).
+ * Chave privada: Keychain/SecureStore. Chave pública: API /keys ou /users.
  */
 
-import "react-native-get-random-values";
 import * as Keychain from "react-native-keychain";
-import { x25519 } from "@noble/curves/ed25519";
-import { randomBytes } from "@noble/hashes/utils";
-import { bytesToHex, hexToBytes } from "@noble/hashes/utils";
-import { axiosInstance as api } from '@/shared/api';
+import { generateKeyPairFromSeed, scalarMultBase } from "@stablelib/x25519";
+import { axiosInstance as api } from "@/shared/api";
 import * as Crypto from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
+
+const X25519_PUBLIC_KEY_LENGTH = 32;
 
 /**
  * Converte Uint8Array para base64 (compatível com React Native)
@@ -33,6 +29,15 @@ function base64ToUint8Array(base64: string): Uint8Array {
 		bytes[i] = binary.charCodeAt(i);
 	}
 	return bytes;
+}
+
+/**
+ * Normaliza chave pública X25519 para 32 bytes (alguns backends retornam 33 com prefixo).
+ */
+function normalizePublicKeyX25519(bytes: Uint8Array): Uint8Array | null {
+	if (bytes.length === X25519_PUBLIC_KEY_LENGTH) return bytes;
+	if (bytes.length === 33) return bytes.slice(-32);
+	return null;
 }
 
 // Verificar se Keychain está disponível
@@ -55,22 +60,14 @@ const publicKeyCache = new Map<string, { key: Uint8Array; timestamp: number }>()
 const PUBLIC_KEY_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hora
 
 /**
- * Gera um par de chaves (privada/pública) usando Curve25519
+ * Gera par de chaves X25519 usando @stablelib/x25519 + expo-crypto (sem polyfills).
  */
 export async function generateKeyPair(): Promise<{ privateKey: Uint8Array; publicKey: Uint8Array }> {
 	try {
-		// Gerar chave privada aleatória usando expo-crypto
-		const privateKeyBytes = await Crypto.getRandomBytesAsync(32);
-		const privateKey = new Uint8Array(privateKeyBytes);
-
-		// Derivar chave pública da chave privada
-		const publicKey = x25519.getPublicKey(privateKey);
-
-		console.log("✅ Par de chaves gerado com sucesso");
-		return {
-			privateKey,
-			publicKey,
-		};
+		const seed = await Crypto.getRandomBytesAsync(32);
+		const { publicKey, secretKey } = generateKeyPairFromSeed(seed);
+		console.log("✅ Par de chaves X25519 gerado (StableLib)");
+		return { privateKey: secretKey, publicKey };
 	} catch (error) {
 		console.error("❌ Erro ao gerar par de chaves:", error);
 		throw new Error("Falha ao gerar par de chaves");
@@ -232,7 +229,8 @@ export async function storePublicKey(userId: string, publicKey: Uint8Array): Pro
 }
 
 /**
- * Busca chave pública do Firestore (com cache)
+ * Busca chave pública: primeiro em /keys (bundle Signal), depois em /users (public_key no perfil).
+ * Assim contatos que só têm chave no perfil (E2EE legacy, sem pre-keys) também podem receber mensagens.
  */
 export async function getPublicKey(userId: string): Promise<Uint8Array | null> {
 	try {
@@ -243,25 +241,44 @@ export async function getPublicKey(userId: string): Promise<Uint8Array | null> {
 			return cached.key;
 		}
 
-		// Buscar da API
-        const response = await api.get(`/keys/${userId}`);
-        const data = response.data;
+		const decodeAndNormalize = (raw: string): Uint8Array | null => {
+			const bytes = base64ToUint8Array(raw);
+			return normalizePublicKeyX25519(bytes);
+		};
 
-		if (!data || !data.publicKey) {
-			return null;
+		// 1. GET /keys/:userId
+		try {
+			const response = await api.get<{ success?: boolean; publicKey?: string }>(`/keys/${userId}`);
+			const data = response.data;
+			if (data?.publicKey) {
+				const publicKey = decodeAndNormalize(data.publicKey);
+				if (publicKey) {
+					publicKeyCache.set(userId, { key: publicKey, timestamp: Date.now() });
+					console.log("✅ Chave pública da API (/keys)", { userId });
+					return publicKey;
+				}
+			}
+		} catch {
+			// Pode não existir bundle para este usuário
 		}
 
-		// Converter de base64 para Uint8Array
-		const publicKey = base64ToUint8Array(data.publicKey);
+		// 2. Fallback: GET /users/:userId (public_key no perfil)
+		try {
+			const response = await api.get<{ publicKey?: string; public_key?: string }>(`/users/${userId}`);
+			const raw = response.data?.publicKey ?? response.data?.public_key;
+			if (raw) {
+				const publicKey = decodeAndNormalize(raw);
+				if (publicKey) {
+					publicKeyCache.set(userId, { key: publicKey, timestamp: Date.now() });
+					console.log("✅ Chave pública do perfil (/users)", { userId });
+					return publicKey;
+				}
+			}
+		} catch {
+			// Ignorar
+		}
 
-		// Atualizar cache
-		publicKeyCache.set(userId, {
-			key: publicKey,
-			timestamp: Date.now(),
-		});
-
-		console.log("✅ Chave pública recuperada da API", { userId });
-		return publicKey;
+		return null;
 	} catch (error) {
 		console.error("❌ Erro ao buscar chave pública:", error);
 		return null;
@@ -277,17 +294,14 @@ export async function getOrCreateKeyPair(userId: string): Promise<{ privateKey: 
 		// Tentar recuperar chave privada do Keychain/SecureStore
 		let privateKey = await getPrivateKey(userId);
 
-		if (privateKey) {
-			// Chave privada existe, derivar chave pública
-			let resolvedPublicKey = x25519.getPublicKey(privateKey);
+		if (privateKey && privateKey.length === X25519_PUBLIC_KEY_LENGTH) {
+			// Derivar chave pública com @stablelib (X25519)
+			let resolvedPublicKey = scalarMultBase(privateKey);
 
-			// Verificar se chave pública está no Firestore
 			const storedPublicKey = await getPublicKey(userId);
 			if (!storedPublicKey) {
-				// Chave pública não está no Firestore, fazer upload
 				await storePublicKey(userId, resolvedPublicKey);
 			} else {
-				// Usar chave pública do Firestore (pode ser mais recente)
 				resolvedPublicKey = storedPublicKey;
 			}
 

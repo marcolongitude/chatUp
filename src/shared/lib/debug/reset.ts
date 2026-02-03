@@ -1,5 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { messagesCollection } from "@/shared/lib/database/collections";
+import { getStableStorage } from "@/shared/lib/crypto/stable/StableLibStorage";
+import { clearAllKeys } from "@/shared/lib/crypto";
 
 /**
  * Utilitário DLX (Dangerous Data Deletion)
@@ -11,10 +13,15 @@ export async function hardResetApplication() {
     console.log("🧨 INICIANDO HARD RESET DA APLICAÇÃO 🧨");
 
     try {
-        // 1. Limpar AsyncStorage (Chaves, Sessões Signal, Configurações)
+        // 1. Limpar AsyncStorage (Tokens, Configurações)
         console.log("🧹 Limpando AsyncStorage...");
         await AsyncStorage.clear();
         console.log("✅ AsyncStorage limpo.");
+
+        // 2. Limpar Chaves e Sessões (Stablelib e Legado)
+        console.log("🧹 Limpando Chaves e Sessões...");
+        await clearAllKeys();
+        console.log("✅ Chaves e Sessões limpas.");
 
         // 2. Tentar limpar tabelas do banco de dados local (via TanStack DB / Electric)
         // Como o acesso direto ao SQLite via driver pode variar, vamos tentar interagir

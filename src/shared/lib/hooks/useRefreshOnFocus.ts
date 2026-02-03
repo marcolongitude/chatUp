@@ -1,5 +1,4 @@
-import { useFocusEffect } from "expo-router";
-import { useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef } from "react";
 
 /**
  * Hook customizado para forçar refetch quando a tela recebe foco
@@ -8,13 +7,11 @@ import { useCallback, useRef } from "react";
 export function useRefreshOnFocus<T>(refetch: () => void | Promise<unknown>) {
 	const enabledRef = useRef(false);
 
-	useFocusEffect(
-		useCallback(() => {
-			if (enabledRef.current) {
-				refetch();
-			} else {
-				enabledRef.current = true;
-			}
-		}, [refetch])
-	);
+	useEffect(() => {
+		if (enabledRef.current) {
+			refetch();
+		} else {
+			enabledRef.current = true;
+		}
+	}, [refetch]);
 }
