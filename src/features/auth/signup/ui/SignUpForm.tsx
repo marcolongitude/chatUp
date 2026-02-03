@@ -1,11 +1,24 @@
 import React from "react";
 import { useForm, Controller } from "react-hook-form";
-import { KeyboardAvoidingView, Platform, ScrollView } from "react-native";
-import styled, { useTheme } from "styled-components/native";
+import { Platform } from "react-native";
+import { useTheme } from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
 import { Input, Button, Link } from "@/shared/ui";
 import { useTranslation } from "@/app/providers/i18n";
 import type { RegisterData } from "@/features/auth";
+import {
+	FormContainer,
+	ScrollContent,
+	Form,
+	LogoContainer,
+	LogoImage,
+	Title,
+	Subtitle,
+	ButtonContainer,
+	ErrorText,
+	FooterContainer,
+	FooterText,
+} from "./styled";
 
 interface SignUpFormProps {
 	onSubmit: (data: RegisterData) => void;
@@ -14,63 +27,9 @@ interface SignUpFormProps {
 	error?: string | null;
 }
 
-const FormContainer = styled(KeyboardAvoidingView)`
-	flex: 1;
-	background-color: ${(props) => props.theme.colors.background.primary};
-`;
-
-const ScrollContent = styled(ScrollView)`
-	flex: 1;
-`;
-
-const Form = styled.View`
-	padding: ${(props) => props.theme.spacing.lg}px;
-`;
-
-const Title = styled.Text`
-	font-size: ${(props) => props.theme.typography.fontSize["3xl"]}px;
-	font-weight: ${(props) => props.theme.typography.fontWeight.extrabold};
-	font-family: ${(props) => props.theme.typography.fontFamily.primary};
-	color: ${(props) => props.theme.colors.text.primary};
-	margin-bottom: ${(props) => props.theme.spacing.sm}px;
-	letter-spacing: -0.5px;
-	text-align: center;
-`;
-
-const Subtitle = styled.Text`
-	font-size: ${(props) => props.theme.typography.fontSize.base}px;
-	font-family: ${(props) => props.theme.typography.fontFamily.secondary};
-	color: ${(props) => props.theme.colors.text.secondary};
-	margin-bottom: ${(props) => props.theme.spacing.xl}px;
-	line-height: ${(props) => props.theme.typography.lineHeight.normal};
-	text-align: center;
-`;
-
-const ButtonContainer = styled.View`
-	margin-top: 8px;
-	margin-bottom: 24px;
-`;
-
-const ErrorText = styled.Text`
-	color: ${(props) => props.theme.colors.text.error};
-	font-size: ${(props) => props.theme.typography.fontSize.sm}px;
-	font-family: ${(props) => props.theme.typography.fontFamily.primary};
-	margin-bottom: ${(props) => props.theme.spacing.md}px;
-	text-align: center;
-`;
-
-const FooterContainer = styled.View`
-	flex-direction: row;
-	justify-content: center;
-	align-items: center;
-	margin-top: 24px;
-`;
-
-const FooterText = styled.Text`
-	font-size: ${(props) => props.theme.typography.fontSize.sm}px;
-	font-family: ${(props) => props.theme.typography.fontFamily.secondary};
-	color: ${(props) => props.theme.colors.text.secondary};
-`;
+interface SignUpFormData extends RegisterData {
+	confirmPassword: string;
+}
 
 export const SignUpForm: React.FC<SignUpFormProps> = ({ onSubmit, onSignIn, isLoading = false, error }) => {
 	const theme = useTheme();
@@ -78,17 +37,22 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSubmit, onSignIn, isLo
 	const {
 		control,
 		handleSubmit,
+		watch,
 		formState: { errors },
-	} = useForm<RegisterData>({
+	} = useForm<SignUpFormData>({
 		defaultValues: {
 			name: "",
 			email: "",
 			password: "",
+			confirmPassword: "",
 		},
 	});
 
-	const handleFormSubmit = (data: RegisterData) => {
-		onSubmit(data);
+	const password = watch("password");
+
+	const handleFormSubmit = (data: SignUpFormData) => {
+		const { confirmPassword, ...registerData } = data;
+		onSubmit(registerData);
 	};
 
 	return (
@@ -98,6 +62,14 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSubmit, onSignIn, isLo
 		>
 			<ScrollContent contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
 				<Form>
+					<LogoContainer>
+						<LogoImage
+							source={require("~/assets/logo-chatup.png")}
+							contentFit="contain"
+							cachePolicy="memory-disk"
+							transition={200}
+						/>
+					</LogoContainer>
 					<Title>{t("auth.createAccount")}</Title>
 					<Subtitle>{t("auth.signUpSubtitle")}</Subtitle>
 
@@ -179,6 +151,30 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSubmit, onSignIn, isLo
 							/>
 						)}
 						name="password"
+					/>
+
+					<Controller
+						control={control}
+						rules={{
+							required: t("auth.confirmPasswordRequired"),
+							validate: (value) => value === password || t("auth.passwordsDoNotMatch"),
+						}}
+						render={({ field: { onChange, onBlur, value } }) => (
+							<Input
+								label={t("auth.confirmPassword")}
+								placeholder={t("auth.confirmPasswordPlaceholder")}
+								icon={<Ionicons name="lock-closed" size={20} color={theme.colors.icon.secondary} />}
+								secureTextEntry
+								showPasswordToggle
+								autoCapitalize="none"
+								autoCorrect={false}
+								value={value}
+								onChangeText={onChange}
+								onBlur={onBlur}
+								error={errors.confirmPassword?.message}
+							/>
+						)}
+						name="confirmPassword"
 					/>
 
 					<ButtonContainer>
