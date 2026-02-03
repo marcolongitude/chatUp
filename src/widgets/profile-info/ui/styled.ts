@@ -57,6 +57,7 @@ export const ProfileEmail = styled.Text`
     font-size: 16px;
     color: ${(props) => props.theme.colors.text.secondary};
     text-align: center;
+    margin-bottom: ${(props) => props.theme.spacing.md}px;
 `;
 
 export const ProfileSection = styled.View`
@@ -85,7 +86,7 @@ export const ProfileStatusBadge = styled.View`
     padding: 4px 12px;
     border-radius: 12px;
     background-color: ${(props) => props.theme.colors.status.success};
-    margin-top: 8px;
+    margin-top: ${(props) => props.theme.spacing.sm}px;
     align-self: flex-start;
 `;
 
