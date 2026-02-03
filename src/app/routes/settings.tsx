@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { ActivityIndicator, Alert } from "react-native";
+import { ActivityIndicator, Alert, Platform } from "react-native";
 import { useTheme } from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import Constants from "expo-constants";
 import * as Updates from "expo-updates";
 import styled from "styled-components/native";
@@ -14,12 +15,26 @@ const Container = styled.ScrollView`
 	background-color: ${(props) => props.theme.colors.background.primary};
 `;
 
+const Header = styled.View`
+	align-items: center;
+	justify-content: center;
+	padding: ${(props) => props.theme.spacing.xl}px ${(props) => props.theme.spacing.lg}px;
+	padding-top: ${(props) => props.theme.spacing.xxl + 8}px;
+	padding-bottom: ${(props) => props.theme.spacing.lg}px;
+	margin-bottom: ${(props) => props.theme.spacing.lg}px;
+`;
+
+const Logo = styled(Image)`
+	width: 200px;
+	height: 66px;
+`;
+
 const Content = styled.View`
-	padding: ${(props) => props.theme.spacing.lg}px;
+	padding: 0 ${(props) => props.theme.spacing.lg}px ${(props) => props.theme.spacing.lg}px;
 `;
 
 const Section = styled(Card)`
-	margin-bottom: ${(props) => props.theme.spacing.md}px;
+	margin-bottom: ${(props) => props.theme.spacing.lg}px;
 	background-color: ${(props) => props.theme.colors.background.card};
 `;
 
@@ -27,13 +42,13 @@ const SectionTitle = styled.Text`
 	font-size: ${(props) => props.theme.typography.fontSize.lg}px;
 	font-weight: ${(props) => props.theme.typography.fontWeight.bold};
 	color: ${(props) => props.theme.colors.text.primary};
-	margin-bottom: ${(props) => props.theme.spacing.sm}px;
+	margin-bottom: ${(props) => props.theme.spacing.xs}px;
 `;
 
 const SectionDescription = styled.Text`
 	font-size: ${(props) => props.theme.typography.fontSize.sm}px;
 	color: ${(props) => props.theme.colors.text.secondary};
-	margin-bottom: ${(props) => props.theme.spacing.md}px;
+	margin-bottom: ${(props) => props.theme.spacing.lg}px;
 `;
 
 const LanguageOption = styled.TouchableOpacity<{ isSelected: boolean }>`
@@ -41,7 +56,7 @@ const LanguageOption = styled.TouchableOpacity<{ isSelected: boolean }>`
 	align-items: center;
 	justify-content: space-between;
 	padding: ${(props) => props.theme.spacing.md}px;
-	margin-bottom: ${(props) => props.theme.spacing.sm}px;
+	margin-bottom: ${(props) => props.theme.spacing.xs}px;
 	background-color: ${(props) => (props.isSelected ? props.theme.colors.background.input : "transparent")};
 	border-radius: ${(props) => props.theme.borderRadius.md}px;
 	border-width: 1px;
@@ -55,14 +70,14 @@ const LanguageOptionText = styled.Text`
 `;
 
 const VersionInfo = styled.View`
-	padding: ${(props) => props.theme.spacing.md}px;
+	padding: ${(props) => props.theme.spacing.xs}px;
 `;
 
 const VersionRow = styled.View`
 	flex-direction: row;
 	justify-content: space-between;
 	align-items: center;
-	margin-bottom: ${(props) => props.theme.spacing.sm}px;
+	margin-bottom: ${(props) => props.theme.spacing.xs}px;
 `;
 
 const VersionLabel = styled.Text`
@@ -117,9 +132,14 @@ export function SettingsPage() {
 	const versionCode = Constants.expoConfig?.android?.versionCode || 1;
 	const runtimeVersion = Updates.isEnabled && Updates.runtimeVersion ? Updates.runtimeVersion : __DEV__ ? "Development" : "N/A";
 	const channel = Updates.isEnabled && Updates.channel ? Updates.channel : __DEV__ ? "Development" : "N/A";
+	const isAndroid = Platform.OS === "android";
+	const isDev = __DEV__;
 
 	return (
 		<Container>
+			<Header>
+				<Logo source={require("~/assets/logo-chatup.png")} contentFit="contain" cachePolicy="memory-disk" />
+			</Header>
 			<Content>
 				<Section>
 					<SectionTitle>{t("settings.language")}</SectionTitle>
@@ -145,27 +165,33 @@ export function SettingsPage() {
 					)}
 				</Section>
 
-				<Section>
-					<SectionTitle>{t("settings.appVersion")}</SectionTitle>
-					<VersionInfo>
-						<VersionRow>
-							<VersionLabel>{t("settings.appVersion")}</VersionLabel>
-							<VersionValue>{appVersion}</VersionValue>
-						</VersionRow>
-						<VersionRow>
-							<VersionLabel>{t("settings.versionCode")}</VersionLabel>
-							<VersionValue>{versionCode}</VersionValue>
-						</VersionRow>
-						<VersionRow>
-							<VersionLabel>{t("settings.runtimeVersion")}</VersionLabel>
-							<VersionValue>{runtimeVersion}</VersionValue>
-						</VersionRow>
-						<VersionRow>
-							<VersionLabel>{t("settings.channel")}</VersionLabel>
-							<VersionValue>{channel}</VersionValue>
-						</VersionRow>
-					</VersionInfo>
-				</Section>
+				{isAndroid && (
+					<Section>
+						<SectionTitle>{t("settings.appVersion")}</SectionTitle>
+						<VersionInfo>
+							<VersionRow>
+								<VersionLabel>{t("settings.appVersion")}</VersionLabel>
+								<VersionValue>{appVersion}</VersionValue>
+							</VersionRow>
+							{isDev && (
+								<>
+									<VersionRow>
+										<VersionLabel>{t("settings.versionCode")}</VersionLabel>
+										<VersionValue>{versionCode}</VersionValue>
+									</VersionRow>
+									<VersionRow>
+										<VersionLabel>{t("settings.runtimeVersion")}</VersionLabel>
+										<VersionValue>{runtimeVersion}</VersionValue>
+									</VersionRow>
+									<VersionRow>
+										<VersionLabel>{t("settings.channel")}</VersionLabel>
+										<VersionValue>{channel}</VersionValue>
+									</VersionRow>
+								</>
+							)}
+						</VersionInfo>
+					</Section>
+				)}
 			</Content>
 		</Container>
 	);
