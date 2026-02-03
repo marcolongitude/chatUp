@@ -54,7 +54,7 @@ export function Header() {
       ]}
       collapsable={false}
     >
-      <View style={[styles.left, isChat ? styles.leftChat : null]}>
+      <View style={[styles.left, isChat ? styles.leftChat : isConversations ? styles.leftConversations : null]}>
         {showBackButton && (
           <TouchableOpacity onPress={() => router.history.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={theme.colors.text.primary} />
@@ -64,9 +64,13 @@ export function Header() {
           <Text style={[styles.title, styles.chatTitle, { color: theme.colors.text.primary }]} numberOfLines={1}>
             {getTitle()}
           </Text>
+        ) : isConversations ? (
+          <Text style={[styles.title, styles.conversationsTitle, { color: theme.colors.text.primary }]} numberOfLines={1}>
+            {getTitle()}
+          </Text>
         ) : null}
       </View>
-      {!isChat ? (
+      {!isChat && !isConversations ? (
         <View style={styles.center}>
           <View style={styles.titleContainer}>
             <Text style={[styles.title, { color: theme.colors.text.primary }]} numberOfLines={1}>
@@ -102,7 +106,9 @@ export function Header() {
           pointerEvents="box-none"
         >
           <View style={styles.headerSlotFill}>
-            {headerRightContent}
+            <View style={styles.headerRightContentWrapper}>
+              {headerRightContent}
+            </View>
           </View>
         </View>
       ) : null}
@@ -131,6 +137,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: 'auto',
     flexShrink: 1,
+  },
+  leftConversations: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: 'auto',
+    flexShrink: 1,
+    justifyContent: 'flex-start',
   },
   backButton: {
     padding: 8,
@@ -181,12 +194,22 @@ const styles = StyleSheet.create({
   headerSlotFill: {
     flex: 1,
   },
+  headerRightContentWrapper: {
+    flex: 1,
+    paddingRight: 16,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+  },
   title: {
     fontSize: 17,
     fontWeight: '600',
   },
   chatTitle: {
     marginLeft: 6,
+    flexShrink: 1,
+  },
+  conversationsTitle: {
+    marginLeft: 16,
     flexShrink: 1,
   },
 });
