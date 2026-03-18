@@ -7,7 +7,7 @@ import { createCollection } from '@tanstack/react-db';
 import { electricCollectionOptions } from '@tanstack/electric-db-collection';
 import { preKeySchema, type PreKeyRow } from './schemas';
 import Constants from 'expo-constants';
-import { ELECTRIC_CONFIG } from '@/app/providers/electric/config';
+import { ELECTRIC_CONFIG } from '@/shared/config/electric';
 
 /**
  * Pre-Keys collection with Electric SQL sync

@@ -1,6 +1,5 @@
 import { axiosInstance as api } from "@/shared/api";
 import { encryptMessage } from "@/shared/lib/crypto";
-import type { Message } from "@/entities/message";
 
 /**
  * Serviço otimizado para upload de imagens no Backend

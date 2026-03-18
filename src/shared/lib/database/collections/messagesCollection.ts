@@ -8,8 +8,8 @@ import { electricCollectionOptions } from '@tanstack/electric-db-collection';
 import { messageSchema, type MessageRow } from './schemas';
 import { encryptMessage, decryptMessage } from '@/shared/lib/crypto';
 import type { Collection } from '@tanstack/db';
-import { ELECTRIC_CONFIG } from '@/app/providers/electric/config';
-import { messageApi } from '@/entities/message/api/message.api';
+import { ELECTRIC_CONFIG } from '@/shared/config/electric';
+import { axiosInstance } from '@/shared/api/axiosClient';
 
 // Helper to generate chat ID (consistent with existing logic)
 function generateChatId(userId1: string, userId2: string): string {
@@ -122,7 +122,7 @@ export async function insertEncryptedMessage(
   // Electric then handles the real-time sync back to all devices (Downstream).
   console.log(`📡 Sending message to backend for central persistence...`);
   try {
-    await messageApi.sendMessage({
+    await axiosInstance.post('/chat/messages', {
       receiverId: messageData.receiverId,
       content: encryptedContent
     });

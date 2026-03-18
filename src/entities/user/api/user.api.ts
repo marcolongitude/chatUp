@@ -1,5 +1,5 @@
-import { axiosInstance as api } from '@/shared/api/axiosClient';
-import type { UserProfile } from '@/features/auth';
+import { axiosInstance as api } from '@/shared/api';
+import type { UserProfile } from '../model/types';
 
 /**
  * API de Usuário - Migrada de shared/api/user.service.ts

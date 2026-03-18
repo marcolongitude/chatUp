@@ -17,6 +17,20 @@ export interface User extends BaseUser {
   location?: string | Location;
 }
 
+export interface UserProfile {
+  id: string;
+  email: string;
+  displayName: string;
+  hasProfile: boolean;
+  photoURL?: string;
+  phoneNumber?: string;
+  bio?: string;
+  location?: Location;
+  isLocationEnabled?: boolean;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+}
+
 export interface UpdateProfileData {
   name?: string;
   bio?: string;

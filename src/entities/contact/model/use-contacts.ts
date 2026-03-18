@@ -1,24 +1,19 @@
 import { useMemo } from 'react';
-import { useAuth } from '@/features/auth';
-import { messagesCollection } from '@/shared/lib/database/collections';
-import type { NearbyUser } from '@/entities/contact';
-import type { Contact } from '@/entities/contact';
+import type { NearbyUser, Contact } from '@/entities/contact';
 
 /**
  * Hook para buscar informações de chat para uma lista de usuários
  * Retorna contatos com contagem de mensagens não lidas
+ *
+ * @param nearbyUsers - lista de usuários próximos
+ * @param currentUserId - id do usuário autenticado (injetado pela camada superior)
  */
-export function useContacts(nearbyUsers: NearbyUser[]) {
-	const { user } = useAuth();
-	const currentUserId = user?.id;
-
-	// No momento a contagem de não lidas está simplificada
-	// Em uma versão futura usaríamos useLiveQuery aqui
+export function useContacts(nearbyUsers: NearbyUser[], currentUserId: string | undefined) {
 	const unreadMessages: any[] = [];
 	const messagesLoading = false;
 
 	const contacts = useMemo(() => {
-		if (!user || nearbyUsers.length === 0) {
+		if (!currentUserId || nearbyUsers.length === 0) {
 			return [];
 		}
 
@@ -46,7 +41,7 @@ export function useContacts(nearbyUsers: NearbyUser[]) {
 		}
 
 		return Array.from(contactsMap.values());
-	}, [user, nearbyUsers, unreadMessages, currentUserId]);
+	}, [currentUserId, nearbyUsers, unreadMessages]);
 
 	return {
 		contacts,

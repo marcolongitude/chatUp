@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 
-import { useAuth } from "@/features/auth";
 import type { NearbyUser } from "@/entities/contact";
 
 import { useLocation } from "./use-location";
@@ -8,8 +7,10 @@ import { NEARBY_RADIUS_METERS } from "../lib/geolocation";
 import { fetchNearbyUsersApi } from "../api/nearby-users.api";
 import { updateLocationApi } from "../api/update-location.api";
 
-export function useNearbyUsers() {
-  const { user } = useAuth();
+/**
+ * @param userId - ID do usuário autenticado (injetado pela camada superior)
+ */
+export function useNearbyUsers(userId: string | undefined) {
   const {
     location: userLocation,
     permissionStatus,
@@ -27,8 +28,8 @@ export function useNearbyUsers() {
       return;
     }
 
-    if (!user) {
-      setError("Não autenticado");
+    if (!userId) {
+      setError("Not authenticated");
       setIsLoading(false);
       return;
     }
@@ -36,7 +37,7 @@ export function useNearbyUsers() {
     if (!permissionStatus?.granted) {
       const timer = setTimeout(() => {
         if (!permissionStatus?.granted) {
-          setError("Sem permissão de localização");
+          setError("No location permission");
           setNearbyUsers([]);
           setIsLoading(false);
         }
@@ -75,7 +76,7 @@ export function useNearbyUsers() {
         setNearbyUsers(data);
         setIsLoading(false);
       } catch {
-        setError("Erro ao buscar usuários próximos");
+        setError("Error fetching nearby users");
         setNearbyUsers([]);
         setIsLoading(false);
       }
@@ -84,7 +85,7 @@ export function useNearbyUsers() {
     fetchNearby();
     const interval = setInterval(fetchNearby, 30000);
     return () => clearInterval(interval);
-  }, [user?.id, userLocation, permissionStatus?.granted, isLocationLoading, locationError]);
+  }, [userId, userLocation, permissionStatus?.granted, isLocationLoading, locationError]);
 
   return {
     nearbyUsers,

@@ -2,7 +2,7 @@ import React from "react";
 import { ActivityIndicator, TextInput as RNTextInput } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "styled-components/native";
-import { useTranslation } from "@/app/providers/i18n";
+import { useTranslation } from "react-i18next";
 import { InputContainer, SendButton, ChatInputField } from "./styled";
 
 interface ChatInputProps {

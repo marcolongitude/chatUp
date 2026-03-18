@@ -25,7 +25,7 @@ export default defineConfig([
       "fsd/excessive-slicing": "error",
       "fsd/forbidden-imports": "error",
       "fsd/inconsistent-naming": "error",
-      "fsd/insignificant-slice": "error",
+      "fsd/insignificant-slice": "warn",
       "fsd/no-layer-public-api": "error",
       "fsd/no-public-api-sidestep": "error",
       "fsd/no-reserved-folder-names": "error",

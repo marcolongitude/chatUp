@@ -11,8 +11,8 @@ export function useContactList() {
 	const { user } = useAuth();
 	
 	const { openSettings, permissionStatus } = useLocation();
-	const { nearbyUsers, isLoading: isLoadingNearby, error: nearbyError } = useNearbyUsers();
-	const { contacts, isLoading: isLoadingContacts } = useContacts(nearbyUsers);
+	const { nearbyUsers, isLoading: isLoadingNearby, error: nearbyError } = useNearbyUsers(user?.id);
+	const { contacts, isLoading: isLoadingContacts } = useContacts(nearbyUsers, user?.id);
 
 	const [searchQuery, setSearchQuery] = useState("");
 	const [searchPromise, setSearchPromise] = useState<Promise<any[]> | null>(null);

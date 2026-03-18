@@ -1,33 +1,40 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useAuth } from '@/features/auth';
 import { ensureStableSession } from "@/shared/lib/crypto";
 import { useLiveQuery, eq, or, and } from "@tanstack/react-db";
-import { messagesCollection, insertEncryptedMessage, decryptMessageRow } from "@/shared/lib/database/collections";
-import { useElectric } from "@/app/providers/electric";
-import { generateChatId } from "@/entities/chat";
+import { messagesCollection, insertEncryptedMessage, decryptMessageRow } from "@/shared/lib/database";
+import { generateChatId } from "@/shared/lib/chat-id";
 import type { Message, CreateMessageData } from "./types";
 
+interface ElectricState {
+	isConnected: boolean;
+	isLoading: boolean;
+	error: Error | null;
+}
+
 /**
- * Hook de domínio para gerenciar mensagens de um chat
- * Encapsula lógica de busca, descriptografia e sincronização
+ * Hook de domínio para gerenciar mensagens de um chat.
+ *
+ * @param contactId - ID do contato
+ * @param userId    - ID do usuário autenticado (injetado pela camada superior)
+ * @param electric  - estado de conexão Electric (injetado pela camada superior)
  */
-export function useMessages(contactId: string) {
-	const { user } = useAuth();
-	const { isConnected: isElectricConnected, isLoading: isElectricLoading, error: electricError } = useElectric();
+export function useMessages(
+	contactId: string,
+	userId: string | undefined,
+	electric: ElectricState
+) {
+	const { isConnected: isElectricConnected, isLoading: isElectricLoading, error: electricError } = electric;
 	const [decryptedMessages, setDecryptedMessages] = useState<Message[]>([]);
 
-	// Generate chat ID usando lib da entidade chat
 	const chatId = useMemo(() => {
-		if (!user || !contactId) return null;
-		return generateChatId(user.id, contactId);
-	}, [user?.id, contactId]);
+		if (!userId || !contactId) return null;
+		return generateChatId(userId, contactId);
+	}, [userId, contactId]);
 
-	// Controle de execução da query
 	const shouldRunQuery = useMemo(() => {
-		return !!(chatId && user?.id && contactId);
-	}, [chatId, user?.id, contactId]);
+		return !!(chatId && userId && contactId);
+	}, [chatId, userId, contactId]);
 
-	// Query do Electric SQL via React-DB
 	const {
 		data: messageRows = [],
 		isLoading,
@@ -35,11 +42,11 @@ export function useMessages(contactId: string) {
 		const IMPOSSIBLE_ID = '00000000-0000-0000-0000-000000000000';
 		const emptyQuery = q.from({ msg: messagesCollection }).where(({ msg }) => eq(msg.id, IMPOSSIBLE_ID));
 
-		if (!shouldRunQuery || !user?.id || !contactId) {
+		if (!shouldRunQuery || !userId || !contactId) {
 			return emptyQuery;
 		}
 
-		const myId = String(user.id);
+		const myId = String(userId);
 		const otherId = String(contactId);
 
 		try {
@@ -52,21 +59,20 @@ export function useMessages(contactId: string) {
 				})
 				.orderBy(({ msg }) => msg.timestamp, "asc");
 		} catch (err) {
-			console.error('❌ [Entities/Message] Query building error:', err);
+			console.error('[Entities/Message] Query building error:', err);
 			return emptyQuery;
 		}
 	});
 
-	// Descriptografia de mensagens reativa
 	useEffect(() => {
-		if (!messageRows || !user || !chatId) {
+		if (!messageRows || !userId || !chatId) {
 			setDecryptedMessages([]);
 			return;
 		}
 
 		(async () => {
 			try {
-				const decrypted = await Promise.all(messageRows.map((row) => decryptMessageRow(row, user.id)));
+				const decrypted = await Promise.all(messageRows.map((row) => decryptMessageRow(row, userId)));
 
 				const transformed: Message[] = decrypted.map((d) => ({
 					id: d.id,
@@ -83,55 +89,52 @@ export function useMessages(contactId: string) {
 
 				setDecryptedMessages(transformed);
 			} catch (error) {
-				console.error("❌ [Entities/Message] Error decrypting messages:", error);
+				console.error("[Entities/Message] Error decrypting messages:", error);
 				setDecryptedMessages([]);
 			}
 		})();
-	}, [messageRows, user?.id, chatId]);
+	}, [messageRows, userId, chatId]);
 
-	// Garantir sessão Stablelib com o contato
 	useEffect(() => {
-		if (!user || !contactId) return;
+		if (!userId || !contactId) return;
 
 		(async () => {
 			try {
-				await ensureStableSession(user.id, contactId);
+				await ensureStableSession(userId, contactId);
 			} catch (e) {
 				console.warn("[Entities/Message] Stable session warning:", e);
 			}
 		})();
-	}, [user?.id, contactId]);
+	}, [userId, contactId]);
 
-	// Envio de mensagem (delegação para lib/database)
 	const sendMessage = useCallback(
 		async (messageData: CreateMessageData) => {
-			if (!user) throw new Error("Not authenticated");
+			if (!userId) throw new Error("Not authenticated");
 
 			const plaintext = messageData.text.trim();
 			if (!plaintext) return;
 
 			try {
 				await insertEncryptedMessage({
-					senderId: user.id,
+					senderId: userId,
 					receiverId: messageData.receiverId,
 					content: plaintext,
 					timestamp: new Date(),
 				});
 			} catch (error) {
-				console.error("❌ [Entities/Message] Error sending message:", error);
+				console.error("[Entities/Message] Error sending message:", error);
 				throw error;
 			}
 		},
-		[user]
+		[userId]
 	);
 
-	// Marca mensagens como visualizadas
 	const markAsViewed = useCallback(async () => {
-		if (!user || !contactId || !chatId) return;
+		if (!userId || !contactId || !chatId) return;
 
 		try {
 			const unreadMessages = messageRows?.filter(
-				(msg) => msg.receiver_id === user.id && msg.sender_id === contactId && !msg.is_read
+				(msg) => msg.receiver_id === userId && msg.sender_id === contactId && !msg.is_read
 			);
 
 			if (unreadMessages && unreadMessages.length > 0) {
@@ -146,18 +149,14 @@ export function useMessages(contactId: string) {
 		} catch (error) {
 			console.error("[Entities/Message] Error marking messages as read:", error);
 		}
-	}, [user, contactId, chatId, messageRows]);
+	}, [userId, contactId, chatId, messageRows]);
 
-	// Mensagens finais: usa Electric SQL diretamente
-	// O Electric SQL já fornece sincronização offline-first, então não precisamos de fallback manual
 	const allMessages = useMemo(() => {
-		// Ordenar mensagens por timestamp
-		return [...decryptedMessages].sort((a, b) => 
+		return [...decryptedMessages].sort((a, b) =>
 			new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
 		);
 	}, [decryptedMessages]);
 
-	// Lógica de carregamento inteligente
 	const shouldShowLoading = useMemo(() => {
 		if (allMessages.length > 0) return false;
 		if (electricError || (!isElectricConnected && !isElectricLoading)) return false;

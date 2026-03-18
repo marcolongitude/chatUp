@@ -1,21 +1,24 @@
 import * as Notifications from "expo-notifications";
-import { Platform, AppState } from "react-native";
-import { userService } from "@/shared/api/user.service";
-import type { UserProfile } from "@/features/auth";
-import type { Message } from "@/entities/message";
+import { Platform } from "react-native";
 
-/**
- * Configuração de notificações
- */
 Notifications.setNotificationHandler({
 	handleNotification: async () => ({
 		shouldShowAlert: true,
 		shouldPlaySound: true,
 		shouldSetBadge: true,
-        shouldShowBanner: true,
-        shouldShowList: true,
+		shouldShowBanner: true,
+		shouldShowList: true,
 	}),
 });
+
+/** Minimal contract for a message that the notification system needs. */
+interface NotifiableMessage {
+	senderId: string;
+}
+
+interface NotificationConfig {
+	getUserName: (userId: string) => Promise<string>;
+}
 
 interface PendingNotification {
 	senderId: string;
@@ -23,35 +26,33 @@ interface PendingNotification {
 	count: number;
 }
 
-const userNameCache = new Map<string, string>();
+let config: NotificationConfig | null = null;
 const pendingNotifications = new Map<string, PendingNotification>();
 let currentChatSenderId: string | null = null;
 let notificationTimeout: NodeJS.Timeout | null = null;
 
-function getFirstName(fullName: string): string {
-	if (!fullName) return "Usuário";
-	const parts = fullName.trim().split(/\s+/);
-	return parts[0] || "Usuário";
+/**
+ * Inject domain-level dependencies so shared/lib stays free of higher-layer
+ * imports.  Call once at app startup (e.g. from a provider in `app/`).
+ */
+export function configureNotifications(cfg: NotificationConfig): void {
+	config = cfg;
 }
 
-async function getUserName(userId: string): Promise<string> {
-	if (userNameCache.has(userId)) return userNameCache.get(userId)!;
-	try {
-		const userData = await userService.getUserById(userId);
-		if (userData) {
-			const firstName = getFirstName(userData.displayName || "Usuário");
-			userNameCache.set(userId, firstName);
-			return firstName;
+export function setCurrentChatSenderId(senderId: string | null): void {
+	currentChatSenderId = senderId;
+}
+
+async function resolveUserName(userId: string): Promise<string> {
+	if (config?.getUserName) {
+		try {
+			return await config.getUserName(userId);
+		} catch {
+			return "User";
 		}
-	} catch (error) {
-		console.error("❌ Erro ao buscar nome do usuário:", error);
 	}
-	userNameCache.set(userId, "Usuário");
-	return "Usuário";
+	return "User";
 }
-
-export function clearUserNameCache(): void { userNameCache.clear(); }
-export function setCurrentChatSenderId(senderId: string | null): void { currentChatSenderId = senderId; }
 
 async function scheduleAccumulativeNotification(): Promise<void> {
 	if (pendingNotifications.size === 0) return;
@@ -63,11 +64,15 @@ async function scheduleAccumulativeNotification(): Promise<void> {
 		await showNotification(notification.senderName, notification.count);
 	} else {
 		const totalMessages = notifications.reduce((sum, n) => sum + n.count, 0);
-		await showNotification("Várias pessoas", totalMessages, notifications.length);
+		await showNotification("Multiple contacts", totalMessages, notifications.length);
 	}
 }
 
-async function showNotification(senderName: string, messageCount: number, contactCount?: number): Promise<void> {
+async function showNotification(
+	senderName: string,
+	messageCount: number,
+	contactCount?: number
+): Promise<void> {
 	try {
 		const { status } = await Notifications.getPermissionsAsync();
 		if (status !== "granted") {
@@ -77,9 +82,9 @@ async function showNotification(senderName: string, messageCount: number, contac
 
 		let body: string;
 		if (contactCount && contactCount > 1) {
-			body = `${messageCount} mensagens de ${contactCount} pessoas`;
+			body = `${messageCount} messages from ${contactCount} people`;
 		} else {
-			body = `${messageCount} ${messageCount === 1 ? "mensagem" : "mensagens"} de ${senderName}`;
+			body = `${messageCount} ${messageCount === 1 ? "message" : "messages"} from ${senderName}`;
 		}
 
 		const notificationConfig: Notifications.NotificationRequestInput = {
@@ -94,24 +99,28 @@ async function showNotification(senderName: string, messageCount: number, contac
 		};
 
 		if (Platform.OS === "android") {
-            // @ts-ignore - groupId is valid in internal structure but might not be in the direct type export
-			notificationConfig.content['groupId'] = contactCount ? "multiple" : senderName;
+			// @ts-ignore - groupId is valid in internal structure
+			notificationConfig.content["groupId"] = contactCount ? "multiple" : senderName;
 		}
 
 		await Notifications.scheduleNotificationAsync(notificationConfig);
 	} catch (error) {
-		console.error("❌ [Notificação] Erro ao mostrar notificação:", error);
+		console.error("[Notification] Error showing notification:", error);
 	}
 }
 
-export async function handleNewMessage(message: Message, currentUserId: string): Promise<void> {
+export async function handleNewMessage(
+	message: NotifiableMessage,
+	currentUserId: string
+): Promise<void> {
 	if (message.senderId === currentUserId) return;
 	if (currentChatSenderId === message.senderId) return;
 
-	const senderName = await getUserName(message.senderId);
+	const senderName = await resolveUserName(message.senderId);
 	const existing = pendingNotifications.get(message.senderId);
-	if (existing) { existing.count += 1; }
-	else {
+	if (existing) {
+		existing.count += 1;
+	} else {
 		pendingNotifications.set(message.senderId, {
 			senderId: message.senderId,
 			senderName,
@@ -139,17 +148,19 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 		if (Platform.OS === "android") {
 			try {
 				await Notifications.setNotificationChannelAsync("messages", {
-					name: "Mensagens",
-					description: "Notificações de mensagens",
+					name: "Messages",
+					description: "Message notifications",
 					importance: Notifications.AndroidImportance.HIGH,
-					sound: 'default',
+					sound: "default",
 					vibrationPattern: [0, 250, 250, 250],
 					lightColor: "#FF231F7C",
 				});
-			} catch (e) {}
+			} catch {
+				// channel creation may fail on older devices
+			}
 		}
 		return true;
-	} catch (e) {
+	} catch {
 		return false;
 	}
 }
@@ -167,5 +178,7 @@ export async function cancelAllNotifications(): Promise<void> {
 		await Notifications.cancelAllScheduledNotificationsAsync();
 		await Notifications.dismissAllNotificationsAsync();
 		clearPendingNotifications();
-	} catch (e) {}
+	} catch {
+		// silent
+	}
 }

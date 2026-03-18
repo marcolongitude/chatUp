@@ -3,7 +3,7 @@ import { onlineManager } from '@tanstack/react-query';
 import NetInfo from '@react-native-community/netinfo';
 import { AppState, AppStateStatus } from 'react-native';
 import { focusManager } from '@tanstack/react-query';
-import { axiosInstance } from '@/shared/api/axiosClient';
+import { axiosInstance } from '@/shared/api';
 
 // Configuração do onlineManager para React Native
 onlineManager.setEventListener((setOnline) => {

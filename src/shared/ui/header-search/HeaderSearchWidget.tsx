@@ -1,9 +1,3 @@
-/**
- * Widget: busca no header (FSD).
- * Ícone no canto direito; ao clicar, input animado sobrepõe o título no header.
- * Overlay fica dentro dos limites do header para evitar clipping no Android.
- */
-
 import React, { useState, useRef, useEffect } from "react";
 import {
 	View,

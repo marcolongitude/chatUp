@@ -2,7 +2,7 @@ import React from "react";
 import { Modal, View, Text, ActivityIndicator } from "react-native";
 import styled, { useTheme } from "styled-components/native";
 import { Button } from "../button";
-import { useTranslation } from "@/app/providers/i18n";
+import { useTranslation } from "react-i18next";
 import { useUpdates } from "@/shared/lib/hooks/useUpdates";
 
 const ModalContainer = styled.View`

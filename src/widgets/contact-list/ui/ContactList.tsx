@@ -3,9 +3,9 @@ import { ActivityIndicator, FlatList } from "react-native";
 import { useTheme } from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "@/shared/ui";
-import { useTranslation } from "@/app/providers/i18n";
-import { useHeaderRightSlot } from "@/app/contexts/HeaderRightSlotContext";
-import { HeaderSearchWidget } from "@/widgets/header-search";
+import { useTranslation } from "react-i18next";
+import { useHeaderRightSlot } from "@/shared/lib/contexts";
+import { HeaderSearchWidget } from "@/shared/ui/header-search";
 
 import { useContactList } from "../model/useContactList";
 import { ContactListItem } from "./ContactListItem";

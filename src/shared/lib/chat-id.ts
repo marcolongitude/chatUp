@@ -1,5 +1,5 @@
 /**
- * Gera um ID de chat único baseado nos IDs dos participantes
+ * Generates a deterministic chat ID from two participant IDs.
  */
 export function generateChatId(userId1: string, userId2: string): string {
   const sorted = [userId1, userId2].sort();

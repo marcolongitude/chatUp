@@ -4,12 +4,7 @@
  */
 
 import { ELECTRIC_CONFIG } from './config';
-
-// Define a simplified client interface or use void since we don't need the object
-export type ElectricClient = {
-  disconnect: () => Promise<void>;
-  isConnected: () => boolean;
-};
+import type { ElectricClient } from '@/shared/lib/electric';
 
 let isConnected = false;
 

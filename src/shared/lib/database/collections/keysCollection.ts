@@ -6,7 +6,7 @@
 import { createCollection } from '@tanstack/react-db';
 import { electricCollectionOptions } from '@tanstack/electric-db-collection';
 import { keySchema, type KeyRow } from './schemas';
-import { ELECTRIC_CONFIG } from '@/app/providers/electric/config';
+import { ELECTRIC_CONFIG } from '@/shared/config/electric';
 
 /**
  * Keys collection with Electric SQL sync

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth";
-import { useTranslation } from "@/app/providers/i18n";
+import { useTranslation } from "react-i18next";
 import { axiosInstance } from "@/shared/api";
 import { timestampToDate, formatDate } from "../lib/dateUtils";
 import type { UserProfile } from "@/features/auth";
@@ -20,7 +20,8 @@ interface UserProfileResponse {
 
 export function useProfileInfo() {
 	const { user, isAuthenticated } = useAuth();
-	const { t, currentLanguage } = useTranslation();
+	const { t, i18n } = useTranslation();
+	const currentLanguage = i18n.language;
 	const [imageLoaded, setImageLoaded] = useState(false);
 
 	// Buscar dados completos do usuário do PostgreSQL

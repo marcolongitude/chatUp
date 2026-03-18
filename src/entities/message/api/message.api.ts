@@ -1,4 +1,4 @@
-import { axiosInstance as api } from '@/shared/api/axiosClient';
+import { axiosInstance as api } from '@/shared/api';
 
 /**
  * Tipos para a API de Mensagens

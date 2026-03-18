@@ -7,7 +7,7 @@ import {
 } from "react-native";
 import { useTheme } from "styled-components/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useTranslation } from "@/app/providers/i18n";
+import { useTranslation } from "react-i18next";
 import { Message } from "@/entities/message";
 
 import { useChatWindow } from "../model/useChatWindow";

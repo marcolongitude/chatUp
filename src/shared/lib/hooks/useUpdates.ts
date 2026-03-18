@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import * as Updates from "expo-updates";
 import { Platform, Alert } from "react-native";
-import { useTranslation } from "@/app/providers/i18n";
+import { useTranslation } from "react-i18next";
 
 export interface UpdateInfo {
 	isAvailable: boolean;

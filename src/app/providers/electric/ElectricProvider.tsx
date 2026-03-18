@@ -1,32 +1,17 @@
-/**
- * Electric SQL Provider
- * React context provider for Electric SQL client
- */
-
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { initElectricClient, disconnectElectricClient, getElectricClient, isElectricConnected, ElectricClient } from './electricClient';
+import React, { useEffect, useState, type ReactNode } from 'react';
+import { initElectricClient, disconnectElectricClient, getElectricClient, isElectricConnected } from './electricClient';
+import { ElectricContext, type ElectricClient } from '@/shared/lib/electric';
 import { useAuth } from '@/features/auth';
-
-interface ElectricContextValue {
-  client: ElectricClient | null;
-  isConnected: boolean;
-  isLoading: boolean;
-  error: Error | null;
-}
-
-const ElectricContext = createContext<ElectricContextValue | undefined>(undefined);
 
 interface ElectricProviderProps {
   children: ReactNode;
 }
 
 export function ElectricProvider({ children }: ElectricProviderProps) {
-  console.log("🔍 ElectricProvider: Renderizando...");
   const { user } = useAuth();
-  console.log("🔍 ElectricProvider: user =", user?.id || "null");
   const [client, setClient] = useState<ElectricClient | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [connected, setConnected] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
@@ -34,42 +19,33 @@ export function ElectricProvider({ children }: ElectricProviderProps) {
 
     const connect = async () => {
       if (!user?.id) {
-        setIsLoading(false);
+        setLoading(false);
         return;
       }
 
       try {
-        setIsLoading(true);
+        setLoading(true);
         setError(null);
 
-        // This effectively just checks if the server is reachable
         const electricClient = await initElectricClient(user.id);
-        
+
         if (mounted) {
           setClient(electricClient);
-          setIsConnected(true);
-          setIsLoading(false);
-          
-          // Debug keys status on connection
+          setConnected(true);
+          setLoading(false);
+
           if (user?.id) {
-             const { checkStableKeysStatus } = require('@/shared/lib/debug/checkKeys');
-             checkStableKeysStatus(user.id).catch((e: any) => console.error("Key check failed", e));
+            const { checkStableKeysStatus } = require('@/shared/lib/debug/checkKeys');
+            checkStableKeysStatus(user.id).catch((e: any) => console.error("Key check failed", e));
           }
         }
-
-        // Note: Event listeners removed as we are using a simplified connectivity check
-        // Real-time status is handled via polling isElectricConnected() below
-
       } catch (err) {
         if (mounted) {
-          const error = err as Error;
-          console.warn('⚠️ Electric SQL não disponível:', error.message);
-          console.warn('   App funcionará offline, mas sem sincronização em tempo real');
-          setError(error);
-          setIsLoading(false);
-          setIsConnected(false);
-          // Don't set client to null - allow app to work offline
-          // We can still provide the disconnect method if needed
+          const e = err as Error;
+          console.warn('Electric SQL not available:', e.message);
+          setError(e);
+          setLoading(false);
+          setConnected(false);
           setClient(getElectricClient());
         }
       }
@@ -85,33 +61,16 @@ export function ElectricProvider({ children }: ElectricProviderProps) {
     };
   }, [user?.id]);
 
-  // Update connection status periodically
   useEffect(() => {
     const interval = setInterval(() => {
-      setIsConnected(isElectricConnected());
-    }, 2000); // Check every 2s
-
+      setConnected(isElectricConnected());
+    }, 2000);
     return () => clearInterval(interval);
   }, []);
 
-  const value: ElectricContextValue = {
-    client,
-    isConnected,
-    isLoading,
-    error,
-  };
-
-  return <ElectricContext.Provider value={value}>{children}</ElectricContext.Provider>;
+  return (
+    <ElectricContext.Provider value={{ client, isConnected: connected, isLoading: loading, error }}>
+      {children}
+    </ElectricContext.Provider>
+  );
 }
-
-/**
- * Hook to use Electric client
- */
-export function useElectric(): ElectricContextValue {
-  const context = useContext(ElectricContext);
-  if (context === undefined) {
-    throw new Error('useElectric must be used within ElectricProvider');
-  }
-  return context;
-}
-
