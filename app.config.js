@@ -6,6 +6,16 @@
 require("dotenv").config();
 
 module.exports = () => {
+	const googleAndroidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
+	const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+	const googleSchemes = [
+		googleAndroidClientId,
+		googleIosClientId,
+	]
+		.filter(Boolean)
+		.map((clientId) => `com.googleusercontent.apps.${clientId}`);
+	const schemes = ["chatup", ...googleSchemes];
+
 	return {
 		expo: {
 			name: "chatUp",
@@ -16,7 +26,7 @@ module.exports = () => {
 			icon: "./assets/logoIcon.png",
 			userInterfaceStyle: "light",
 			newArchEnabled: true,
-			scheme: "chatup",
+			scheme: schemes.length === 1 ? schemes[0] : schemes,
 			splash: {
 				image: "./assets/logoIcon.png",
 				resizeMode: "contain",

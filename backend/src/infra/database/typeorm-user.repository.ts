@@ -31,6 +31,12 @@ export class TypeOrmUserRepository implements IUserRepository {
     return UserMapper.toDomain(entity);
   }
 
+  async findByGoogleId(googleId: string): Promise<User | null> {
+    const entity = await this.repository.findOne({ where: { googleId } });
+    if (!entity) return null;
+    return UserMapper.toDomain(entity);
+  }
+
   async findById(id: string): Promise<User | null> {
     const entity = await this.repository.findOne({ where: { id } });
     if (!entity) return null;

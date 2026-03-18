@@ -28,6 +28,8 @@ export const es = {
 		forgotPassword: "¿Olvidó su contraseña?",
 		continueWithGoogle: "Continuar con Google",
 		continueWithFacebook: "Continuar con Facebook",
+		googleSignInFailed: "No se pudo iniciar sesión con Google",
+		googleClientIdMissing: "Google OAuth no está configurado",
 		dontHaveAccount: "¿No tiene una cuenta? ",
 		alreadyHaveAccount: "¿Ya tiene una cuenta? ",
 		createProfile: "Crear Perfil",

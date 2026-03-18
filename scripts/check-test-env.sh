@@ -24,7 +24,7 @@ source "$ENV_FILE"
 LOCAL_IP=$(cd "$PROJECT_ROOT" && ./scripts/get-local-ip.sh)
 echo "📡 IP Local detectado: $LOCAL_IP"
 
-if [ -z "$LOCAL_IP" ] || [ "$LOCAL_IP" = "192.168.0.14" ]; then
+if [ -z "$LOCAL_IP" ] || [ "$LOCAL_IP" = "192.168.0.18" ]; then
   echo "⚠️  Usando IP padrão. Verifique se está correto."
 fi
 

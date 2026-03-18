@@ -1,13 +1,23 @@
-import { Body, Controller, Post, HttpCode, HttpStatus, UnauthorizedException } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  HttpCode,
+  HttpStatus,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthenticateUserUseCase } from '../../core/use-cases/auth/authenticate-user.use-case';
+import { AuthenticateGoogleUseCase } from '../../core/use-cases/auth/authenticate-google.use-case';
 import { CreateUserUseCase } from '../../core/use-cases/user/create-user.use-case';
 import { AuthenticateUserDto } from '../../core/dtos/authenticate-user.dto';
+import { AuthenticateGoogleDto } from '../../core/dtos/authenticate-google.dto';
 import { CreateUserDto } from '../../core/dtos/create-user.dto';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly authenticateUserUseCase: AuthenticateUserUseCase,
+    private readonly authenticateGoogleUseCase: AuthenticateGoogleUseCase,
     private readonly createUserUseCase: CreateUserUseCase,
   ) {}
 
@@ -47,5 +57,11 @@ export class AuthController {
         displayName: user.displayName,
       },
     };
+  }
+
+  @Post('google')
+  @HttpCode(HttpStatus.OK)
+  async loginWithGoogle(@Body() dto: AuthenticateGoogleDto) {
+    return await this.authenticateGoogleUseCase.execute(dto);
   }
 }

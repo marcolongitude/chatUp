@@ -8,8 +8,10 @@ import { AuthenticateUserUseCase } from '../../core/use-cases/auth/authenticate-
 import { CreateUserUseCase } from '../../core/use-cases/user/create-user.use-case';
 import { BcryptPasswordHasher } from '../../infra/security/bcrypt-password-hasher';
 import { JwtTokenService } from '../../infra/security/jwt-token-service';
+import { GoogleIdTokenVerifier } from '../../infra/security/google-id-token-verifier';
 import { TypeOrmUserEntity } from '../../infra/database/entities/typeorm-user.entity';
 import { TypeOrmUserRepository } from '../../infra/database/typeorm-user.repository';
+import { AuthenticateGoogleUseCase } from '../../core/use-cases/auth/authenticate-google.use-case';
 
 @Module({
   imports: [
@@ -37,10 +39,20 @@ import { TypeOrmUserRepository } from '../../infra/database/typeorm-user.reposit
       useClass: JwtTokenService,
     },
     {
+      provide: 'IGoogleTokenVerifier',
+      useClass: GoogleIdTokenVerifier,
+    },
+    {
       provide: AuthenticateUserUseCase,
       useFactory: (repo, hasher, token) =>
         new AuthenticateUserUseCase(repo, hasher, token),
       inject: ['IUserRepository', 'IPasswordHasher', 'ITokenService'],
+    },
+    {
+      provide: AuthenticateGoogleUseCase,
+      useFactory: (repo, token, googleVerifier) =>
+        new AuthenticateGoogleUseCase(repo, token, googleVerifier),
+      inject: ['IUserRepository', 'ITokenService', 'IGoogleTokenVerifier'],
     },
     {
       provide: CreateUserUseCase,

@@ -7,6 +7,7 @@ export class UserMapper {
       id: typeOrmUser.id,
       email: typeOrmUser.email,
       passwordHash: typeOrmUser.passwordHash,
+      googleId: typeOrmUser.googleId,
       displayName: typeOrmUser.displayName,
       photoURL: typeOrmUser.photoURL,
       phoneNumber: typeOrmUser.phoneNumber,
@@ -23,7 +24,8 @@ export class UserMapper {
     const entity = new TypeOrmUserEntity();
     if (user.id) entity.id = user.id;
     entity.email = user.email;
-    entity.passwordHash = user.passwordHash;
+    entity.passwordHash = user.passwordHash ?? null;
+    entity.googleId = user.googleId;
     entity.displayName = user.displayName;
     entity.photoURL = user.photoURL;
     entity.phoneNumber = user.phoneNumber;

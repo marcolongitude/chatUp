@@ -14,8 +14,11 @@ export class TypeOrmUserEntity {
   @Column({ name: 'email', unique: true })
   email: string;
 
-  @Column({ name: 'password_hash' })
-  passwordHash: string;
+  @Column({ name: 'password_hash', type: 'varchar', nullable: true })
+  passwordHash?: string | null;
+
+  @Column({ name: 'google_id', nullable: true })
+  googleId?: string;
 
   @Column({ name: 'display_name', nullable: true })
   displayName?: string;

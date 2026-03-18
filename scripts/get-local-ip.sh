@@ -40,7 +40,7 @@ get_ip() {
   fi
 
   # Fallback: retorna IP padrão
-  echo "192.168.0.14"
+  echo "192.168.0.18"
   return 1
 }
 

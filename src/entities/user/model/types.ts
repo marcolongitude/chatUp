@@ -1,4 +1,4 @@
-import { User as BaseUser } from '@/shared/types';
+import { User as BaseUser } from "@/shared/lib/contracts";
 
 export interface Location {
 	latitude: number;

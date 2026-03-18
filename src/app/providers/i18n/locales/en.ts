@@ -28,6 +28,8 @@ export const en = {
 		forgotPassword: "Forgot Password?",
 		continueWithGoogle: "Continue with Google",
 		continueWithFacebook: "Continue with Facebook",
+		googleSignInFailed: "Unable to sign in with Google",
+		googleClientIdMissing: "Google OAuth is not configured",
 		dontHaveAccount: "Don't have an account? ",
 		alreadyHaveAccount: "Already have an account? ",
 		createProfile: "Create Profile",

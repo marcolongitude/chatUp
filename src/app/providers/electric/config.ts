@@ -30,7 +30,9 @@ const getElectricUrl = () => {
   if (hostUri) {
     const ip = hostUri.split(':')[0];
     if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
-      console.log(`📡 [Electric] Auto-detected Server IP: ${ip}`);
+      if (__DEV__) {
+        console.log(`📡 [Electric] Auto-detected Server IP: ${ip}`);
+      }
       // Use HTTP and /v1/shape for Electric Next
       return `http://${ip}:5133/v1/shape`;
     }
@@ -62,6 +64,9 @@ const getElectricApiUrl = () => {
   if (hostUri) {
     const ip = hostUri.split(':')[0];
     if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
+      if (__DEV__) {
+        console.log(`📡 [Electric] Auto-detected API Server IP: ${ip}`);
+      }
       return `http://${ip}:5133`;
     }
   }
@@ -71,7 +76,7 @@ const getElectricApiUrl = () => {
     return 'http://10.0.2.2:5133';
   }
 
-  // Priority 5: Default local IP
+  // Priority 5: Fallback to a default local IP if nothing else is found
   return 'http://192.168.0.18:5133';
 };
 

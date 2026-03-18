@@ -24,6 +24,10 @@ export class AuthenticateUserUseCase {
       throw new Error('Password required');
     }
 
+    if (!user.passwordHash) {
+      throw new Error('Invalid credentials');
+    }
+
     const isPasswordValid = await this.passwordHasher.compare(
       dto.password,
       user.passwordHash,

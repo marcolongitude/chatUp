@@ -1,7 +1,8 @@
 export class User {
   id: string;
   email: string; // Replaced username
-  passwordHash: string;
+  passwordHash?: string | null;
+  googleId?: string;
   displayName?: string;
   photoURL?: string;
   phoneNumber?: string;

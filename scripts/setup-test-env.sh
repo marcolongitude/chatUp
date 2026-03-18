@@ -14,11 +14,11 @@ echo ""
 echo "📡 Detectando IP local da máquina..."
 LOCAL_IP=$(cd "$PROJECT_ROOT" && ./scripts/get-local-ip.sh)
 
-if [ -z "$LOCAL_IP" ] || [ "$LOCAL_IP" = "192.168.0.14" ]; then
+if [ -z "$LOCAL_IP" ] || [ "$LOCAL_IP" = "192.168.0.18" ]; then
   echo "⚠️  Não foi possível detectar o IP automaticamente."
-  echo "   Usando IP padrão: 192.168.0.14"
+  echo "   Usando IP padrão: 192.168.0.18"
   echo "   Se este não for o IP correto, edite o arquivo .env manualmente"
-  LOCAL_IP="192.168.0.14"
+  LOCAL_IP="192.168.0.18"
 else
   echo "✅ IP detectado: $LOCAL_IP"
 fi

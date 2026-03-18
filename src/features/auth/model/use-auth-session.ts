@@ -1,3 +1,267 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useEffect, useState } from "react";
+
+import type { UserProfile } from "./auth";
+
+const STORAGE_KEY_TOKEN = "auth.token";
+const STORAGE_KEY_USER = "auth.user";
+
+export interface AuthUser {
+  id: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+  getIdToken: () => Promise<string>;
+}
+
+let globalUser: AuthUser | null = null;
+let globalUserProfile: UserProfile | null = null;
+let globalIsLoading = true;
+const listeners = new Set<() => void>();
+
+const notify = () => listeners.forEach((listener) => listener());
+
+export function useAuthSession() {
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    const listener = () => setTick((value) => value + 1);
+    listeners.add(listener);
+
+    return () => {
+      listeners.delete(listener);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!globalIsLoading) {
+      return;
+    }
+
+    const restoreSession = async () => {
+      try {
+        const token = await AsyncStorage.getItem(STORAGE_KEY_TOKEN);
+        const savedUserRaw = await AsyncStorage.getItem(STORAGE_KEY_USER);
+
+        if (token && savedUserRaw) {
+          const savedUser = JSON.parse(savedUserRaw) as Omit<AuthUser, "getIdToken">;
+          globalUser = {
+            ...savedUser,
+            getIdToken: async () => (await AsyncStorage.getItem(STORAGE_KEY_TOKEN)) || "",
+          };
+
+          globalUserProfile = {
+            id: savedUser.id,
+            email: savedUser.email || "",
+            displayName: savedUser.displayName || "",
+            hasProfile: true,
+            photoURL: savedUser.photoURL || undefined,
+          };
+        }
+      } catch (error) {
+        console.error("Failed to restore session", error);
+      } finally {
+        globalIsLoading = false;
+        notify();
+      }
+    };
+
+    restoreSession();
+  }, []);
+
+  const setSession = async (token: string, user: AuthUser, profile: UserProfile) => {
+    await AsyncStorage.setItem(STORAGE_KEY_TOKEN, token);
+    await AsyncStorage.setItem(
+      STORAGE_KEY_USER,
+      JSON.stringify({
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+      })
+    );
+
+    globalUser = user;
+    globalUserProfile = profile;
+    notify();
+  };
+
+  const clearSession = async () => {
+    await AsyncStorage.removeItem(STORAGE_KEY_TOKEN);
+    await AsyncStorage.removeItem(STORAGE_KEY_USER);
+    globalUser = null;
+    globalUserProfile = null;
+    notify();
+  };
+
+  const updateProfile = async (profile: UserProfile) => {
+    globalUserProfile = profile;
+
+    if (globalUser) {
+      const updatedUser = {
+        ...globalUser,
+        displayName: profile.displayName,
+        photoURL: profile.photoURL || null,
+      };
+
+      globalUser = updatedUser;
+
+      await AsyncStorage.setItem(
+        STORAGE_KEY_USER,
+        JSON.stringify({
+          id: updatedUser.id,
+          email: updatedUser.email,
+          displayName: updatedUser.displayName,
+          photoURL: updatedUser.photoURL,
+        })
+      );
+    }
+
+    notify();
+  };
+
+  return {
+    user: globalUser,
+    userProfile: globalUserProfile,
+    isAuthenticated: !!globalUser,
+    isLoading: globalIsLoading,
+    setSession,
+    clearSession,
+    updateProfile,
+  };
+}
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useEffect, useState } from "react";
+
+import type { UserProfile } from "./auth";
+
+const STORAGE_KEY_TOKEN = "auth.token";
+const STORAGE_KEY_USER = "auth.user";
+
+export interface AuthUser {
+  id: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+  getIdToken: () => Promise<string>;
+}
+
+let globalUser: AuthUser | null = null;
+let globalUserProfile: UserProfile | null = null;
+let globalIsLoading = true;
+const listeners = new Set<() => void>();
+
+const notify = () => listeners.forEach((listener) => listener());
+
+export function useAuthSession() {
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    const listener = () => setTick((value) => value + 1);
+    listeners.add(listener);
+
+    return () => {
+      listeners.delete(listener);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!globalIsLoading) {
+      return;
+    }
+
+    const restoreSession = async () => {
+      try {
+        const token = await AsyncStorage.getItem(STORAGE_KEY_TOKEN);
+        const savedUserRaw = await AsyncStorage.getItem(STORAGE_KEY_USER);
+
+        if (token && savedUserRaw) {
+          const savedUser = JSON.parse(savedUserRaw) as Omit<AuthUser, "getIdToken">;
+          globalUser = {
+            ...savedUser,
+            getIdToken: async () => (await AsyncStorage.getItem(STORAGE_KEY_TOKEN)) || "",
+          };
+
+          globalUserProfile = {
+            id: savedUser.id,
+            email: savedUser.email || "",
+            displayName: savedUser.displayName || "",
+            hasProfile: true,
+            photoURL: savedUser.photoURL || undefined,
+          };
+        }
+      } catch (error) {
+        console.error("Failed to restore session", error);
+      } finally {
+        globalIsLoading = false;
+        notify();
+      }
+    };
+
+    restoreSession();
+  }, []);
+
+  const setSession = async (token: string, user: AuthUser, profile: UserProfile) => {
+    await AsyncStorage.setItem(STORAGE_KEY_TOKEN, token);
+    await AsyncStorage.setItem(
+      STORAGE_KEY_USER,
+      JSON.stringify({
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+      })
+    );
+
+    globalUser = user;
+    globalUserProfile = profile;
+    notify();
+  };
+
+  const clearSession = async () => {
+    await AsyncStorage.removeItem(STORAGE_KEY_TOKEN);
+    await AsyncStorage.removeItem(STORAGE_KEY_USER);
+    globalUser = null;
+    globalUserProfile = null;
+    notify();
+  };
+
+  const updateProfile = async (profile: UserProfile) => {
+    globalUserProfile = profile;
+
+    if (globalUser) {
+      const updatedUser = {
+        ...globalUser,
+        displayName: profile.displayName,
+        photoURL: profile.photoURL || null,
+      };
+
+      globalUser = updatedUser;
+
+      await AsyncStorage.setItem(
+        STORAGE_KEY_USER,
+        JSON.stringify({
+          id: updatedUser.id,
+          email: updatedUser.email,
+          displayName: updatedUser.displayName,
+          photoURL: updatedUser.photoURL,
+        })
+      );
+    }
+
+    notify();
+  };
+
+  return {
+    user: globalUser,
+    userProfile: globalUserProfile,
+    isAuthenticated: !!globalUser,
+    isLoading: globalIsLoading,
+    setSession,
+    clearSession,
+    updateProfile,
+  };
+}
 import { useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { UserProfile } from "./types";

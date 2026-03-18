@@ -51,6 +51,7 @@ export class LocationController {
 
     // Haversine formula in raw SQL for Postgres
     // Numerical stability: acos(LEAST(1, GREATEST(-1, ...)))
+    // Only show users who updated their location in the last 5 minutes
     const query = `
       SELECT 
         id, 
@@ -71,6 +72,7 @@ export class LocationController {
       WHERE id != $3
       AND latitude IS NOT NULL
       AND longitude IS NOT NULL
+      AND updated_at > NOW() - INTERVAL '5 minutes'
       GROUP BY id, email, display_name, photo_url, latitude, longitude
       HAVING (
         6371 * acos(
