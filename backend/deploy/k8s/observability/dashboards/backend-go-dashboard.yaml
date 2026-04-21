@@ -1,0 +1,84 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-go-dashboard
+  namespace: observability
+  labels:
+    grafana_dashboard: "1"
+data:
+  backend-go-overview.json: |
+    {
+      "id": null,
+      "title": "Backend Go - Overview",
+      "tags": ["chatup", "backend-go"],
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "10s",
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "HTTP Requests per Second",
+          "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+          "targets": [
+            {
+              "expr": "sum(rate(chatup_http_requests_total[1m]))",
+              "legendFormat": "rps"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "HTTP Error Rate (%)",
+          "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+          "targets": [
+            {
+              "expr": "100 * sum(rate(chatup_http_errors_total[5m])) / sum(rate(chatup_http_requests_total[5m]))",
+              "legendFormat": "error_rate"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "HTTP P95 Latency (s)",
+          "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(chatup_http_request_duration_seconds_bucket[5m])) by (le))",
+              "legendFormat": "p95"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "WebSocket Active Connections",
+          "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+          "targets": [
+            {
+              "expr": "chatup_websocket_connections_active",
+              "legendFormat": "active"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "WebSocket Messages/s",
+          "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+          "targets": [
+            {
+              "expr": "sum by (direction, type) (rate(chatup_websocket_messages_total[1m]))",
+              "legendFormat": "{{direction}} {{type}}"
+            }
+          ]
+        },
+        {
+          "type": "logs",
+          "title": "Backend Logs (Loki)",
+          "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+          "targets": [
+            {
+              "expr": "{namespace=\"chatup\", app=\"backend-go\"}"
+            }
+          ]
+        }
+      ]
+    }

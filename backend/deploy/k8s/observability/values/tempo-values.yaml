@@ -1,0 +1,11 @@
+tempo:
+  repository: grafana/tempo
+
+persistence:
+  enabled: false
+
+service:
+  type: ClusterIP
+
+tempoQuery:
+  enabled: true

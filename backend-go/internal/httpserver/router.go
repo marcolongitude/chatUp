@@ -16,6 +16,7 @@ import (
 
 	"chatup/backend-go/internal/config"
 	authmw "chatup/backend-go/internal/httpserver/middleware"
+	"chatup/backend-go/internal/observability"
 	"chatup/backend-go/internal/security"
 	"chatup/backend-go/internal/ws"
 	"github.com/go-chi/chi/v5"
@@ -36,9 +37,12 @@ type Server struct {
 func NewRouter(cfg config.Config, db *pgxpool.Pool, hub *ws.Hub, logger *slog.Logger) http.Handler {
 	s := &Server{cfg: cfg, db: db, hub: hub, logger: logger}
 	r := chi.NewRouter()
-	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer, middleware.Logger)
+	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer)
+	r.Use(authmw.RequestLogger(logger))
+	r.Use(observability.HTTPMetricsMiddleware)
 
 	r.Get("/health", s.health)
+	r.Handle("/metrics", observability.MetricsHandler())
 	r.Get("/", s.root)
 	r.Get("/swagger", s.swaggerRedirect)
 	r.Get("/swagger/", s.swaggerUI)

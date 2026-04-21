@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"chatup/backend-go/internal/observability"
 	"chatup/backend-go/internal/security"
 	"github.com/gorilla/websocket"
 )
@@ -44,6 +45,7 @@ func (h *Hub) Register(c *Client) {
 		h.clients[c.UserID] = make(map[*Client]struct{})
 	}
 	h.clients[c.UserID][c] = struct{}{}
+	observability.IncWSConnection()
 }
 
 func (h *Hub) Unregister(c *Client) {
@@ -56,6 +58,7 @@ func (h *Hub) Unregister(c *Client) {
 		}
 	}
 	close(c.Send)
+	observability.DecWSConnection()
 }
 
 func (h *Hub) SendToUser(userID string, msg Outbound) {
@@ -105,6 +108,7 @@ func (h *Hub) ServeWS(secret string, handler func(userID string, env Envelope)) 
 					if !ok {
 						return
 					}
+					observability.IncWSOutbound(msg.Type)
 					_ = conn.WriteJSON(msg)
 				case <-ticker.C:
 					_ = conn.WriteControl(websocket.PingMessage, []byte("ping"), time.Now().Add(5*time.Second))
@@ -117,6 +121,7 @@ func (h *Hub) ServeWS(secret string, handler func(userID string, env Envelope)) 
 			if err := conn.ReadJSON(&env); err != nil {
 				break
 			}
+			observability.IncWSInbound(env.Type)
 			handler(client.UserID, env)
 		}
 

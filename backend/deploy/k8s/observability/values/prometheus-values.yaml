@@ -1,0 +1,64 @@
+alertmanager:
+  enabled: true
+
+server:
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    hosts:
+      - prometheus.localhost
+  persistentVolume:
+    enabled: false
+
+serverFiles:
+  alerting_rules.yml:
+    groups:
+      - name: chatup-backend-go-alerts
+        rules:
+          - alert: BackendGoHighErrorRate
+            expr: |
+              sum(rate(chatup_http_errors_total[5m])) / sum(rate(chatup_http_requests_total[5m])) > 0.05
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "backend-go high error rate"
+              description: "Error rate above 5% for 5 minutes."
+          - alert: BackendGoHighLatencyP95
+            expr: |
+              histogram_quantile(0.95, sum(rate(chatup_http_request_duration_seconds_bucket[5m])) by (le)) > 0.5
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "backend-go p95 latency high"
+              description: "P95 latency above 500ms for 10 minutes."
+          - alert: BackendGoNoTraffic
+            expr: sum(rate(chatup_http_requests_total[10m])) == 0
+            for: 15m
+            labels:
+              severity: info
+            annotations:
+              summary: "backend-go no traffic observed"
+              description: "No HTTP requests observed in the last 10 minutes."
+
+extraScrapeConfigs: |
+  - job_name: backend-go
+    kubernetes_sd_configs:
+      - role: endpoints
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_namespace]
+        action: keep
+        regex: chatup
+      - source_labels: [__meta_kubernetes_service_name]
+        action: keep
+        regex: backend-go
+      - source_labels: [__meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: metrics|http
+      - source_labels: [__meta_kubernetes_endpoint_address_target_name]
+        target_label: pod
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+      - source_labels: [__meta_kubernetes_service_name]
+        target_label: service

@@ -27,6 +27,7 @@ func JWT(secret string) func(http.Handler) http.Handler {
 				return
 			}
 			ctx := context.WithValue(r.Context(), UserIDKey, claims.Sub)
+			r.Header.Set("X-Internal-UserID", claims.Sub)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
