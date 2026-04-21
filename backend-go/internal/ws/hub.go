@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -10,6 +11,8 @@ import (
 	"chatup/backend-go/internal/observability"
 	"chatup/backend-go/internal/security"
 	"github.com/gorilla/websocket"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type Envelope struct {
@@ -33,6 +36,8 @@ type Hub struct {
 	clients map[string]map[*Client]struct{}
 	logger  *slog.Logger
 }
+
+var wsTracer = otel.Tracer("chatup/backend-go/ws")
 
 func NewHub(logger *slog.Logger) *Hub {
 	return &Hub{clients: make(map[string]map[*Client]struct{}), logger: logger}
@@ -62,6 +67,13 @@ func (h *Hub) Unregister(c *Client) {
 }
 
 func (h *Hub) SendToUser(userID string, msg Outbound) {
+	_, span := wsTracer.Start(context.Background(), "ws.send_to_user")
+	span.SetAttributes(
+		attribute.String("ws.user_id", userID),
+		attribute.String("ws.event_type", msg.Type),
+	)
+	defer span.End()
+
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	for c := range h.clients[userID] {
@@ -121,8 +133,14 @@ func (h *Hub) ServeWS(secret string, handler func(userID string, env Envelope)) 
 			if err := conn.ReadJSON(&env); err != nil {
 				break
 			}
+			_, span := wsTracer.Start(context.Background(), "ws.receive")
+			span.SetAttributes(
+				attribute.String("ws.user_id", client.UserID),
+				attribute.String("ws.event_type", env.Type),
+			)
 			observability.IncWSInbound(env.Type)
 			handler(client.UserID, env)
+			span.End()
 		}
 
 		h.Unregister(client)

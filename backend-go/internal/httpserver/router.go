@@ -38,6 +38,8 @@ func NewRouter(cfg config.Config, db *pgxpool.Pool, hub *ws.Hub, logger *slog.Lo
 	s := &Server{cfg: cfg, db: db, hub: hub, logger: logger}
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer)
+	r.Use(authmw.CORS(cfg.CORSOrigin))
+	r.Use(observability.HTTPTracingMiddleware(cfg.ServiceName))
 	r.Use(authmw.RequestLogger(logger))
 	r.Use(observability.HTTPMetricsMiddleware)
 
@@ -85,6 +87,7 @@ func (s *Server) swaggerRedirect(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) swaggerUI(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
 	_, _ = w.Write([]byte(`<!doctype html>
 <html lang="en">
 <head>
@@ -98,7 +101,7 @@ func (s *Server) swaggerUI(w http.ResponseWriter, _ *http.Request) {
   <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
   <script>
     window.ui = SwaggerUIBundle({
-      url: "/openapi.yaml",
+      url: "/openapi.yaml?v=" + Date.now(),
       dom_id: "#swagger-ui",
       deepLinking: true,
       presets: [SwaggerUIBundle.presets.apis],
@@ -114,6 +117,8 @@ func (s *Server) openapiSpec(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "openapi.yaml not found in runtime image", http.StatusNotFound)
 		return
 	}
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
+	w.Header().Set("Content-Type", "application/yaml; charset=utf-8")
 	http.ServeFile(w, r, "openapi.yaml")
 }
 
@@ -149,11 +154,23 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	var req authReq
-	_ = json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid body", http.StatusBadRequest)
+		return
+	}
 	var id, email, hash, display string
 	err := s.db.QueryRow(r.Context(), `SELECT id,email,password_hash,COALESCE(display_name,'') FROM users WHERE email=$1`, req.Email).Scan(&id, &email, &hash, &display)
-	if err != nil || !security.ComparePassword(hash, req.Password) {
-		http.Error(w, "Credenciais inválidas", 401)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			http.Error(w, "Credenciais inválidas", http.StatusUnauthorized)
+			return
+		}
+		s.logger.Error("login db error", "err", err, "email", req.Email)
+		http.Error(w, "database unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if !security.ComparePassword(hash, req.Password) {
+		http.Error(w, "Credenciais inválidas", http.StatusUnauthorized)
 		return
 	}
 	token, _ := security.CreateToken(s.cfg.JWTSecret, id, email, s.cfg.JWTTTLMinutes)
@@ -274,11 +291,11 @@ func (s *Server) getMessages(w http.ResponseWriter, r *http.Request) {
 func (s *Server) uploadKeys(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(authmw.UserIDKey).(string)
 	var body struct {
-		IdentityKey   string         `json:"identityKey"`
-		Registration  int            `json:"registrationId"`
-		SignedPreKey  map[string]any `json:"signedPreKey"`
-		PublicKey     string         `json:"publicKey"`
-		PreKeys       []map[string]any `json:"preKeys"`
+		IdentityKey  string           `json:"identityKey"`
+		Registration int              `json:"registrationId"`
+		SignedPreKey map[string]any   `json:"signedPreKey"`
+		PublicKey    string           `json:"publicKey"`
+		PreKeys      []map[string]any `json:"preKeys"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&body)
 	tx, err := s.db.Begin(r.Context())

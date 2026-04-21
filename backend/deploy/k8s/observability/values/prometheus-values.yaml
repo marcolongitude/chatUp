@@ -62,3 +62,11 @@ extraScrapeConfigs: |
         target_label: namespace
       - source_labels: [__meta_kubernetes_service_name]
         target_label: service
+
+  - job_name: tempo
+    static_configs:
+      - targets:
+          - tempo.observability.svc.cluster.local:3200
+        labels:
+          namespace: observability
+          service: tempo

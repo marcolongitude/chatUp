@@ -11,6 +11,7 @@ import (
 
 	"chatup/backend-go/internal/config"
 	"chatup/backend-go/internal/httpserver"
+	"chatup/backend-go/internal/observability"
 	"chatup/backend-go/internal/platform/logger"
 	"chatup/backend-go/internal/platform/pg"
 	"chatup/backend-go/internal/ws"
@@ -20,6 +21,15 @@ func main() {
 	cfg := config.Load()
 	log := logger.New()
 	ctx := context.Background()
+
+	shutdownTracing, err := observability.InitTracing(ctx, cfg.ServiceName, cfg.OTLPEndpoint)
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		_ = shutdownTracing(context.Background())
+	}()
+
 	db, err := pg.NewPool(ctx, cfg.DatabaseURL)
 	if err != nil {
 		panic(err)

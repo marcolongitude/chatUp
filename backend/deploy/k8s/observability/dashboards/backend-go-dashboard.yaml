@@ -74,9 +74,16 @@ data:
           "type": "logs",
           "title": "Backend Logs (Loki)",
           "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+          "options": {
+            "showLabels": true,
+            "showTime": true,
+            "sortOrder": "Descending",
+            "dedupStrategy": "none",
+            "enableLogDetails": true
+          },
           "targets": [
             {
-              "expr": "{namespace=\"chatup\", app=\"backend-go\"}"
+              "expr": "{job=\"loki.source.kubernetes.pods\", instance=~\"chatup/backend-go.*\"}"
             }
           ]
         }

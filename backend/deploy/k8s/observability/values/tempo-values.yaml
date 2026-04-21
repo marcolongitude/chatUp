@@ -1,5 +1,24 @@
 tempo:
   repository: grafana/tempo
+  metricsGenerator:
+    enabled: true
+    processor:
+      service_graphs: {}
+      span_metrics: {}
+      local_blocks:
+        flush_to_storage: true
+    storage:
+      path: /tmp/tempo/generator/wal
+      remote_write: []
+    traces_storage:
+      path: /tmp/tempo/generator/traces
+  overrides:
+    defaults:
+      metrics_generator:
+        processors:
+          - service-graphs
+          - span-metrics
+          - local-blocks
 
 persistence:
   enabled: false

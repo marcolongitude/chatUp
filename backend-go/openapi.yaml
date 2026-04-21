@@ -4,7 +4,12 @@ info:
   version: 1.0.0
   description: REST and realtime API for ChatUp.
 servers:
+  - url: /
+    description: Same origin as the Swagger UI (recommended)
+  - url: https://api.chatup.localhost
+    description: k3d cluster ingress (Traefik)
   - url: http://localhost:3000
+    description: Local dev (go run ./cmd/api or kubectl port-forward)
 paths:
   /health:
     get:

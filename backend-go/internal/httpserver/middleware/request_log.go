@@ -7,6 +7,7 @@ import (
 	"time"
 
 	chimw "github.com/go-chi/chi/v5/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type logStatusRecorder struct {
@@ -36,6 +37,7 @@ func RequestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 
 			logger.Info("http_request",
 				"request_id", requestID,
+				"trace_id", trace.SpanContextFromContext(r.Context()).TraceID().String(),
 				"user_id", userID,
 				"method", r.Method,
 				"route", r.URL.Path,

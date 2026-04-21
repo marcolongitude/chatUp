@@ -15,6 +15,8 @@ type Config struct {
 	GoogleClientID string
 	UploadDir      string
 	CORSOrigin     string
+	OTLPEndpoint   string
+	ServiceName    string
 }
 
 func Load() Config {
@@ -28,6 +30,8 @@ func Load() Config {
 		GoogleClientID: getEnv("GOOGLE_CLIENT_ID", ""),
 		UploadDir:      getEnv("UPLOAD_DIR", "./uploads"),
 		CORSOrigin:     getEnv("CORS_ORIGIN", "*"),
+		OTLPEndpoint:   getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "alloy.observability.svc.cluster.local:4317"),
+		ServiceName:    getEnv("OTEL_SERVICE_NAME", "chatup-backend-go"),
 	}
 }
 
