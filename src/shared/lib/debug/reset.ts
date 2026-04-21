@@ -1,5 +1,4 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { messagesCollection } from "@/shared/lib/database/collections";
 import { getStableStorage } from "@/shared/lib/crypto/stable/StableLibStorage";
 import { clearAllKeys } from "@/shared/lib/crypto";
 

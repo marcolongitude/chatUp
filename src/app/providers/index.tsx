@@ -4,7 +4,6 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { queryClient } from '@/app/config/queryClient';
 import { ThemeProvider } from './theme';
 import { I18nProvider } from './i18n';
-import { ElectricProvider } from './electric';
 import { CryptoLoadingProvider } from '@/shared/ui';
 
 interface ProvidersProps {
@@ -25,9 +24,7 @@ export const Providers = ({ children }: ProvidersProps) => {
         <ThemeProvider>
           <CryptoLoadingProvider>
             <QueryClientProvider client={queryClient}>
-              <ElectricProvider>
-                {children}
-              </ElectricProvider>
+              {children}
             </QueryClientProvider>
           </CryptoLoadingProvider>
         </ThemeProvider>

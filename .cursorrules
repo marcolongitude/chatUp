@@ -1,5 +1,12 @@
 # Regras de Código para ChatUp
 
+## Status de Migração (Atual)
+
+- Backend principal migrado para Go em `backend-go/` (chi + pgx + websocket).
+- O backend NestJS legado foi removido do fluxo principal.
+- A camada ElectricSQL/TanStack DB foi removida do frontend para simplificar o realtime.
+- Para novas implementações, priorizar APIs HTTP + WebSocket do backend Go e armazenamento local simplificado.
+
 ## Contexto do Projeto
 
 Este é um aplicativo React Native com TanStack Router para chat em tempo real com criptografia end-to-end, sincronização offline-first via ElectricSQL e backend NestJS.
