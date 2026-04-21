@@ -105,13 +105,13 @@ interface LanguageOption {
 
 export function SettingsPage() {
 	const theme = useTheme();
-	const { t, currentLanguage } = useTranslation();
+	const { t: translate, currentLanguage } = useTranslation();
 	const [isChangingLanguage, setIsChangingLanguage] = useState(false);
 
 	const languages: LanguageOption[] = [
-		{ code: "pt-BR", label: t("settings.portuguese") },
-		{ code: "en", label: t("settings.english") },
-		{ code: "es", label: t("settings.spanish") },
+		{ code: "pt-BR", label: translate("settings.portuguese") },
+		{ code: "en", label: translate("settings.english") },
+		{ code: "es", label: translate("settings.spanish") },
 	];
 
 	const handleLanguageChange = async (languageCode: string) => {
@@ -122,7 +122,7 @@ export function SettingsPage() {
 			await saveLanguage(languageCode);
 		} catch (error) {
 			console.error("❌ Erro ao alterar idioma:", error);
-			Alert.alert(t("errors.generic"), t("errors.generic"));
+			Alert.alert(translate("errors.generic"), translate("errors.generic"));
 		} finally {
 			setIsChangingLanguage(false);
 		}
@@ -130,7 +130,8 @@ export function SettingsPage() {
 
 	const appVersion = Constants.expoConfig?.version || "1.0.0";
 	const versionCode = Constants.expoConfig?.android?.versionCode || 1;
-	const runtimeVersion = Updates.isEnabled && Updates.runtimeVersion ? Updates.runtimeVersion : __DEV__ ? "Development" : "N/A";
+	const runtimeVersion =
+		Updates.isEnabled && Updates.runtimeVersion ? Updates.runtimeVersion : __DEV__ ? "Development" : "N/A";
 	const channel = Updates.isEnabled && Updates.channel ? Updates.channel : __DEV__ ? "Development" : "N/A";
 	const isAndroid = Platform.OS === "android";
 	const isDev = __DEV__;
@@ -142,8 +143,8 @@ export function SettingsPage() {
 			</Header>
 			<Content>
 				<Section>
-					<SectionTitle>{t("settings.language")}</SectionTitle>
-					<SectionDescription>{t("settings.languageDescription")}</SectionDescription>
+					<SectionTitle>{translate("settings.language")}</SectionTitle>
+					<SectionDescription>{translate("settings.languageDescription")}</SectionDescription>
 					{languages.map((lang) => (
 						<LanguageOption
 							key={lang.code}
@@ -167,24 +168,24 @@ export function SettingsPage() {
 
 				{isAndroid && (
 					<Section>
-						<SectionTitle>{t("settings.appVersion")}</SectionTitle>
+						<SectionTitle>{translate("settings.appVersion")}</SectionTitle>
 						<VersionInfo>
 							<VersionRow>
-								<VersionLabel>{t("settings.appVersion")}</VersionLabel>
+								<VersionLabel>{translate("settings.appVersion")}</VersionLabel>
 								<VersionValue>{appVersion}</VersionValue>
 							</VersionRow>
 							{isDev && (
 								<>
 									<VersionRow>
-										<VersionLabel>{t("settings.versionCode")}</VersionLabel>
+										<VersionLabel>{translate("settings.versionCode")}</VersionLabel>
 										<VersionValue>{versionCode}</VersionValue>
 									</VersionRow>
 									<VersionRow>
-										<VersionLabel>{t("settings.runtimeVersion")}</VersionLabel>
+										<VersionLabel>{translate("settings.runtimeVersion")}</VersionLabel>
 										<VersionValue>{runtimeVersion}</VersionValue>
 									</VersionRow>
 									<VersionRow>
-										<VersionLabel>{t("settings.channel")}</VersionLabel>
+										<VersionLabel>{translate("settings.channel")}</VersionLabel>
 										<VersionValue>{channel}</VersionValue>
 									</VersionRow>
 								</>

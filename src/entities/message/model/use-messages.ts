@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ensureStableSession } from "@/shared/lib/crypto";
-import { useLiveQuery, eq, or, and } from "@tanstack/react-db";
-import { messagesCollection, insertEncryptedMessage, decryptMessageRow } from "@/shared/lib/database";
+import { useLiveQuery } from "@tanstack/react-db";
+import { eq, or, and } from "@tanstack/db";
+import { messagesCollection, insertEncryptedMessage, decryptMessageRow, type MessageRow } from "@/shared/lib/database";
 import { generateChatId } from "@/shared/lib/chat-id";
 import type { Message, CreateMessageData } from "./types";
 
@@ -18,11 +19,7 @@ interface ElectricState {
  * @param userId    - ID do usuário autenticado (injetado pela camada superior)
  * @param electric  - estado de conexão Electric (injetado pela camada superior)
  */
-export function useMessages(
-	contactId: string,
-	userId: string | undefined,
-	electric: ElectricState
-) {
+export function useMessages(contactId: string, userId: string | undefined, electric: ElectricState) {
 	const { isConnected: isElectricConnected, isLoading: isElectricLoading, error: electricError } = electric;
 	const [decryptedMessages, setDecryptedMessages] = useState<Message[]>([]);
 
@@ -35,12 +32,9 @@ export function useMessages(
 		return !!(chatId && userId && contactId);
 	}, [chatId, userId, contactId]);
 
-	const {
-		data: messageRows = [],
-		isLoading,
-	} = useLiveQuery((q) => {
-		const IMPOSSIBLE_ID = '00000000-0000-0000-0000-000000000000';
-		const emptyQuery = q.from({ msg: messagesCollection }).where(({ msg }) => eq(msg.id, IMPOSSIBLE_ID));
+	const { data: messageRows = [], isLoading } = useLiveQuery((query) => {
+		const IMPOSSIBLE_ID = "00000000-0000-0000-0000-000000000000";
+		const emptyQuery = query.from({ msg: messagesCollection }).where(({ msg }: any) => eq(msg.id, IMPOSSIBLE_ID));
 
 		if (!shouldRunQuery || !userId || !contactId) {
 			return emptyQuery;
@@ -50,16 +44,16 @@ export function useMessages(
 		const otherId = String(contactId);
 
 		try {
-			return q
+			return query
 				.from({ msg: messagesCollection })
-				.where(({ msg }) => {
+				.where(({ msg }: any) => {
 					const isMe = or(eq(msg.sender_id, myId), eq(msg.receiver_id, myId));
 					const isOther = or(eq(msg.sender_id, otherId), eq(msg.receiver_id, otherId));
 					return and(isMe, isOther);
 				})
-				.orderBy(({ msg }) => msg.timestamp, "asc");
+				.orderBy(({ msg }: any) => msg.timestamp, "asc");
 		} catch (err) {
-			console.error('[Entities/Message] Query building error:', err);
+			console.error("[Entities/Message] Query building error:", err);
 			return emptyQuery;
 		}
 	});
@@ -72,9 +66,10 @@ export function useMessages(
 
 		(async () => {
 			try {
-				const decrypted = await Promise.all(messageRows.map((row) => decryptMessageRow(row, userId)));
+			const decrypted = await Promise.all(messageRows.map((row: MessageRow) => decryptMessageRow(row, userId)));
 
-				const transformed: Message[] = decrypted.map((d) => ({
+			type DecryptedRow = Awaited<ReturnType<typeof decryptMessageRow>>;
+			const transformed: Message[] = decrypted.map((d: DecryptedRow) => ({
 					id: d.id,
 					chatId: chatId,
 					senderId: d.senderId,
@@ -126,25 +121,25 @@ export function useMessages(
 				throw error;
 			}
 		},
-		[userId]
+		[userId],
 	);
 
 	const markAsViewed = useCallback(async () => {
 		if (!userId || !contactId || !chatId) return;
 
 		try {
-			const unreadMessages = messageRows?.filter(
-				(msg) => msg.receiver_id === userId && msg.sender_id === contactId && !msg.is_read
-			);
+		const unreadMessages = messageRows?.filter(
+			(msg: MessageRow) => msg.receiver_id === userId && msg.sender_id === contactId && !msg.is_read,
+		);
 
-			if (unreadMessages && unreadMessages.length > 0) {
-				await Promise.all(
-					unreadMessages.map((msg) =>
-						messagesCollection.update(msg.id, (draft) => {
-							draft.is_read = true;
-						})
-					)
-				);
+		if (unreadMessages && unreadMessages.length > 0) {
+			await Promise.all(
+				unreadMessages.map((msg: MessageRow) =>
+					messagesCollection.update(msg.id, (draft: MessageRow) => {
+						draft.is_read = true;
+					}),
+				),
+			);
 			}
 		} catch (error) {
 			console.error("[Entities/Message] Error marking messages as read:", error);
@@ -152,9 +147,7 @@ export function useMessages(
 	}, [userId, contactId, chatId, messageRows]);
 
 	const allMessages = useMemo(() => {
-		return [...decryptedMessages].sort((a, b) =>
-			new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-		);
+		return [...decryptedMessages].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 	}, [decryptedMessages]);
 
 	const shouldShowLoading = useMemo(() => {
