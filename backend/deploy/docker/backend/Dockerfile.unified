@@ -1,0 +1,38 @@
+# Start from the official Electric image (Debian based)
+FROM electricsql/electric:latest
+
+# Install Node.js 20 and dependencies
+USER root
+RUN apt-get update && apt-get install -y \
+    curl \
+    bash \
+    gnupg \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /backend
+
+# Copy backend files
+COPY . .
+
+# Install and build backend
+RUN npm install --include=dev
+RUN ./node_modules/.bin/nest build
+
+# Copy entrypoint script
+COPY ./deploy/docker/backend/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Expose ports: 3000 (NestJS), 5133 (Electric Sync)
+EXPOSE 3000 5133
+
+# Environment variables
+ENV AUTH_MODE=insecure
+ENV ELECTRIC_INSECURE=true
+ENV NODE_ENV=production
+ENV ELECTRIC_PORT=3000
+ENV NEST_PORT=3001
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
