@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: backend-go
-          image: docker.io/marcotecmar/chatup-backend-go:345c70ecc90d
+          image: docker.io/marcotecmar/chatup-backend-go:48271814c33a
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
