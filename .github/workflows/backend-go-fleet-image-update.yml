@@ -78,13 +78,9 @@ jobs:
         run: |
           new_image="${IMAGE_REPO}:${IMAGE_TAG}"
 
-          perl -0777 -i -pe "s|(^\\s*-\\s*name:\\s*backend-go\\s*\\n)\\s*image:\\s*.*|\\1        image: ${new_image}|m" \
-            "backend/deploy/k8s/development/backend.yaml"
-
           perl -0777 -i -pe "s|(^\\s*-\\s*name:\\s*backend-go\\s*\\n)\\s*image:\\s*.*|\\1          image: ${new_image}|m" \
             "backend/deploy/k8s/development/backend-go-k8s.yaml"
 
-          echo "Updated backend/deploy/k8s/development/backend.yaml -> ${new_image}"
           echo "Updated backend/deploy/k8s/development/backend-go-k8s.yaml -> ${new_image}"
 
       - name: Commit and push manifest updates
@@ -95,7 +91,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add backend/deploy/k8s/development/backend.yaml backend/deploy/k8s/development/backend-go-k8s.yaml
+          git add backend/deploy/k8s/development/backend-go-k8s.yaml
 
           if git diff --cached --quiet; then
             echo "No manifest changes to commit."
