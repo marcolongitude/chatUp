@@ -33,4 +33,5 @@ Configure these repository secrets in GitHub:
 
 ## Notes
 
+- Test marker: this comment exists only to validate end-to-end CI/CD flow.
 - If the repository is private, create and link a Fleet git credential in Rancher and attach it to the `GitRepo`.
