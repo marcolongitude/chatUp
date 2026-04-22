@@ -12,7 +12,7 @@ spec:
     metadata:
       labels:
         app: backend-go
-        observability: enabled
+        observability: "enabled"
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/path: "/metrics"
