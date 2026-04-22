@@ -6,11 +6,6 @@ services:
       POSTGRES_DB: chatup
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password
-    command: >
-      postgres
-      -c wal_level=logical
-      -c max_replication_slots=10
-      -c max_wal_senders=10
     ports:
       - "5432:5432"
     volumes:
@@ -21,35 +16,27 @@ services:
       timeout: 5s
       retries: 5
 
-  electric:
-    image: electricsql/electric:latest
-    environment:
-      DATABASE_URL: postgresql://admin:password@postgres:5432/chatup
-      ELECTRIC_INSECURE: "true"
-      ELECTRIC_LOG_LEVEL: info
-    ports:
-      - "5133:3000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: always
-
-  backend:
+  backend-go:
     build:
-      context: ../
-      dockerfile: ./deploy/docker/backend/Dockerfile.backend
+      context: ../../backend-go
+      dockerfile: Dockerfile
     environment:
       DATABASE_URL: postgresql://admin:password@postgres:5432/chatup
-      ELECTRIC_URL: http://electric:3000
       NODE_ENV: development
       JWT_SECRET: dev-secret-key
       PORT: 3000
+      JWT_TTL: 60
+      UPLOAD_DIR: /data/uploads
+      CORS_ORIGIN: "*"
     depends_on:
-      - postgres
-      - electric
+      postgres:
+        condition: service_healthy
     ports:
       - "3000:3000"
+    volumes:
+      - backend_uploads:/data/uploads
     restart: always
 
 volumes:
   postgres_data:
+  backend_uploads:

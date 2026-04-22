@@ -1,5 +1,5 @@
 /**
- * Polyfills mínimos para React Native (Electric SQL e utils que usam Buffer).
+ * Polyfills mínimos para React Native (realtime socket, crypto e utils com Buffer).
  * E2EE usa apenas @stablelib + expo-crypto (sem Buffer/process aqui).
  */
 require("react-native-get-random-values");

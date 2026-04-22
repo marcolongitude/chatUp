@@ -1,0 +1,244 @@
+openapi: 3.0.3
+info:
+  title: ChatUp Backend Go API
+  version: 1.0.0
+  description: REST and realtime API for ChatUp.
+servers:
+  - url: /
+    description: Same origin as the Swagger UI (recommended)
+  - url: https://api.chatup.localhost
+    description: k3d cluster ingress (Traefik)
+  - url: http://localhost:3000
+    description: Local dev (go run ./cmd/api or kubectl port-forward)
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          description: OK
+  /auth/register:
+    post:
+      summary: Register user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+                displayName: { type: string }
+      responses:
+        "201":
+          description: Created
+  /auth/login:
+    post:
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        "200":
+          description: Authenticated
+  /auth/google:
+    post:
+      summary: Login with Google ID token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [idToken]
+              properties:
+                idToken: { type: string }
+      responses:
+        "200":
+          description: Authenticated
+  /users/search:
+    get:
+      summary: Search users
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+      responses:
+        "200":
+          description: User list
+  /users/{id}:
+    get:
+      summary: Get user by id
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: User
+    put:
+      summary: Update user
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Updated user
+  /chat/messages:
+    post:
+      summary: Send message
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [receiverId, content]
+              properties:
+                receiverId: { type: string, format: uuid }
+                content: { type: string, description: Ciphertext payload }
+      responses:
+        "201":
+          description: Message created
+  /chat/messages/{contactId}:
+    get:
+      summary: List messages by contact
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: contactId
+          required: true
+          schema: { type: string, format: uuid }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20 }
+        - in: query
+          name: offset
+          schema: { type: integer, default: 0 }
+      responses:
+        "200":
+          description: Message list
+  /keys:
+    post:
+      summary: Upload key bundle
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Success
+  /keys/count/me:
+    get:
+      summary: Count own pre-keys
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Count
+  /keys/{userId}:
+    get:
+      summary: Get user key bundle and consume one pre-key
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Key bundle
+  /location:
+    put:
+      summary: Update location
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                latitude: { type: number }
+                longitude: { type: number }
+      responses:
+        "200":
+          description: Success
+  /location/nearby:
+    get:
+      summary: Get nearby users
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: latitude
+          required: true
+          schema: { type: number }
+        - in: query
+          name: longitude
+          required: true
+          schema: { type: number }
+        - in: query
+          name: radius
+          schema: { type: number, default: 2 }
+      responses:
+        "200":
+          description: Nearby users
+  /files/upload:
+    post:
+      summary: Upload file
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Uploaded
+  /files/{filename}:
+    get:
+      summary: Download file
+      parameters:
+        - in: path
+          name: filename
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: File content
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

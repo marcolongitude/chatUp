@@ -5,6 +5,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const STORAGE_KEY_TOKEN = "auth.token";
 
+/** Alinhado ao fallback em app.config.js (ngrok -> API no cluster). */
+const DEFAULT_PUBLIC_API_URL = "https://languid-untoadying-jayne.ngrok-free.dev";
+
 /**
  * Determina a URL da API com base no ambiente (FSD Shared)
  */
@@ -21,7 +24,7 @@ const getApiUrl = () => {
     }
 
     if (Platform.OS === "android" && !Constants.isDevice) return "http://10.0.2.2:3000";
-    return "http://192.168.0.18:3000"; // Fallback para IP de rede local conhecido
+    return DEFAULT_PUBLIC_API_URL;
 };
 
 export const API_URL = getApiUrl();

@@ -5,6 +5,9 @@
 
 require("dotenv").config();
 
+/** Base pública da API (ngrok -> ingress Rancher/k3d). Atualize ao mudar o túnel. */
+const DEFAULT_PUBLIC_API_URL = "https://languid-untoadying-jayne.ngrok-free.dev";
+
 module.exports = () => {
 	const googleAndroidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
 	const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
@@ -88,13 +91,8 @@ module.exports = () => {
 				eas: {
 					projectId: "d662ef19-e2a8-4cf3-b18a-564a4faa4a3d",
 				},
-				// API and Electric SQL URLs
-				apiUrl: process.env.EXPO_PUBLIC_API_URL || 
-					(`http://${process.env.LOCAL_IP || '192.168.0.18'}:3000`),
-				electricUrl: process.env.EXPO_PUBLIC_ELECTRIC_URL || 
-					(`http://${process.env.LOCAL_IP || '192.168.0.18'}:5133/v1/shape`),
-				electricApiUrl: process.env.EXPO_PUBLIC_ELECTRIC_API_URL || 
-					(`http://${process.env.LOCAL_IP || '192.168.0.18'}:5133`),
+				// API base URL
+				apiUrl: process.env.EXPO_PUBLIC_API_URL || DEFAULT_PUBLIC_API_URL,
 			},
 		},
 	};

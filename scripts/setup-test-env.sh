@@ -47,26 +47,12 @@ else
   echo "EXPO_PUBLIC_API_URL=http://$LOCAL_IP:3000" >> "$ENV_FILE"
 fi
 
-if grep -q "^EXPO_PUBLIC_ELECTRIC_URL=" "$ENV_FILE"; then
-  sed -i "s|^EXPO_PUBLIC_ELECTRIC_URL=.*|EXPO_PUBLIC_ELECTRIC_URL=ws://$LOCAL_IP:5133|" "$ENV_FILE"
-else
-  echo "EXPO_PUBLIC_ELECTRIC_URL=ws://$LOCAL_IP:5133" >> "$ENV_FILE"
-fi
-
-if grep -q "^EXPO_PUBLIC_ELECTRIC_API_URL=" "$ENV_FILE"; then
-  sed -i "s|^EXPO_PUBLIC_ELECTRIC_API_URL=.*|EXPO_PUBLIC_ELECTRIC_API_URL=http://$LOCAL_IP:5133|" "$ENV_FILE"
-else
-  echo "EXPO_PUBLIC_ELECTRIC_API_URL=http://$LOCAL_IP:5133" >> "$ENV_FILE"
-fi
-
 echo ""
 echo "✅ Configuração concluída!"
 echo ""
 echo "📋 Resumo da configuração:"
 echo "   - IP Local: $LOCAL_IP"
 echo "   - API URL: http://$LOCAL_IP:3000"
-echo "   - Electric WebSocket: ws://$LOCAL_IP:5133"
-echo "   - Electric HTTP: http://$LOCAL_IP:5133"
 echo ""
 echo "🚀 Próximos passos:"
 echo "   1. Certifique-se de que o backend está rodando:"
@@ -75,9 +61,8 @@ echo ""
 echo "   2. Certifique-se de que o Docker Compose está rodando:"
 echo "      cd backend && docker compose up -d"
 echo ""
-echo "   3. Verifique se o firewall permite conexões nas portas 3000 e 5133:"
+echo "   3. Verifique se o firewall permite conexões na porta 3000:"
 echo "      sudo ufw allow 3000/tcp"
-echo "      sudo ufw allow 5133/tcp"
 echo ""
 echo "   4. No dispositivo físico, certifique-se de estar na mesma rede WiFi"
 echo ""

@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Platform, Keyboard, FlatList, TextInput as RNTextInput } from "react-native";
 import { useMessages, type Message } from "@/entities/message";
 import { useAuth } from "@/features/auth";
-import { useElectric } from "@/shared/lib/electric";
 import { setCurrentChatSenderId } from "@/shared/lib/notifications";
 
 interface UseChatWindowProps {
@@ -11,8 +10,7 @@ interface UseChatWindowProps {
 
 export function useChatWindow({ contactId }: UseChatWindowProps) {
 	const { user } = useAuth();
-	const electric = useElectric();
-	const { messages, isLoading, error, sendMessage, markAsViewed } = useMessages(contactId, user?.id, electric);
+	const { messages, isLoading, error, sendMessage, markAsViewed } = useMessages(contactId, user?.id);
 
 	const [optimisticMessages, addOptimisticMessage] = React.useOptimistic(
 		messages,

@@ -1,0 +1,12 @@
+{
+	"mcpServers": {
+		"grafana": {
+			"command": "uvx",
+			"args": ["mcp-grafana"],
+			"env": {
+				"GRAFANA_URL": "http://grafana.localhost",
+				"GRAFANA_SERVICE_ACCOUNT_TOKEN": "PASTE_TOKEN_HERE_OR_USE_CURSOR_ENV"
+			}
+		}
+	}
+}

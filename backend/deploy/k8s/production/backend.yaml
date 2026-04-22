@@ -13,21 +13,22 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: backend
+  name: backend-go
   namespace: chatup-prod
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: backend
+      app: backend-go
   template:
     metadata:
       labels:
-        app: backend
+        app: backend-go
     spec:
       containers:
-      - name: backend
-        image: chatup-backend:latest
+      - name: backend-go
+        image: chatup-backend-go:latest
+        imagePullPolicy: Always
         resources:
           limits:
             cpu: "1"
@@ -43,8 +44,6 @@ spec:
             secretKeyRef:
               name: backend-secret
               key: database_url
-        - name: ELECTRIC_URL
-          value: "http://electric:5133"
         - name: JWT_SECRET
           valueFrom:
             secretKeyRef:
@@ -56,11 +55,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: backend
+  name: backend-go
   namespace: chatup-prod
 spec:
   selector:
-    app: backend
+    app: backend-go
   ports:
   - port: 80
     targetPort: 3000

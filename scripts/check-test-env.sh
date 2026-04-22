@@ -47,31 +47,13 @@ else
   echo "   Execute: cd backend && docker compose up -d"
 fi
 
-# Verificar se o Electric SQL está rodando
-if docker ps | grep -q chatup_electric; then
-  echo "✅ Electric SQL está rodando"
-else
-  echo "❌ Electric SQL não está rodando"
-  echo "   Execute: cd backend && docker compose up -d"
-fi
-
-# Verificar se o Electric está respondendo
-if curl -s -f "http://localhost:5133" > /dev/null 2>&1 || curl -s -f "http://$LOCAL_IP:5133" > /dev/null 2>&1; then
-  echo "✅ Electric SQL está respondendo na porta 5133"
-else
-  echo "⚠️  Electric SQL não está respondendo na porta 5133"
-  echo "   Verifique se o container está rodando corretamente"
-fi
-
 echo ""
 echo "🌐 Configurações de rede:"
 echo "   - API URL: ${EXPO_PUBLIC_API_URL:-http://$LOCAL_IP:3000}"
-echo "   - Electric WebSocket: ${EXPO_PUBLIC_ELECTRIC_URL:-ws://$LOCAL_IP:5133}"
-echo "   - Electric HTTP: ${EXPO_PUBLIC_ELECTRIC_API_URL:-http://$LOCAL_IP:5133}"
 echo ""
 echo "📱 Para testar em dispositivo físico:"
 echo "   1. Certifique-se de que o dispositivo está na mesma rede WiFi"
 echo "   2. Use o IP acima nas configurações do app"
-echo "   3. Verifique o firewall: sudo ufw allow 3000/tcp && sudo ufw allow 5133/tcp"
+echo "   3. Verifique o firewall: sudo ufw allow 3000/tcp"
 echo ""
 
