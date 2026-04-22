@@ -33,6 +33,25 @@ jobs:
           echo "image_repo=${IMAGE_REPO}" >> "${GITHUB_OUTPUT}"
           echo "image_full=${IMAGE_REPO}:${SHORT_SHA}" >> "${GITHUB_OUTPUT}"
 
+      - name: Validate required GitHub secrets
+        run: |
+          missing=0
+
+          if [ -z "${{ secrets.DOCKERHUB_USERNAME }}" ]; then
+            echo "::error::Missing repository secret DOCKERHUB_USERNAME"
+            missing=1
+          fi
+
+          if [ -z "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
+            echo "::error::Missing repository secret DOCKERHUB_TOKEN"
+            missing=1
+          fi
+
+          if [ "$missing" -ne 0 ]; then
+            echo "Configure secrets in: Settings > Secrets and variables > Actions"
+            exit 1
+          fi
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
