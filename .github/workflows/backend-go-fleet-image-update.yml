@@ -80,7 +80,7 @@ jobs:
             local file_path="$1"
             local new_image
             new_image="${IMAGE_REPO}:${IMAGE_TAG}"
-            sed -E -i "0,/^([[:space:]]*)image:[[:space:]]*.*/s|^([[:space:]]*)image:[[:space:]]*.*|\1image: ${new_image}|" "${file_path}"
+            sed -E -i "0,/^[[:space:]]*image:[[:space:]]*.*/s|^[[:space:]]*image:[[:space:]]*.*|          image: ${new_image}|" "${file_path}"
             echo "Updated ${file_path} -> ${new_image}"
           }
 
