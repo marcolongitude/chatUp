@@ -76,16 +76,16 @@ jobs:
           IMAGE_REPO: ${{ steps.vars.outputs.image_repo }}
           IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
         run: |
-          update_image_tag() {
-            local file_path="$1"
-            local new_image
-            new_image="${IMAGE_REPO}:${IMAGE_TAG}"
-            sed -E -i "0,/^[[:space:]]*image:[[:space:]]*.*/s|^[[:space:]]*image:[[:space:]]*.*|          image: ${new_image}|" "${file_path}"
-            echo "Updated ${file_path} -> ${new_image}"
-          }
+          new_image="${IMAGE_REPO}:${IMAGE_TAG}"
 
-          update_image_tag "backend/deploy/k8s/development/backend.yaml"
-          update_image_tag "backend/deploy/k8s/development/backend-go-k8s.yaml"
+          perl -0777 -i -pe "s|(^\\s*-\\s*name:\\s*backend-go\\s*\\n)\\s*image:\\s*.*|\\1        image: ${new_image}|m" \
+            "backend/deploy/k8s/development/backend.yaml"
+
+          perl -0777 -i -pe "s|(^\\s*-\\s*name:\\s*backend-go\\s*\\n)\\s*image:\\s*.*|\\1          image: ${new_image}|m" \
+            "backend/deploy/k8s/development/backend-go-k8s.yaml"
+
+          echo "Updated backend/deploy/k8s/development/backend.yaml -> ${new_image}"
+          echo "Updated backend/deploy/k8s/development/backend-go-k8s.yaml -> ${new_image}"
 
       - name: Commit and push manifest updates
         env:
