@@ -48,12 +48,7 @@ import { encryptWithStable, decryptWithStable, bootstrapStableAccount } from "./
 import { trackEncryptionError, trackEncryptionEvent } from "./telemetry";
 import { removePrivateKey } from "./keyManagement";
 import { withCryptoLoading } from "./cryptoLoading";
-import { getOwnMessage } from "./ownMessageCache";
-
-// **NOVO**: Cache de plaintext para mensagens próprias
-// Armazena: messageId -> { plaintext, timestamp }
-const ownMessagePlaintextCache = new Map<string, { plaintext: string; timestamp: number }>();
-const PLAINTEXT_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 horas
+import { cacheOwnMessage, getOwnMessage } from "./ownMessageCache";
 
 // Log de inicialização para verificar se arquivo foi carregado
 console.log("🔐 [CRYPTO] Módulo crypto.ts carregado com suporte a módulo nativo!");
@@ -729,6 +724,7 @@ export async function encryptMessage(
 	// Tentar Stablelib (novo padrão estável)
 	try {
 		const encrypted = await encryptWithStable(userId, receiverId, plaintext);
+		cacheOwnMessage(encrypted, plaintext);
 
 		trackEncryptionEvent({
 			stage: "encrypt",
@@ -748,6 +744,7 @@ export async function encryptMessage(
 			// Usar método E2EE legado que só precisa de chaves públicas (já em cache)
 			const { encryptMessageE2EE } = await import("./e2ee");
 			const encrypted = await encryptMessageE2EE(plaintext, chatId, userId, receiverId);
+			cacheOwnMessage(encrypted, plaintext);
 
 			const fallbackDuration = Date.now() - fallbackStartTime;
 			trackEncryptionEvent({
@@ -790,6 +787,20 @@ export async function decryptMessage(
 	messageId?: string // NOVO: permite cache de mensagens próprias
 ): Promise<string> {
 	try {
+		// Detectar mensagens próprias cedo para evitar tentativa de descriptografia com sessão incorreta.
+		const normalizedSenderId = String(senderId || "").trim();
+		const normalizedUserId = String(userId || "").trim();
+		const isOwnMessage = normalizedSenderId && normalizedUserId && normalizedSenderId === normalizedUserId;
+		if (isOwnMessage) {
+			const cachedOwnPlaintext = getOwnMessage(encryptedText);
+			if (cachedOwnPlaintext) {
+				return cachedOwnPlaintext;
+			}
+			if (encryptedText.startsWith("STB:")) {
+				return "[Mensagem sua]";
+			}
+		}
+
 		// 1. Tentar Stablelib (prefixo STB:)
 		if (encryptedText.startsWith("STB:")) {
 			const startedAt = Date.now();
@@ -819,10 +830,6 @@ export async function decryptMessage(
 
 		// Verificar se é mensagem própria
 		// Normalizar IDs para comparação (remover espaços e converter para string)
-		const normalizedSenderId = String(senderId || "").trim();
-		const normalizedUserId = String(userId || "").trim();
-		const isOwnMessage = normalizedSenderId && normalizedUserId && normalizedSenderId === normalizedUserId;
-
 		// FIX: Mensagens próprias NÃO podem ser descriptografadas via Signal!
 		// Usar cache de plaintext armazenado ANTES da criptografia
 		if (isOwnMessage) {

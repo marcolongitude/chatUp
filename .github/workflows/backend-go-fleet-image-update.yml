@@ -1,0 +1,87 @@
+name: Backend Go Fleet Image Update
+
+on:
+  pull_request:
+    branches:
+      - developer
+    types:
+      - closed
+
+permissions:
+  contents: write
+
+jobs:
+  build-push-and-update-dev:
+    name: Build backend-go, push image and update Fleet manifests
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository on developer
+        uses: actions/checkout@v4
+        with:
+          ref: developer
+
+      - name: Define image tag
+        id: vars
+        run: |
+          MERGE_SHA="${{ github.event.pull_request.merge_commit_sha }}"
+          SHORT_SHA="$(echo "${MERGE_SHA}" | cut -c1-12)"
+          IMAGE_REPO="docker.io/${{ secrets.DOCKERHUB_USERNAME }}/chatup-backend-go"
+          echo "merge_sha=${MERGE_SHA}" >> "${GITHUB_OUTPUT}"
+          echo "image_tag=${SHORT_SHA}" >> "${GITHUB_OUTPUT}"
+          echo "image_repo=${IMAGE_REPO}" >> "${GITHUB_OUTPUT}"
+          echo "image_full=${IMAGE_REPO}:${SHORT_SHA}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push backend-go image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend-go
+          file: ./backend-go/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.vars.outputs.image_full }}
+            ${{ steps.vars.outputs.image_repo }}:developer-latest
+
+      - name: Update development manifests image
+        env:
+          IMAGE_REPO: ${{ steps.vars.outputs.image_repo }}
+          IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
+        run: |
+          update_image_tag() {
+            local file_path="$1"
+            local new_image
+            new_image="${IMAGE_REPO}:${IMAGE_TAG}"
+            sed -i "0,/^[[:space:]]*image:[[:space:]]*.*/s|^[[:space:]]*image:[[:space:]]*.*|        image: ${new_image}|" "${file_path}"
+            echo "Updated ${file_path} -> ${new_image}"
+          }
+
+          update_image_tag "backend/deploy/k8s/development/backend.yaml"
+          update_image_tag "backend/deploy/k8s/development/backend-go-k8s.yaml"
+
+      - name: Commit and push manifest updates
+        env:
+          IMAGE_FULL: ${{ steps.vars.outputs.image_full }}
+          IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add backend/deploy/k8s/development/backend.yaml backend/deploy/k8s/development/backend-go-k8s.yaml
+
+          if git diff --cached --quiet; then
+            echo "No manifest changes to commit."
+            exit 0
+          fi
+
+          git commit -m "ci: deploy backend-go image ${IMAGE_FULL}"
+          git push origin developer

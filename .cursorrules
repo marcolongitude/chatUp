@@ -9,7 +9,7 @@
 
 ## Contexto do Projeto
 
-Este é um aplicativo React Native com TanStack Router para chat em tempo real com criptografia end-to-end, sincronização offline-first via ElectricSQL e backend NestJS.
+Este é um aplicativo React Native com TanStack Router para chat em tempo real com criptografia end-to-end, backend Go e realtime via HTTP + WebSocket.
 
 ### Stack Tecnológico
 
@@ -21,10 +21,7 @@ Este é um aplicativo React Native com TanStack Router para chat em tempo real c
 -   **Roteamento**: TanStack Router (memory history)
 -   **Estilização**: styled-components ^6.1.19
 -   **Estado Servidor**: @tanstack/react-query ^5.62.0
--   **Sincronização Local-First**: 
-    -   @electric-sql/client ^1.3.1
-    -   @tanstack/electric-db-collection ^0.2.20
-    -   @tanstack/react-db ^0.1.60
+-   **Persistência Local Simplificada**:
     -   expo-sqlite ~16.0.9
 -   **Formulários**: react-hook-form ^7.66.1
 -   **Criptografia**: 
@@ -71,14 +68,10 @@ Este é um aplicativo React Native com TanStack Router para chat em tempo real c
     -   Porta: 5432
     -   Database: chatup
     -   User: admin
--   **ElectricSQL**: electricsql/electric:latest
-    -   Sincronização em tempo real PostgreSQL ↔ SQLite
-    -   Porta: 5133 (mapeada de 3000 interno)
-    -   Modo: ELECTRIC_INSECURE=true (desenvolvimento)
--   **Backend NestJS**: Custom Dockerfile
+-   **Backend Go**: Serviço HTTP + WebSocket
     -   Porta: 3000
-    -   Conecta ao PostgreSQL e ElectricSQL
-    -   Variáveis: DATABASE_URL, ELECTRIC_URL, JWT_SECRET
+    -   Conecta ao PostgreSQL
+    -   Variáveis: DATABASE_URL, JWT_SECRET
 
 ### Arquitetura do Projeto
 
@@ -972,20 +965,17 @@ O projeto atual pode ser migrado gradualmente:
 
 O projeto usa Docker Compose com 3 serviços principais:
 
-1. **PostgreSQL** - Banco de dados principal com replicação lógica
-2. **ElectricSQL** - Sincronização em tempo real
-3. **Backend NestJS** - API REST e WebSockets
+1. **PostgreSQL** - Banco de dados principal
+2. **Backend Go** - API HTTP e WebSockets
 
 ### PostgreSQL Container
 
 1. **Configuração Obrigatória**
 
-    - **SEMPRE** use `wal_level=logical` para ElectricSQL funcionar
-    - Configure `max_replication_slots=10` e `max_wal_senders=10`
     - Use healthcheck para garantir disponibilidade antes de outros serviços
 
     ```yaml
-    # ✅ BOM - PostgreSQL configurado para ElectricSQL
+    # ✅ BOM - PostgreSQL com healthcheck
     postgres:
         build:
             context: ./docker/postgres
@@ -993,11 +983,6 @@ O projeto usa Docker Compose com 3 serviços principais:
             POSTGRES_DB: chatup
             POSTGRES_USER: admin
             POSTGRES_PASSWORD: password
-        command: >
-            postgres
-            -c wal_level=logical
-            -c max_replication_slots=10
-            -c max_wal_senders=10
         healthcheck:
             test: ["CMD-SHELL", "pg_isready -U admin -d chatup"]
             interval: 10s
@@ -1008,30 +993,6 @@ O projeto usa Docker Compose com 3 serviços principais:
 2. **Volumes**
     - Use volumes nomeados para persistência de dados
     - NUNCA delete volumes em produção sem backup
-
-### ElectricSQL Container
-
-1. **Configuração**
-
-    ```yaml
-    # ✅ BOM - ElectricSQL configurado
-    electric:
-        image: electricsql/electric:latest
-        environment:
-            DATABASE_URL: postgresql://admin:password@postgres:5432/chatup
-            ELECTRIC_INSECURE: "true" # Apenas desenvolvimento
-            ELECTRIC_LOG_LEVEL: info
-        ports:
-            - "5133:3000" # Porta externa:interna
-        depends_on:
-            postgres:
-                condition: service_healthy
-    ```
-
-2. **Regras Importantes**
-    - SEMPRE use `depends_on` com `condition: service_healthy`
-    - Em produção, remova `ELECTRIC_INSECURE` ou configure SSL
-    - A porta interna é sempre 3000, mapeie para 5133 externamente
 
 ### Backend Container
 
@@ -1061,7 +1022,6 @@ O projeto usa Docker Compose com 3 serviços principais:
 2. **Variáveis de Ambiente**
 
     - `DATABASE_URL`: Conexão PostgreSQL
-    - `ELECTRIC_URL`: URL do ElectricSQL (http://electric:3000)
     - `JWT_SECRET`: Chave secreta para tokens
     - `PORT`: Porta do servidor (padrão 3000)
     - `NODE_ENV`: development | production
@@ -1078,15 +1038,9 @@ O projeto usa Docker Compose com 3 serviços principais:
             healthcheck: # OBRIGATÓRIO
                 test: ["CMD-SHELL", "pg_isready"]
 
-        electric:
-            depends_on:
-                postgres:
-                    condition: service_healthy # Aguarda healthcheck
-
         backend:
             depends_on:
                 - postgres
-                - electric
     ```
 
 2. **Networking**
@@ -1105,232 +1059,13 @@ O projeto usa Docker Compose com 3 serviços principais:
     docker-compose logs -f backend
 
     # Reiniciar um serviço
-    docker-compose restart electric
+    docker-compose restart backend
 
     # Parar e remover containers (mantém volumes)
     docker-compose down
 
     # Parar e remover TUDO incluindo volumes (CUIDADO!)
     docker-compose down -v
-    ```
-
-## ElectricSQL + TanStack Query
-
-### Conceitos Fundamentais
-
-ElectricSQL sincroniza dados entre PostgreSQL (servidor) e SQLite (cliente) em tempo real, permitindo:
-
--   **Offline-first**: App funciona sem internet
--   **Sincronização automática**: Mudanças locais → servidor e vice-versa
--   **Conflito automático**: ElectricSQL resolve conflitos (last-write-wins)
--   **Reatividade**: UI atualiza automaticamente quando dados mudam
-
-### Arquitetura de Dados
-
-```
-PostgreSQL (Servidor)
-    ↕ ElectricSQL (Sincronização)
-SQLite (Cliente - expo-sqlite)
-    ↕ TanStack Query (Cache + Reatividade)
-React Components
-```
-
-### Configuração do Cliente
-
-1. **Inicialização do Electric**
-
-    ```typescript
-    // ✅ BOM - Configurar Electric client
-    import { Electric } from "@electric-sql/client";
-    import * as SQLite from "expo-sqlite";
-
-    const db = SQLite.openDatabaseSync("chatup.db");
-
-    const electric = await Electric.init({
-        db,
-        url: "http://localhost:5133", // URL do ElectricSQL
-    });
-
-    // Sincronizar tabelas
-    await electric.sync.subscribe({
-        table: "messages",
-        where: `user_id = '${userId}'`,
-    });
-    ```
-
-2. **Integração com TanStack Query**
-
-    ```typescript
-    // ✅ BOM - Usar TanStack Query com Electric
-    import { useElectricQuery } from "@tanstack/react-db";
-
-    function useMessages(contactId: string) {
-        return useElectricQuery({
-            queryKey: ["messages", contactId],
-            queryFn: async () => {
-                const result = await db.getAllAsync(
-                    "SELECT * FROM messages WHERE contact_id = ? ORDER BY created_at DESC",
-                    [contactId]
-                );
-                return result;
-            },
-            // Reativa automaticamente quando dados mudam
-            refetchOnMount: false,
-            refetchOnWindowFocus: false,
-        });
-    }
-    ```
-
-### Padrões de Uso
-
-1. **Leitura de Dados**
-
-    ```typescript
-    // ✅ BOM - Query reativa
-    const { data: messages, isLoading } = useElectricQuery({
-        queryKey: ["messages", chatId],
-        queryFn: () =>
-            db.getAllAsync("SELECT * FROM messages WHERE chat_id = ?", [
-                chatId,
-            ]),
-    });
-    ```
-
-2. **Escrita de Dados**
-
-    ```typescript
-    // ✅ BOM - Mutation com invalidação
-    const sendMessage = useMutation({
-        mutationFn: async (message: NewMessage) => {
-            // Insere localmente (sincroniza automaticamente)
-            await db.runAsync(
-                "INSERT INTO messages (id, chat_id, text, created_at) VALUES (?, ?, ?, ?)",
-                [message.id, message.chatId, message.text, Date.now()]
-            );
-        },
-        onSuccess: () => {
-            // Invalida cache para re-fetch
-            queryClient.invalidateQueries({ queryKey: ["messages"] });
-        },
-    });
-    ```
-
-3. **Sincronização Seletiva**
-
-    ```typescript
-    // ✅ BOM - Sincronizar apenas dados relevantes
-    // Sincronizar apenas mensagens dos últimos 30 dias
-    await electric.sync.subscribe({
-        table: "messages",
-        where: `created_at > ${Date.now() - 30 * 24 * 60 * 60 * 1000}`,
-    });
-
-    // Sincronizar apenas contatos do usuário
-    await electric.sync.subscribe({
-        table: "contacts",
-        where: `user_id = '${userId}'`,
-    });
-    ```
-
-### Schema e Migrações
-
-1. **Definir Schema no PostgreSQL**
-
-    ```sql
-    -- ✅ BOM - Tabela com suporte ElectricSQL
-    CREATE TABLE messages (
-        id UUID PRIMARY KEY,
-        chat_id UUID NOT NULL,
-        sender_id UUID NOT NULL,
-        text TEXT NOT NULL,
-        encrypted BOOLEAN DEFAULT false,
-        created_at BIGINT NOT NULL,
-        updated_at BIGINT NOT NULL
-    );
-
-    -- Habilitar ElectricSQL para a tabela
-    ALTER TABLE messages ENABLE ELECTRIC;
-    ```
-
-2. **Migrações**
-    - Use TypeORM migrations no backend para alterar schema
-    - ElectricSQL detecta mudanças automaticamente
-    - Clientes sincronizam novo schema na próxima conexão
-
-### Tratamento de Conflitos
-
-1. **Last-Write-Wins (Padrão)**
-
-    - ElectricSQL usa timestamp para resolver conflitos
-    - Última escrita sempre vence
-    - Adequado para maioria dos casos
-
-2. **Conflitos Customizados**
-    ```typescript
-    // Para casos especiais, implemente lógica customizada
-    // Exemplo: Merge de arrays ao invés de substituição
-    ```
-
-### Performance e Otimização
-
-1. **Índices no SQLite**
-
-    ```typescript
-    // ✅ BOM - Criar índices para queries frequentes
-    await db.execAsync(`
-        CREATE INDEX IF NOT EXISTS idx_messages_chat_id 
-        ON messages(chat_id);
-        
-        CREATE INDEX IF NOT EXISTS idx_messages_created_at 
-        ON messages(created_at DESC);
-    `);
-    ```
-
-2. **Paginação**
-
-    ```typescript
-    // ✅ BOM - Paginar queries grandes
-    const { data, fetchNextPage, hasNextPage } = useInfiniteQuery({
-        queryKey: ["messages", chatId],
-        queryFn: ({ pageParam = 0 }) =>
-            db.getAllAsync(
-                "SELECT * FROM messages WHERE chat_id = ? ORDER BY created_at DESC LIMIT 50 OFFSET ?",
-                [chatId, pageParam]
-            ),
-        getNextPageParam: (lastPage, pages) =>
-            lastPage.length === 50 ? pages.length * 50 : undefined,
-    });
-    ```
-
-3. **Limpeza de Dados Antigos**
-    ```typescript
-    // ✅ BOM - Remover dados antigos periodicamente
-    await db.runAsync(
-        "DELETE FROM messages WHERE created_at < ?",
-        [Date.now() - 90 * 24 * 60 * 60 * 1000] // 90 dias
-    );
-    ```
-
-### Debugging
-
-1. **Verificar Status de Sincronização**
-
-    ```typescript
-    // ✅ BOM - Monitorar sincronização
-    electric.sync.status.subscribe((status) => {
-        console.log("Sync status:", status);
-        // status: 'connected' | 'disconnected' | 'syncing'
-    });
-    ```
-
-2. **Logs**
-    ```typescript
-    // Habilitar logs detalhados em desenvolvimento
-    Electric.init({
-        db,
-        url: ELECTRIC_URL,
-        debug: __DEV__, // Apenas em desenvolvimento
-    });
     ```
 
 ## Backend NestJS
@@ -2131,14 +1866,6 @@ backend/
 -   [ ] **Traduções foram adicionadas em todos os idiomas** (pt-BR, en, es)
 -   [ ] **Chaves de tradução seguem estrutura hierárquica consistente**
 
-### ElectricSQL
-
--   [ ] Tabelas sincronizadas têm `ALTER TABLE ... ENABLE ELECTRIC`
--   [ ] Queries SQLite têm índices apropriados
--   [ ] Sincronização seletiva está configurada (não sincronizar tudo)
--   [ ] Status de sincronização é monitorado em desenvolvimento
--   [ ] Dados antigos são limpos periodicamente
-
 ### Backend
 
 -   [ ] DTOs têm validação com class-validator
@@ -2153,7 +1880,6 @@ backend/
 ### Docker
 
 -   [ ] PostgreSQL tem `wal_level=logical` configurado
--   [ ] ElectricSQL depende de PostgreSQL healthcheck
 -   [ ] Variáveis de ambiente estão corretas em docker-compose.yml
 -   [ ] Volumes estão configurados para persistência de dados
 -   [ ] docker-compose up funciona sem erros
@@ -2175,13 +1901,6 @@ backend/
 -   **FSD Examples**: https://feature-sliced.design/examples
 -   **FSD Linter (Steiger)**: https://github.com/feature-sliced/steiger
 
-### ElectricSQL
-
--   ElectricSQL Docs: https://electric-sql.com/docs
--   ElectricSQL GitHub: https://github.com/electric-sql/electric
--   TanStack React DB: https://tanstack.com/db/latest/docs/react/overview
--   ElectricSQL Quickstart: https://electric-sql.com/docs/quickstart
-
 ### Backend (NestJS)
 
 -   NestJS Docs: https://docs.nestjs.com/
@@ -2195,6 +1914,5 @@ backend/
 
 -   Docker Compose Docs: https://docs.docker.com/compose/
 -   PostgreSQL Docker: https://hub.docker.com/_/postgres
--   ElectricSQL Docker: https://electric-sql.com/docs/deployment/docker
 -   Docker Best Practices: https://docs.docker.com/develop/dev-best-practices/
 

@@ -10,8 +10,7 @@ interface UseChatWindowProps {
 
 export function useChatWindow({ contactId }: UseChatWindowProps) {
 	const { user } = useAuth();
-	const electric = { client: null, isConnected: true, isLoading: false, error: null };
-	const { messages, isLoading, error, sendMessage, markAsViewed } = useMessages(contactId, user?.id, electric);
+	const { messages, isLoading, error, sendMessage, markAsViewed } = useMessages(contactId, user?.id);
 
 	const [optimisticMessages, addOptimisticMessage] = React.useOptimistic(
 		messages,

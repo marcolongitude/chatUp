@@ -10,6 +10,8 @@
     "setup:test-env": "./scripts/setup-test-env.sh",
     "check:test-env": "./scripts/check-test-env.sh",
     "start:test-env": "./scripts/start-test-env.sh",
+    "start:rancher-mcp:local": "./scripts/start-rancher-mcp-local.sh",
+    "deploy:backend-go:rancher": "./scripts/deploy-backend-go-rancher.sh",
     "setup:railway": "./scripts/setup-railway.sh",
     "fix:namespace": "./scripts/fix-duplicate-namespace.sh",
     "clean:android": "./scripts/clean-android-build.sh",

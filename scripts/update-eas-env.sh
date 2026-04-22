@@ -34,28 +34,19 @@ const easJson = JSON.parse(fs.readFileSync(easJsonPath, 'utf8'));
 
 const localIp = '${LOCAL_IP}';
 const apiUrl = \`http://\${localIp}:3000\`;
-const electricUrl = \`ws://\${localIp}:5133\`;
-const electricApiUrl = \`http://\${localIp}:5133\`;
-
 // Atualizar preview
 if (easJson.build.preview.env) {
   easJson.build.preview.env.EXPO_PUBLIC_API_URL = apiUrl;
-  easJson.build.preview.env.EXPO_PUBLIC_ELECTRIC_URL = electricUrl;
-  easJson.build.preview.env.EXPO_PUBLIC_ELECTRIC_API_URL = electricApiUrl;
 }
 
 // Atualizar production
 if (easJson.build.production.env) {
   easJson.build.production.env.EXPO_PUBLIC_API_URL = apiUrl;
-  easJson.build.production.env.EXPO_PUBLIC_ELECTRIC_URL = electricUrl;
-  easJson.build.production.env.EXPO_PUBLIC_ELECTRIC_API_URL = electricApiUrl;
 }
 
 // Atualizar production-aab
 if (easJson.build['production-aab'].env) {
   easJson.build['production-aab'].env.EXPO_PUBLIC_API_URL = apiUrl;
-  easJson.build['production-aab'].env.EXPO_PUBLIC_ELECTRIC_URL = electricUrl;
-  easJson.build['production-aab'].env.EXPO_PUBLIC_ELECTRIC_API_URL = electricApiUrl;
 }
 
 fs.writeFileSync(easJsonPath, JSON.stringify(easJson, null, 4) + '\n');
@@ -67,8 +58,6 @@ echo "✅ Configuração concluída!"
 echo ""
 echo "📋 URLs configuradas:"
 echo "   - API URL: http://$LOCAL_IP:3000"
-echo "   - Electric WebSocket: ws://$LOCAL_IP:5133"
-echo "   - Electric HTTP: http://$LOCAL_IP:5133"
 echo ""
 echo "🚀 Agora você pode gerar o APK:"
 echo "   npm run build:android:apk"

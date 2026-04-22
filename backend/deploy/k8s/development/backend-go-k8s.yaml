@@ -20,8 +20,8 @@ spec:
     spec:
       containers:
         - name: backend-go
-          image: deploy-backend-go:latest
-          imagePullPolicy: Never
+          image: chatup-backend-go:dev
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
           envFrom:

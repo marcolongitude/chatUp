@@ -16,9 +16,7 @@
             },
             "env": {
                 "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "510679848324-uicijmb0d26ebf3rlo0qil5pjuk9d1ea.apps.googleusercontent.com",
-                "EXPO_PUBLIC_API_URL": "https://languid-untoadying-jayne.ngrok-free.dev",
-                "EXPO_PUBLIC_ELECTRIC_URL": "http://192.168.0.18:5133/v1/shape",
-                "EXPO_PUBLIC_ELECTRIC_API_URL": "http://192.168.0.18:5133"
+                "EXPO_PUBLIC_API_URL": "https://languid-untoadying-jayne.ngrok-free.dev"
             }
         },
         "production": {
@@ -30,9 +28,7 @@
                 "NODE_ENV": "production",
                 "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "510679848324-uicijmb0d26ebf3rlo0qil5pjuk9d1ea.apps.googleusercontent.com",
                 "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "510679848324-4nfiam1u85fciohe6t8p6n2rdtdkq5kk.apps.googleusercontent.com",
-                "EXPO_PUBLIC_API_URL": "https://languid-untoadying-jayne.ngrok-free.dev",
-                "EXPO_PUBLIC_ELECTRIC_URL": "http://192.168.0.18:5133/v1/shape",
-                "EXPO_PUBLIC_ELECTRIC_API_URL": "http://192.168.0.18:5133"
+                "EXPO_PUBLIC_API_URL": "https://languid-untoadying-jayne.ngrok-free.dev"
             }
         },
         "production-aab": {
@@ -42,9 +38,7 @@
             "env": {
                 "NODE_ENV": "production",
                 "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "510679848324-uicijmb0d26ebf3rlo0qil5pjuk9d1ea.apps.googleusercontent.com",
-                "EXPO_PUBLIC_API_URL": "https://languid-untoadying-jayne.ngrok-free.dev",
-                "EXPO_PUBLIC_ELECTRIC_URL": "http://192.168.0.18:5133/v1/shape",
-                "EXPO_PUBLIC_ELECTRIC_API_URL": "http://192.168.0.18:5133"
+                "EXPO_PUBLIC_API_URL": "https://languid-untoadying-jayne.ngrok-free.dev"
             }
         }
     },

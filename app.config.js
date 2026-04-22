@@ -91,12 +91,8 @@ module.exports = () => {
 				eas: {
 					projectId: "d662ef19-e2a8-4cf3-b18a-564a4faa4a3d",
 				},
-				// API and Electric SQL URLs
+				// API base URL
 				apiUrl: process.env.EXPO_PUBLIC_API_URL || DEFAULT_PUBLIC_API_URL,
-				electricUrl: process.env.EXPO_PUBLIC_ELECTRIC_URL || 
-					(`http://${process.env.LOCAL_IP || '192.168.0.18'}:5133/v1/shape`),
-				electricApiUrl: process.env.EXPO_PUBLIC_ELECTRIC_API_URL || 
-					(`http://${process.env.LOCAL_IP || '192.168.0.18'}:5133`),
 			},
 		},
 	};

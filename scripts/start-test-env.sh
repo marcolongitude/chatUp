@@ -26,9 +26,9 @@ echo "📡 IP Local: $LOCAL_IP"
 echo ""
 
 # Iniciar Docker Compose
-echo "🐳 Iniciando Docker Compose (PostgreSQL + Electric SQL)..."
+echo "🐳 Iniciando Docker Compose (serviços backend)..."
 cd "$PROJECT_ROOT/backend"
-if docker compose ps | grep -q "chatup_postgres.*Up" && docker compose ps | grep -q "chatup_electric.*Up"; then
+if docker compose ps | grep -q "chatup_postgres.*Up"; then
   echo "✅ Docker Compose já está rodando"
 else
   docker compose up -d
@@ -41,7 +41,6 @@ echo "✅ Ambiente de testes configurado!"
 echo ""
 echo "📋 Informações:"
 echo "   - Backend: http://$LOCAL_IP:3000"
-echo "   - Electric SQL: ws://$LOCAL_IP:5133"
 echo "   - Health Check: http://$LOCAL_IP:3000/health"
 echo ""
 echo "🚀 Para iniciar o backend, execute em outro terminal:"
