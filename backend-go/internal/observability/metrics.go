@@ -58,6 +58,13 @@ func (r *statusRecorder) WriteHeader(code int) {
 	r.ResponseWriter.WriteHeader(code)
 }
 
+func (r *statusRecorder) Write(b []byte) (int, error) {
+	if r.status == 0 {
+		r.status = http.StatusOK
+	}
+	return r.ResponseWriter.Write(b)
+}
+
 func MetricsHandler() http.Handler {
 	return promhttp.Handler()
 }
@@ -65,16 +72,20 @@ func MetricsHandler() http.Handler {
 func HTTPMetricsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		started := time.Now()
-		recorder := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		recorder := &statusRecorder{ResponseWriter: w}
 		next.ServeHTTP(recorder, r)
 
 		route := r.URL.Path
-		status := strconv.Itoa(recorder.status)
+		statusCode := recorder.status
+		if statusCode == 0 {
+			statusCode = http.StatusOK
+		}
+		status := strconv.Itoa(statusCode)
 		method := r.Method
 
 		httpRequestsTotal.WithLabelValues(method, route, status).Inc()
 		httpRequestDuration.WithLabelValues(method, route).Observe(time.Since(started).Seconds())
-		if recorder.status >= 400 {
+		if statusCode >= 400 {
 			httpErrorsTotal.WithLabelValues(method, route, status).Inc()
 		}
 	})

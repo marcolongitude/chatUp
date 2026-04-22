@@ -35,7 +35,13 @@ func RequestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 				userID = headerUserID
 			}
 
-			logger.Info("http_request",
+			level := slog.LevelInfo
+			if rec.status >= 500 {
+				level = slog.LevelError
+			} else if rec.status >= 400 {
+				level = slog.LevelWarn
+			}
+			logger.Log(r.Context(), level, "http_request",
 				"request_id", requestID,
 				"trace_id", trace.SpanContextFromContext(r.Context()).TraceID().String(),
 				"user_id", userID,

@@ -27,6 +27,7 @@ helm upgrade --install grafana grafana/grafana \
 
 kubectl apply -f "${ROOT_DIR}/alloy/alloy.yaml"
 kubectl apply -f "${ROOT_DIR}/dashboards/backend-go-dashboard.yaml"
+kubectl apply -f "${ROOT_DIR}/dashboards/backend-go-api-errors-dashboard.yaml"
 kubectl apply -f "${ROOT_DIR}/dashboards/tempo-red-dashboard.yaml"
 
 echo "Observability stack applied."
