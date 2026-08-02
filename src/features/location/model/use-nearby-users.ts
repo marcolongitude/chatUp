@@ -66,9 +66,11 @@ export function useNearbyUsers(userId: string | undefined) {
 		placeholderData: (previous) => previous,
 	});
 
+	// Unauthenticated state is handled by AuthGate (redirect to login).
+	// Do not surface a stuck "Not authenticated" banner inside the main shell.
 	let error: string | null = null;
 	if (!userId) {
-		error = "Not authenticated";
+		error = null;
 	} else if (locationError) {
 		error = locationError;
 	} else if (!isLocationLoading && !permissionGranted) {

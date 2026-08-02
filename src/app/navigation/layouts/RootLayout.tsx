@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { Outlet } from "@tanstack/react-router";
 import { UpdateDialog } from "@/shared/ui";
 import { requestNotificationPermissions } from "@/shared/lib/notifications";
+import { AuthExpiredBridge } from "@/features/auth";
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {
 	constructor(props: { children: React.ReactNode }) {
@@ -81,6 +82,7 @@ export function RootLayout() {
 
 	return (
 		<ErrorBoundary>
+			<AuthExpiredBridge />
 			<Suspense fallback={<LoadingFallback />}>
 				<Outlet />
 			</Suspense>

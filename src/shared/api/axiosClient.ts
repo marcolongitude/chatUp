@@ -58,13 +58,37 @@ axiosInstance.interceptors.request.use(
 	(error) => Promise.reject(error)
 );
 
+type AuthExpiredListener = () => void;
+const authExpiredListeners = new Set<AuthExpiredListener>();
+
+/** Subscribe to API 401s so the auth layer can clear session + redirect. */
+export function onAuthExpired(listener: AuthExpiredListener): () => void {
+	authExpiredListeners.add(listener);
+	return () => {
+		authExpiredListeners.delete(listener);
+	};
+}
+
+function emitAuthExpired() {
+	authExpiredListeners.forEach((listener) => {
+		try {
+			listener();
+		} catch (err) {
+			console.warn("[Shared/API] auth-expired listener failed", err);
+		}
+	});
+}
+
 // Interceptor para tratamento de erros centralizado
 axiosInstance.interceptors.response.use(
 	(response) => response,
 	(error) => {
 		if (error.response) {
 			const { status } = error.response;
-			if (status === 401) console.warn("[Shared/API] Unauthorized (401)");
+			if (status === 401) {
+				console.warn("[Shared/API] Unauthorized (401)");
+				emitAuthExpired();
+			}
 			if (status === 403) console.warn("[Shared/API] Forbidden (403)");
 		} else if (error.request) {
 			console.error("[Shared/API] Network error (No response)");

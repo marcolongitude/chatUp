@@ -6,13 +6,20 @@ export function useLogout() {
   const { clearSession, user } = useAuthSession();
 
   const logout = async () => {
+    const userId = user?.id;
     try {
       await logoutApi();
-      await cleanupAuthData(user?.id);
-      await clearSession();
     } catch (error) {
-      console.error("[Feature/Auth] Failed to logout", error);
+      console.warn("[Feature/Auth] Remote logout failed; clearing local session anyway", error);
     }
+
+    try {
+      await cleanupAuthData(userId);
+    } catch (error) {
+      console.warn("[Feature/Auth] Cleanup failed", error);
+    }
+
+    await clearSession();
   };
 
   return {

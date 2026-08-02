@@ -31,7 +31,11 @@ export function useLogin() {
         hasProfile: true,
       });
 
-      await initializeCrypto(backendUser.id);
+      try {
+        await initializeCrypto(backendUser.id);
+      } catch (cryptoError) {
+        console.warn("[Auth] Crypto init after login failed", cryptoError);
+      }
       return response;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Login failed";
