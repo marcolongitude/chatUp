@@ -37,12 +37,14 @@ func setupIntegrationServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 	}
 	t.Cleanup(db.Close)
 
-	migrationSQL, err := os.ReadFile("../../db/migrations/0001_init.sql")
-	if err != nil {
-		t.Fatalf("failed to read migration: %v", err)
-	}
-	if _, err := db.Exec(ctx, string(migrationSQL)); err != nil {
-		t.Fatalf("failed to apply migration: %v", err)
+	for _, name := range []string{"0001_init.sql", "0002_message_client_msg_id.sql"} {
+		migrationSQL, err := os.ReadFile("../../db/migrations/" + name)
+		if err != nil {
+			t.Fatalf("failed to read migration %s: %v", name, err)
+		}
+		if _, err := db.Exec(ctx, string(migrationSQL)); err != nil {
+			t.Fatalf("failed to apply migration %s: %v", name, err)
+		}
 	}
 
 	resetDB(t, db)

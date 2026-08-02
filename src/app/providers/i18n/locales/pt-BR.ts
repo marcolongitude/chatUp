@@ -89,7 +89,7 @@ export const ptBR = {
 		title: "Conversas",
 		searching: "Buscando usuários próximos...",
 		noUsersFound: "Nenhum usuário próximo encontrado",
-		usersWithin2km: "Usuários dentro de 2km aparecerão aqui automaticamente",
+		usersWithin2km: "Usuários dentro de {{km}} km aparecerão aqui automaticamente",
 		locationPermissionError: "Para ver usuários próximos, é necessário permitir o acesso à localização.",
 		locationError: "Verifique se a localização está habilitada e tente novamente.",
 		openSettings: "Abrir Configurações",
@@ -105,6 +105,7 @@ export const ptBR = {
 		noMessages: "Nenhuma mensagem ainda.\nComece a conversar!",
 		messagePlaceholder: "Digite uma mensagem...",
 		sending: "Enviando...",
+		send: "Enviar",
 	},
 
 	// Configurações
@@ -112,6 +113,9 @@ export const ptBR = {
 		title: "Configurações",
 		language: "Idioma",
 		languageDescription: "Escolha o idioma do aplicativo",
+		perimeter: "Alcance de descoberta",
+		perimeterDescription: "Escolha até quantos quilômetros o app busca pessoas próximas",
+		perimeterKm: "{{km}} km",
 		appVersion: "Versão do Aplicativo",
 		versionCode: "Version Code",
 		runtimeVersion: "Versão do Runtime",

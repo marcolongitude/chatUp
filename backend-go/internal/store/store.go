@@ -22,15 +22,16 @@ func New(db *pgxpool.Pool) *Store {
 }
 
 type User struct {
-	ID          string
-	Email       string
-	DisplayName string
-	PhotoURL    string
-	PhoneNumber string
-	Bio         string
-	PublicKey   *string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID             string
+	Email          string
+	DisplayName    string
+	PhotoURL       string
+	PhoneNumber    string
+	Bio            string
+	PublicKey      *string
+	NearbyRadiusKm int
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 type AuthUser struct {
@@ -123,25 +124,44 @@ func (s *Store) SearchUsers(ctx context.Context, term string) ([]SearchUser, err
 
 func (s *Store) GetUserByID(ctx context.Context, userID string) (User, error) {
 	var out User
-	err := s.db.QueryRow(ctx, `SELECT id,email,COALESCE(display_name,''),COALESCE(photo_url,''),COALESCE(phone_number,''),COALESCE(bio,''),public_key,created_at,updated_at FROM users WHERE id=$1`, userID).
-		Scan(&out.ID, &out.Email, &out.DisplayName, &out.PhotoURL, &out.PhoneNumber, &out.Bio, &out.PublicKey, &out.CreatedAt, &out.UpdatedAt)
+	err := s.db.QueryRow(ctx, `SELECT id,email,COALESCE(display_name,''),COALESCE(photo_url,''),COALESCE(phone_number,''),COALESCE(bio,''),public_key,COALESCE(nearby_radius_km,1),created_at,updated_at FROM users WHERE id=$1`, userID).
+		Scan(&out.ID, &out.Email, &out.DisplayName, &out.PhotoURL, &out.PhoneNumber, &out.Bio, &out.PublicKey, &out.NearbyRadiusKm, &out.CreatedAt, &out.UpdatedAt)
 	if err != nil {
-		return User{}, err
+		// Fallback before migration 0005.
+		err = s.db.QueryRow(ctx, `SELECT id,email,COALESCE(display_name,''),COALESCE(photo_url,''),COALESCE(phone_number,''),COALESCE(bio,''),public_key,created_at,updated_at FROM users WHERE id=$1`, userID).
+			Scan(&out.ID, &out.Email, &out.DisplayName, &out.PhotoURL, &out.PhoneNumber, &out.Bio, &out.PublicKey, &out.CreatedAt, &out.UpdatedAt)
+		if err != nil {
+			return User{}, err
+		}
+		out.NearbyRadiusKm = 1
 	}
 	return out, nil
 }
 
 type UpdateUserInput struct {
-	DisplayName *string
-	PhotoURL    *string
-	Bio         *string
-	PhoneNumber *string
-	PublicKey   *string
+	DisplayName    *string
+	PhotoURL       *string
+	Bio            *string
+	PhoneNumber    *string
+	PublicKey      *string
+	NearbyRadiusKm *int
 }
 
 func (s *Store) UpdateUser(ctx context.Context, userID string, in UpdateUserInput) error {
-	_, err := s.db.Exec(ctx, `UPDATE users SET display_name=COALESCE($2,display_name), photo_url=COALESCE($3,photo_url), bio=COALESCE($4,bio), phone_number=COALESCE($5,phone_number), public_key=COALESCE($6,public_key), updated_at=NOW() WHERE id=$1`,
-		userID, in.DisplayName, in.PhotoURL, in.Bio, in.PhoneNumber, in.PublicKey)
+	_, err := s.db.Exec(ctx, `UPDATE users SET
+		display_name=COALESCE($2,display_name),
+		photo_url=COALESCE($3,photo_url),
+		bio=COALESCE($4,bio),
+		phone_number=COALESCE($5,phone_number),
+		public_key=COALESCE($6,public_key),
+		nearby_radius_km=COALESCE($7,nearby_radius_km),
+		updated_at=NOW()
+		WHERE id=$1`,
+		userID, in.DisplayName, in.PhotoURL, in.Bio, in.PhoneNumber, in.PublicKey, in.NearbyRadiusKm)
+	if err != nil && in.NearbyRadiusKm == nil {
+		_, err = s.db.Exec(ctx, `UPDATE users SET display_name=COALESCE($2,display_name), photo_url=COALESCE($3,photo_url), bio=COALESCE($4,bio), phone_number=COALESCE($5,phone_number), public_key=COALESCE($6,public_key), updated_at=NOW() WHERE id=$1`,
+			userID, in.DisplayName, in.PhotoURL, in.Bio, in.PhoneNumber, in.PublicKey)
+	}
 	return err
 }
 
@@ -150,16 +170,36 @@ type Message struct {
 	SenderID    string
 	ReceiverID  string
 	Content     string
+	ClientMsgID string
+	SeqNum      int64
 	Timestamp   time.Time
 	IsDelivered bool
 	IsRead      bool
 }
 
-func (s *Store) InsertMessage(ctx context.Context, senderID, receiverID, content string, isDelivered bool) (Message, error) {
+func (s *Store) FindMessageByClientMsgID(ctx context.Context, senderID, clientMsgID string) (Message, error) {
+	var m Message
+	err := s.db.QueryRow(ctx, `SELECT id,sender_id,receiver_id,content,COALESCE(client_msg_id,''),COALESCE(seq_num,0),timestamp,is_delivered,is_read
+		FROM messages WHERE sender_id=$1 AND client_msg_id=$2`, senderID, clientMsgID).
+		Scan(&m.ID, &m.SenderID, &m.ReceiverID, &m.Content, &m.ClientMsgID, &m.SeqNum, &m.Timestamp, &m.IsDelivered, &m.IsRead)
+	if err != nil {
+		return Message{}, err
+	}
+	return m, nil
+}
+
+func (s *Store) InsertMessage(ctx context.Context, senderID, receiverID, content string, isDelivered bool, clientMsgID string) (Message, error) {
 	id := uuid.NewString()
 	var ts time.Time
-	err := s.db.QueryRow(ctx, `INSERT INTO messages(id,sender_id,receiver_id,content,timestamp,is_delivered,is_read) VALUES($1,$2,$3,$4,NOW(),$5,false) RETURNING timestamp`,
-		id, senderID, receiverID, content, isDelivered).Scan(&ts)
+	var seqNum int64
+	var storedClientMsgID *string
+	if clientMsgID != "" {
+		storedClientMsgID = &clientMsgID
+	}
+	err := s.db.QueryRow(ctx, `INSERT INTO messages(id,sender_id,receiver_id,content,timestamp,is_delivered,is_read,client_msg_id)
+		VALUES($1,$2,$3,$4,NOW(),$5,false,$6)
+		RETURNING timestamp, COALESCE(seq_num, 0)`,
+		id, senderID, receiverID, content, isDelivered, storedClientMsgID).Scan(&ts, &seqNum)
 	if err != nil {
 		return Message{}, err
 	}
@@ -168,6 +208,8 @@ func (s *Store) InsertMessage(ctx context.Context, senderID, receiverID, content
 		SenderID:    senderID,
 		ReceiverID:  receiverID,
 		Content:     content,
+		ClientMsgID: clientMsgID,
+		SeqNum:      seqNum,
 		Timestamp:   ts,
 		IsDelivered: isDelivered,
 		IsRead:      false,
@@ -175,10 +217,11 @@ func (s *Store) InsertMessage(ctx context.Context, senderID, receiverID, content
 }
 
 func (s *Store) ListMessages(ctx context.Context, userID, contactID string, limit, offset int) ([]Message, error) {
-	rows, err := s.db.Query(ctx, `SELECT id,sender_id,receiver_id,content,timestamp,is_delivered,is_read
+	rows, err := s.db.Query(ctx, `SELECT id,sender_id,receiver_id,content,COALESCE(client_msg_id,''),COALESCE(seq_num,0),timestamp,is_delivered,is_read
 		FROM messages
 		WHERE (sender_id=$1 AND receiver_id=$2) OR (sender_id=$2 AND receiver_id=$1)
-		ORDER BY timestamp DESC LIMIT $3 OFFSET $4`, userID, contactID, limit, offset)
+		ORDER BY CASE WHEN seq_num > 0 THEN seq_num ELSE EXTRACT(EPOCH FROM timestamp)::bigint END DESC
+		LIMIT $3 OFFSET $4`, userID, contactID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +230,7 @@ func (s *Store) ListMessages(ctx context.Context, userID, contactID string, limi
 	out := make([]Message, 0)
 	for rows.Next() {
 		var m Message
-		if err := rows.Scan(&m.ID, &m.SenderID, &m.ReceiverID, &m.Content, &m.Timestamp, &m.IsDelivered, &m.IsRead); err != nil {
+		if err := rows.Scan(&m.ID, &m.SenderID, &m.ReceiverID, &m.Content, &m.ClientMsgID, &m.SeqNum, &m.Timestamp, &m.IsDelivered, &m.IsRead); err != nil {
 			return nil, err
 		}
 		out = append(out, m)
@@ -226,6 +269,17 @@ func (s *Store) UploadKeys(ctx context.Context, userID string, in KeyUploadInput
 		userID, in.IdentityKey, in.PublicKey, in.Registration, spk)
 	if err != nil {
 		return err
+	}
+
+	// Keep users.public_key in sync with the Stable/Signal identity used for E2EE.
+	pub := in.PublicKey
+	if pub == "" {
+		pub = in.IdentityKey
+	}
+	if pub != "" {
+		if _, err := tx.Exec(ctx, `UPDATE users SET public_key=$2, updated_at=NOW() WHERE id=$1`, userID, pub); err != nil {
+			return err
+		}
 	}
 
 	if len(in.PreKeys) > 0 {
@@ -299,8 +353,23 @@ func (s *Store) GetAndConsumeKeyBundle(ctx context.Context, userID string) (KeyB
 }
 
 func (s *Store) UpdateLocation(ctx context.Context, userID string, latitude, longitude float64) error {
-	_, err := s.db.Exec(ctx, `UPDATE users SET latitude=$2, longitude=$3, updated_at=NOW() WHERE id=$1`, userID, latitude, longitude)
+	// Prefer syncing PostGIS geography when migration 0004 is applied.
+	_, err := s.db.Exec(ctx, `
+		UPDATE users
+		SET latitude=$2,
+		    longitude=$3,
+		    location = ST_SetSRID(ST_MakePoint($3, $2), 4326)::geography,
+		    updated_at=NOW()
+		WHERE id=$1`, userID, latitude, longitude)
+	if err != nil {
+		_, err = s.db.Exec(ctx, `UPDATE users SET latitude=$2, longitude=$3, updated_at=NOW() WHERE id=$1`, userID, latitude, longitude)
+	}
 	return err
+}
+
+type UserLocationDistance struct {
+	UserLocation
+	DistanceM int
 }
 
 func (s *Store) ListUsersWithLocation(ctx context.Context, exceptUserID string) ([]UserLocation, error) {
@@ -315,6 +384,41 @@ func (s *Store) ListUsersWithLocation(ctx context.Context, exceptUserID string) 
 	for rows.Next() {
 		var u UserLocation
 		if err := rows.Scan(&u.ID, &u.Email, &u.Name, &u.Avatar, &u.Latitude, &u.Longitude); err != nil {
+			return nil, err
+		}
+		if u.Name == "" {
+			u.Name = strings.Split(u.Email, "@")[0]
+		}
+		out = append(out, u)
+	}
+	return out, nil
+}
+
+// ListUsersNearby uses PostGIS when available (migration 0004). Caller should fall back on error.
+func (s *Store) ListUsersNearby(ctx context.Context, exceptUserID string, latitude, longitude, radiusMeters float64) ([]UserLocationDistance, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT id,
+		       email,
+		       COALESCE(display_name,''),
+		       COALESCE(photo_url,''),
+		       ST_Y(location::geometry) AS latitude,
+		       ST_X(location::geometry) AS longitude,
+		       ST_Distance(location, ST_SetSRID(ST_MakePoint($3, $2), 4326)::geography)::int AS distance_m
+		FROM users
+		WHERE id <> $1
+		  AND location IS NOT NULL
+		  AND ST_DWithin(location, ST_SetSRID(ST_MakePoint($3, $2), 4326)::geography, $4)
+		ORDER BY distance_m ASC
+		LIMIT 200`, exceptUserID, latitude, longitude, radiusMeters)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]UserLocationDistance, 0)
+	for rows.Next() {
+		var u UserLocationDistance
+		if err := rows.Scan(&u.ID, &u.Email, &u.Name, &u.Avatar, &u.Latitude, &u.Longitude, &u.DistanceM); err != nil {
 			return nil, err
 		}
 		if u.Name == "" {

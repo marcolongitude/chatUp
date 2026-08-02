@@ -5,8 +5,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const STORAGE_KEY_TOKEN = "auth.token";
 
-/** Alinhado ao fallback em app.config.js (ngrok -> API no cluster). */
-const DEFAULT_PUBLIC_API_URL = "https://languid-untoadying-jayne.ngrok-free.dev";
+/** Alinhado ao fallback em app.config.js (API staging VPS Rancher). */
+const DEFAULT_PUBLIC_API_URL = "https://chatup-api.147.15.92.201.sslip.io";
 
 /**
  * Determina a URL da API com base no ambiente (FSD Shared)

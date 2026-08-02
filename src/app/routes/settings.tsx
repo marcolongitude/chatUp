@@ -9,6 +9,7 @@ import styled from "styled-components/native";
 import { Card } from "@/shared/ui";
 import { useTranslation } from "@/app/providers/i18n";
 import { saveLanguage } from "@/app/providers/i18n";
+import { PERIMETER_OPTIONS_KM, usePerimeter, type PerimeterKm } from "@/features/location";
 
 const Container = styled.ScrollView`
 	flex: 1;
@@ -107,6 +108,8 @@ export function SettingsPage() {
 	const theme = useTheme();
 	const { t: translate, currentLanguage } = useTranslation();
 	const [isChangingLanguage, setIsChangingLanguage] = useState(false);
+	const [isChangingPerimeter, setIsChangingPerimeter] = useState(false);
+	const { perimeterKm, updatePerimeterKm } = usePerimeter();
 
 	const languages: LanguageOption[] = [
 		{ code: "pt-BR", label: translate("settings.portuguese") },
@@ -125,6 +128,19 @@ export function SettingsPage() {
 			Alert.alert(translate("errors.generic"), translate("errors.generic"));
 		} finally {
 			setIsChangingLanguage(false);
+		}
+	};
+
+	const handlePerimeterChange = async (km: PerimeterKm) => {
+		if (km === perimeterKm) return;
+		setIsChangingPerimeter(true);
+		try {
+			await updatePerimeterKm(km);
+		} catch (error) {
+			console.error("Erro ao alterar perímetro:", error);
+			Alert.alert(translate("errors.generic"), translate("errors.generic"));
+		} finally {
+			setIsChangingPerimeter(false);
 		}
 	};
 
@@ -160,6 +176,32 @@ export function SettingsPage() {
 						</LanguageOption>
 					))}
 					{isChangingLanguage && (
+						<LoadingContainer>
+							<ActivityIndicator size="small" color={theme.colors.button.primary} />
+						</LoadingContainer>
+					)}
+				</Section>
+
+				<Section>
+					<SectionTitle>{translate("settings.perimeter")}</SectionTitle>
+					<SectionDescription>{translate("settings.perimeterDescription")}</SectionDescription>
+					{PERIMETER_OPTIONS_KM.map((km) => (
+						<LanguageOption
+							key={km}
+							isSelected={perimeterKm === km}
+							onPress={() => handlePerimeterChange(km)}
+							disabled={isChangingPerimeter}
+							activeOpacity={0.7}
+						>
+							<LanguageOptionText>
+								{translate("settings.perimeterKm", { km })}
+							</LanguageOptionText>
+							{perimeterKm === km && (
+								<Ionicons name="checkmark-circle" size={24} color={theme.colors.button.primary} />
+							)}
+						</LanguageOption>
+					))}
+					{isChangingPerimeter && (
 						<LoadingContainer>
 							<ActivityIndicator size="small" color={theme.colors.button.primary} />
 						</LoadingContainer>

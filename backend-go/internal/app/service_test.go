@@ -15,11 +15,12 @@ import (
 )
 
 type fakeStore struct {
-	getAuthUserByEmailFn func(ctx context.Context, email string) (store.AuthUser, error)
-	updateUserFn    func(ctx context.Context, userID string, in store.UpdateUserInput) error
-	getUserByIDFn   func(ctx context.Context, userID string) (store.User, error)
-	insertMessageFn func(ctx context.Context, senderID, receiverID, content string, isDelivered bool) (store.Message, error)
-	uploadKeysFn    func(ctx context.Context, userID string, in store.KeyUploadInput) error
+	getAuthUserByEmailFn  func(ctx context.Context, email string) (store.AuthUser, error)
+	updateUserFn          func(ctx context.Context, userID string, in store.UpdateUserInput) error
+	getUserByIDFn         func(ctx context.Context, userID string) (store.User, error)
+	insertMessageFn       func(ctx context.Context, senderID, receiverID, content string, isDelivered bool, clientMsgID string) (store.Message, error)
+	findByClientMsgIDFn   func(ctx context.Context, senderID, clientMsgID string) (store.Message, error)
+	uploadKeysFn          func(ctx context.Context, userID string, in store.KeyUploadInput) error
 }
 
 func (f *fakeStore) CreateUser(ctx context.Context, email, passwordHash, displayName string) (store.User, error) {
@@ -52,11 +53,17 @@ func (f *fakeStore) UpdateUser(ctx context.Context, userID string, in store.Upda
 	}
 	return nil
 }
-func (f *fakeStore) InsertMessage(ctx context.Context, senderID, receiverID, content string, isDelivered bool) (store.Message, error) {
+func (f *fakeStore) InsertMessage(ctx context.Context, senderID, receiverID, content string, isDelivered bool, clientMsgID string) (store.Message, error) {
 	if f.insertMessageFn != nil {
-		return f.insertMessageFn(ctx, senderID, receiverID, content, isDelivered)
+		return f.insertMessageFn(ctx, senderID, receiverID, content, isDelivered, clientMsgID)
 	}
 	return store.Message{}, nil
+}
+func (f *fakeStore) FindMessageByClientMsgID(ctx context.Context, senderID, clientMsgID string) (store.Message, error) {
+	if f.findByClientMsgIDFn != nil {
+		return f.findByClientMsgIDFn(ctx, senderID, clientMsgID)
+	}
+	return store.Message{}, pgx.ErrNoRows
 }
 func (f *fakeStore) ListMessages(ctx context.Context, userID, contactID string, limit, offset int) ([]store.Message, error) {
 	return nil, nil
@@ -78,6 +85,9 @@ func (f *fakeStore) UpdateLocation(ctx context.Context, userID string, latitude,
 }
 func (f *fakeStore) ListUsersWithLocation(ctx context.Context, exceptUserID string) ([]store.UserLocation, error) {
 	return nil, nil
+}
+func (f *fakeStore) ListUsersNearby(ctx context.Context, exceptUserID string, latitude, longitude, radiusMeters float64) ([]store.UserLocationDistance, error) {
+	return nil, errors.New("postgis unavailable in fake store")
 }
 
 type fakeHub struct {
@@ -135,14 +145,17 @@ func TestUpdateUserReturnsNotFoundWhenUserMissing(t *testing.T) {
 
 func TestSendMessagePersistsAndBroadcasts(t *testing.T) {
 	var capturedDelivered bool
+	var capturedClientMsgID string
 	st := &fakeStore{
-		insertMessageFn: func(ctx context.Context, senderID, receiverID, content string, isDelivered bool) (store.Message, error) {
+		insertMessageFn: func(ctx context.Context, senderID, receiverID, content string, isDelivered bool, clientMsgID string) (store.Message, error) {
 			capturedDelivered = isDelivered
+			capturedClientMsgID = clientMsgID
 			return store.Message{
 				ID:          "msg-1",
 				SenderID:    senderID,
 				ReceiverID:  receiverID,
 				Content:     content,
+				ClientMsgID: clientMsgID,
 				Timestamp:   time.Now(),
 				IsDelivered: isDelivered,
 				IsRead:      false,
@@ -152,21 +165,67 @@ func TestSendMessagePersistsAndBroadcasts(t *testing.T) {
 	hb := &fakeHub{online: map[string]bool{"user-2": true}}
 	svc := newTestService(st, hb)
 
-	msg, err := svc.SendMessage(context.Background(), "user-1", "user-2", "hello")
+	msg, err := svc.SendMessage(context.Background(), "user-1", "user-2", "hello", "client-1")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !capturedDelivered {
 		t.Fatalf("expected delivered=true when receiver is online")
 	}
+	if capturedClientMsgID != "client-1" {
+		t.Fatalf("expected clientMsgId client-1, got %s", capturedClientMsgID)
+	}
 	if msg.ID != "msg-1" {
 		t.Fatalf("expected msg id msg-1, got %s", msg.ID)
 	}
-	if len(hb.sentToUsers) != 1 || hb.sentToUsers[0] != "user-2" {
-		t.Fatalf("expected one outbound event to user-2, got %+v", hb.sentToUsers)
+	if len(hb.sentToUsers) < 1 || hb.sentToUsers[0] != "user-2" || hb.sentTypes[0] != "newMessage" {
+		t.Fatalf("expected newMessage to user-2 first, got users=%+v types=%+v", hb.sentToUsers, hb.sentTypes)
 	}
-	if hb.sentTypes[0] != "newMessage" {
-		t.Fatalf("expected outbound type newMessage, got %s", hb.sentTypes[0])
+	if len(hb.sentTypes) < 2 || hb.sentTypes[1] != "ack" {
+		t.Fatalf("expected ack to sender, got types=%+v", hb.sentTypes)
+	}
+	if len(hb.sentTypes) < 3 || hb.sentTypes[2] != "delivered" {
+		t.Fatalf("expected delivered to sender when online, got types=%+v", hb.sentTypes)
+	}
+}
+
+func TestSendMessageIdempotentByClientMsgID(t *testing.T) {
+	insertCalls := 0
+	existing := store.Message{
+		ID:          "msg-existing",
+		SenderID:    "user-1",
+		ReceiverID:  "user-2",
+		Content:     "hello",
+		ClientMsgID: "client-1",
+		Timestamp:   time.Now(),
+	}
+	st := &fakeStore{
+		findByClientMsgIDFn: func(ctx context.Context, senderID, clientMsgID string) (store.Message, error) {
+			if senderID == "user-1" && clientMsgID == "client-1" {
+				return existing, nil
+			}
+			return store.Message{}, pgx.ErrNoRows
+		},
+		insertMessageFn: func(ctx context.Context, senderID, receiverID, content string, isDelivered bool, clientMsgID string) (store.Message, error) {
+			insertCalls++
+			return store.Message{}, nil
+		},
+	}
+	hb := &fakeHub{online: map[string]bool{}}
+	svc := newTestService(st, hb)
+
+	msg, err := svc.SendMessage(context.Background(), "user-1", "user-2", "hello", "client-1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if msg.ID != "msg-existing" {
+		t.Fatalf("expected existing message, got %s", msg.ID)
+	}
+	if insertCalls != 0 {
+		t.Fatalf("expected no insert on idempotent hit, got %d", insertCalls)
+	}
+	if len(hb.sentToUsers) != 0 {
+		t.Fatalf("expected no broadcast on idempotent hit, got %+v", hb.sentToUsers)
 	}
 }
 

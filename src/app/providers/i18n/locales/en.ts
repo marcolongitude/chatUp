@@ -89,7 +89,7 @@ export const en = {
 		title: "Conversations",
 		searching: "Searching for nearby users...",
 		noUsersFound: "No nearby users found",
-		usersWithin2km: "Users within 2km will appear here automatically",
+		usersWithin2km: "Users within {{km}} km will appear here automatically",
 		locationPermissionError: "To see nearby users, you need to allow location access.",
 		locationError: "Please check if location is enabled and try again.",
 		openSettings: "Open Settings",
@@ -105,6 +105,7 @@ export const en = {
 		noMessages: "No messages yet.\nStart chatting!",
 		messagePlaceholder: "Type a message...",
 		sending: "Sending...",
+		send: "Send",
 	},
 
 	// Settings
@@ -112,6 +113,9 @@ export const en = {
 		title: "Settings",
 		language: "Language",
 		languageDescription: "Choose the app language",
+		perimeter: "Discovery range",
+		perimeterDescription: "Choose how many kilometers away to look for people nearby",
+		perimeterKm: "{{km}} km",
 		appVersion: "App Version",
 		versionCode: "Version Code",
 		runtimeVersion: "Runtime Version",

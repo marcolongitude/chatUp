@@ -1,7 +1,15 @@
 module.exports = function (api) {
 	api.cache(true);
 	return {
-		presets: ["babel-preset-expo"],
+		presets: [
+			[
+				"babel-preset-expo",
+				{
+					// seroval (TanStack Router) uses import.meta; Hermes needs this polyfill.
+					unstable_transformImportMeta: true,
+				},
+			],
+		],
 		plugins: [
 			[
 				"module-resolver",

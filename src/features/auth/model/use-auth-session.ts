@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 
+import { initializeCrypto } from "../lib/crypto-init";
 import type { UserProfile } from "./auth";
 
 const STORAGE_KEY_TOKEN = "auth.token";
@@ -57,6 +58,9 @@ export function useAuthSession() {
             hasProfile: true,
             photoURL: savedUser.photoURL || undefined,
           };
+
+          // App restart / injected session must still ensure StableLib identity + /keys.
+          await initializeCrypto(savedUser.id);
         }
       } catch (error) {
         console.error("Failed to restore session", error);

@@ -28,7 +28,7 @@ export const ChatInput = ({
 	const { t } = useTranslation();
 
 	return (
-		<InputContainer bottomInset={bottomInset} keyboardHeight={keyboardHeight}>
+		<InputContainer bottomInset={bottomInset} keyboardHeight={keyboardHeight} testID="e2e.chat.composer">
 			<ChatInputField
 				ref={inputRef}
 				value={value}
@@ -37,8 +37,15 @@ export const ChatInput = ({
 				multiline
 				maxLength={1000}
 				editable={!isSending}
+				testID="e2e.chat.input"
 			/>
-			<SendButton onPress={onSend} disabled={!value.trim() || isSending}>
+			<SendButton
+				onPress={onSend}
+				disabled={!value.trim() || isSending}
+				accessibilityRole="button"
+				accessibilityLabel={t("chat.send")}
+				testID="e2e.chat.send"
+			>
 				{isSending ? (
 					<ActivityIndicator size="small" color={theme.colors.text.primary} />
 				) : (

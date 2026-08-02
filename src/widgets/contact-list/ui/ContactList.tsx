@@ -37,6 +37,7 @@ export function ContactList() {
 		nearbyError,
 		isLocationPermissionError,
 		isSearchingMode,
+		perimeterKm,
 		openSettings,
 		handleContactPress,
 	} = useContactList();
@@ -69,7 +70,7 @@ export function ContactList() {
 	const keyExtractor = useCallback((item: any) => item.id, []);
 
 	return (
-		<Container>
+		<Container testID="e2e.conversations.screen">
 			{isSearchingMode && searchPromise ? (
 				<React.Suspense fallback={
 					<LoadingContainer>
@@ -122,7 +123,7 @@ export function ContactList() {
 										<>
 											<EmptyText>{t("conversations.noUsersFound")}</EmptyText>
 											<EmptyText style={{ marginTop: theme.spacing.sm, fontSize: 14 }}>
-												{t("conversations.usersWithin2km")}
+												{t("conversations.usersWithin2km", { km: perimeterKm })}
 											</EmptyText>
 										</>
 									)}

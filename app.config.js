@@ -5,18 +5,17 @@
 
 require("dotenv").config();
 
-/** Base pública da API (ngrok -> ingress Rancher/k3d). Atualize ao mudar o túnel. */
-const DEFAULT_PUBLIC_API_URL = "https://languid-untoadying-jayne.ngrok-free.dev";
+/** Base pública da API (staging VPS Rancher). */
+const DEFAULT_PUBLIC_API_URL = "https://chatup-api.147.15.92.201.sslip.io";
 
 module.exports = () => {
 	const googleAndroidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
 	const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
-	const googleSchemes = [
-		googleAndroidClientId,
-		googleIosClientId,
-	]
-		.filter(Boolean)
-		.map((clientId) => `com.googleusercontent.apps.${clientId}`);
+	const toGoogleScheme = (clientId) => {
+		const id = String(clientId).replace(/\.apps\.googleusercontent\.com$/i, "");
+		return `com.googleusercontent.apps.${id}`;
+	};
+	const googleSchemes = [googleAndroidClientId, googleIosClientId].filter(Boolean).map(toGoogleScheme);
 	const schemes = ["chatup", ...googleSchemes];
 
 	return {
@@ -76,6 +75,10 @@ module.exports = () => {
 					},
 				],
 				"expo-font",
+				"expo-localization",
+				"expo-web-browser",
+				"expo-build-properties",
+				"react-native-quick-crypto",
 			],
 			updates: {
 				enabled: true,

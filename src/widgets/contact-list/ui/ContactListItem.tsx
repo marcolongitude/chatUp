@@ -31,13 +31,18 @@ export function ContactListItem({ contact, onPress }: ContactListItemProps) {
 		: "??";
 
 	return (
-		<ContactItem onPress={onPress} activeOpacity={0.7}>
+		<ContactItem
+			onPress={onPress}
+			activeOpacity={0.7}
+			testID={`e2e.contact.${contact.id}`}
+			accessibilityLabel={`e2e.contact.${contact.name}`}
+		>
 			<AvatarContainer>
 				<AvatarText>{initials}</AvatarText>
 			</AvatarContainer>
 			<ContactInfo>
 				<ContactDetails>
-					<ContactName>{contact.name}</ContactName>
+					<ContactName testID={`e2e.contact.name.${contact.id}`}>{contact.name}</ContactName>
 				</ContactDetails>
 				{contact.unreadCount && contact.unreadCount > 0 ? (
 					<UnreadBadge>

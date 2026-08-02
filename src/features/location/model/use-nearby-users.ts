@@ -1,95 +1,90 @@
-import { useState, useEffect } from "react";
-
-import type { NearbyUser } from "@/entities/contact";
+import { useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import { useLocation } from "./use-location";
-import { NEARBY_RADIUS_METERS } from "../lib/geolocation";
+import { usePerimeter } from "./use-perimeter";
 import { fetchNearbyUsersApi } from "../api/nearby-users.api";
 import { updateLocationApi } from "../api/update-location.api";
+
+export const nearbyUsersQueryKeyRoot = ["nearbyUsers"] as const;
+const LOCATION_UPDATE_THROTTLE_MS = 60_000;
 
 /**
  * @param userId - ID do usuário autenticado (injetado pela camada superior)
  */
 export function useNearbyUsers(userId: string | undefined) {
-  const {
-    location: userLocation,
-    permissionStatus,
-    isLoading: isLocationLoading,
-    error: locationError,
-  } = useLocation();
+	const {
+		location: userLocation,
+		permissionStatus,
+		isLoading: isLocationLoading,
+		error: locationError,
+	} = useLocation();
+	const { perimeterKm, isReady: isPerimeterReady } = usePerimeter();
 
-  const [nearbyUsers, setNearbyUsers] = useState<NearbyUser[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+	const permissionGranted = Boolean(permissionStatus?.granted);
+	const canFetch =
+		Boolean(userId) &&
+		permissionGranted &&
+		!isLocationLoading &&
+		!locationError &&
+		Boolean(userLocation) &&
+		isPerimeterReady;
 
-  useEffect(() => {
-    if (isLocationLoading) {
-      setIsLoading(true);
-      return;
-    }
+	const lastLocationPushRef = useRef(0);
 
-    if (!userId) {
-      setError("Not authenticated");
-      setIsLoading(false);
-      return;
-    }
+	useEffect(() => {
+		if (!canFetch || !userLocation) return;
+		const now = Date.now();
+		if (now - lastLocationPushRef.current < LOCATION_UPDATE_THROTTLE_MS) return;
+		lastLocationPushRef.current = now;
+		updateLocationApi(userLocation.latitude, userLocation.longitude).catch((err: unknown) => {
+			console.warn("Update location failed", err);
+		});
+	}, [canFetch, userLocation?.latitude, userLocation?.longitude]);
 
-    if (!permissionStatus?.granted) {
-      const timer = setTimeout(() => {
-        if (!permissionStatus?.granted) {
-          setError("No location permission");
-          setNearbyUsers([]);
-          setIsLoading(false);
-        }
-      }, 2000);
+	const query = useQuery({
+		queryKey: [
+			...nearbyUsersQueryKeyRoot,
+			userId,
+			userLocation?.latitude,
+			userLocation?.longitude,
+			perimeterKm,
+		],
+		queryFn: async () => {
+			if (!userLocation) return [];
+			return fetchNearbyUsersApi({
+				latitude: userLocation.latitude,
+				longitude: userLocation.longitude,
+				radius: perimeterKm,
+			});
+		},
+		enabled: canFetch,
+		staleTime: 2 * 60 * 1000,
+		gcTime: 10 * 60 * 1000,
+		refetchInterval: 5 * 60 * 1000,
+		refetchOnWindowFocus: false,
+		placeholderData: (previous) => previous,
+	});
 
-      return () => clearTimeout(timer);
-    }
+	let error: string | null = null;
+	if (!userId) {
+		error = "Not authenticated";
+	} else if (locationError) {
+		error = locationError;
+	} else if (!isLocationLoading && !permissionGranted) {
+		error = "No location permission";
+	} else if (query.isError) {
+		error = "Error fetching nearby users";
+	}
 
-    if (locationError) {
-      setError(locationError);
-      setNearbyUsers([]);
-      setIsLoading(false);
-      return;
-    }
+	const isLoading =
+		Boolean(userId) &&
+		(isLocationLoading || !isPerimeterReady || (canFetch && query.isLoading && !query.data));
 
-    if (!userLocation) {
-      setIsLoading(true);
-      return;
-    }
-
-    setError(null);
-    setIsLoading(true);
-
-    const fetchNearby = async () => {
-      try {
-        updateLocationApi(userLocation.latitude, userLocation.longitude).catch((err: unknown) => {
-          console.warn("Update location failed", err);
-        });
-
-        const data = await fetchNearbyUsersApi({
-          latitude: userLocation.latitude,
-          longitude: userLocation.longitude,
-          radius: NEARBY_RADIUS_METERS / 1000,
-        });
-
-        setNearbyUsers(data);
-        setIsLoading(false);
-      } catch {
-        setError("Error fetching nearby users");
-        setNearbyUsers([]);
-        setIsLoading(false);
-      }
-    };
-
-    fetchNearby();
-    const interval = setInterval(fetchNearby, 30000);
-    return () => clearInterval(interval);
-  }, [userId, userLocation, permissionStatus?.granted, isLocationLoading, locationError]);
-
-  return {
-    nearbyUsers,
-    isLoading,
-    error,
-  };
+	return {
+		nearbyUsers: query.data ?? [],
+		isLoading,
+		error,
+		perimeterKm,
+	};
 }

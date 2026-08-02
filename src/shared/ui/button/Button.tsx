@@ -9,6 +9,7 @@ interface ButtonProps {
 	loading?: boolean;
 	disabled?: boolean;
 	style?: ViewStyle;
+	testID?: string;
 }
 
 const StyledButton = styled.TouchableOpacity<{
@@ -70,6 +71,7 @@ export const Button: React.FC<ButtonProps> = ({
 	loading = false,
 	disabled = false,
 	style,
+	testID,
 }) => {
 	const isDisabled = disabled || loading;
 
@@ -80,6 +82,9 @@ export const Button: React.FC<ButtonProps> = ({
 			onPress={onPress}
 			activeOpacity={0.7}
 			style={style}
+			testID={testID}
+			nativeID={testID}
+			accessibilityLabel={testID ?? title}
 		>
 			{loading ? (
 				<ActivityIndicator

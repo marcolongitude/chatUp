@@ -200,15 +200,16 @@ func (h *Handlers) getUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]any{
-		"id":          user.ID,
-		"email":       user.Email,
-		"displayName": user.DisplayName,
-		"photoURL":    user.PhotoURL,
-		"phoneNumber": user.PhoneNumber,
-		"bio":         user.Bio,
-		"publicKey":   user.PublicKey,
-		"createdAt":   user.CreatedAt,
-		"updatedAt":   user.UpdatedAt,
+		"id":             user.ID,
+		"email":          user.Email,
+		"displayName":    user.DisplayName,
+		"photoURL":       user.PhotoURL,
+		"phoneNumber":    user.PhoneNumber,
+		"bio":            user.Bio,
+		"publicKey":      user.PublicKey,
+		"nearbyRadiusKm": user.NearbyRadiusKm,
+		"createdAt":      user.CreatedAt,
+		"updatedAt":      user.UpdatedAt,
 	})
 }
 
@@ -221,6 +222,11 @@ func (h *Handlers) updateUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid body", http.StatusBadRequest)
 		return
 	}
+	var nearbyRadiusKm *int
+	if raw, ok := body["nearbyRadiusKm"]; ok && raw != nil {
+		km := store.IntFromAny(raw)
+		nearbyRadiusKm = &km
+	}
 	user, err := h.svc.UpdateUser(r.Context(), actorID, id, app.UpdateUserInput{
 		DisplayName: store.PtrStringFromAny(body["displayName"]),
 		PhotoURL:    store.PtrStringFromAny(body["photoURL"]),
@@ -230,6 +236,7 @@ func (h *Handlers) updateUser(w http.ResponseWriter, r *http.Request) {
 			store.PtrStringFromAny(body["publicKey"]),
 			store.PtrStringFromAny(body["public_key"]),
 		),
+		NearbyRadiusKm: nearbyRadiusKm,
 	})
 	if err != nil {
 		switch {
@@ -237,16 +244,19 @@ func (h *Handlers) updateUser(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "forbidden", http.StatusForbidden)
 		case errors.Is(err, app.ErrNotFound):
 			http.Error(w, "User not found", http.StatusNotFound)
+		case errors.Is(err, app.ErrInvalidBody):
+			http.Error(w, "invalid body", http.StatusBadRequest)
 		default:
 			http.Error(w, "query error", http.StatusInternalServerError)
 		}
 		return
 	}
 	writeJSON(w, 200, map[string]any{
-		"id":          user.ID,
-		"email":       user.Email,
-		"displayName": user.DisplayName,
-		"photoURL":    user.PhotoURL,
+		"id":             user.ID,
+		"email":          user.Email,
+		"displayName":    user.DisplayName,
+		"photoURL":       user.PhotoURL,
+		"nearbyRadiusKm": user.NearbyRadiusKm,
 		"phoneNumber": user.PhoneNumber,
 		"bio":         user.Bio,
 		"publicKey":   user.PublicKey,
@@ -258,14 +268,15 @@ func (h *Handlers) updateUser(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) sendMessage(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(authmw.UserIDKey).(string)
 	var body struct {
-		ReceiverID string `json:"receiverId"`
-		Content    string `json:"content"`
+		ReceiverID  string `json:"receiverId"`
+		Content     string `json:"content"`
+		ClientMsgID string `json:"clientMsgId"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid body", http.StatusBadRequest)
 		return
 	}
-	msg, err := h.svc.SendMessage(r.Context(), userID, body.ReceiverID, body.Content)
+	msg, err := h.svc.SendMessage(r.Context(), userID, body.ReceiverID, body.Content, body.ClientMsgID)
 	if err != nil {
 		http.Error(w, "query error", http.StatusInternalServerError)
 		return
@@ -275,6 +286,8 @@ func (h *Handlers) sendMessage(w http.ResponseWriter, r *http.Request) {
 		"senderId":    msg.SenderID,
 		"receiverId":  msg.ReceiverID,
 		"content":     msg.Content,
+		"clientMsgId": msg.ClientMsgID,
+		"seqNum":      msg.SeqNum,
 		"timestamp":   msg.Timestamp,
 		"isDelivered": msg.IsDelivered,
 		"isRead":      msg.IsRead,
@@ -297,6 +310,8 @@ func (h *Handlers) getMessages(w http.ResponseWriter, r *http.Request) {
 			"id":          msg.ID,
 			"senderId":    msg.SenderID,
 			"receiverId":  msg.ReceiverID,
+			"clientMsgId": msg.ClientMsgID,
+			"seqNum":      msg.SeqNum,
 			"content":     msg.Content,
 			"timestamp":   msg.Timestamp,
 			"isDelivered": msg.IsDelivered,

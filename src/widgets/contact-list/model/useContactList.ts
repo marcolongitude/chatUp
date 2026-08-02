@@ -4,21 +4,25 @@ import { useAuth } from "@/features/auth";
 import { useLocation, useNearbyUsers } from "@/features/location";
 import { useContacts } from "@/entities/contact";
 import { axiosInstance } from "@/shared/api";
-import { ensureStableSession } from "@/shared/lib/crypto";
 
 export function useContactList() {
 	const router = useRouter();
 	const { user } = useAuth();
-	
+
 	const { openSettings, permissionStatus } = useLocation();
-	const { nearbyUsers, isLoading: isLoadingNearby, error: nearbyError } = useNearbyUsers(user?.id);
+	const {
+		nearbyUsers,
+		isLoading: isLoadingNearby,
+		error: nearbyError,
+		perimeterKm,
+	} = useNearbyUsers(user?.id);
 	const { contacts, isLoading: isLoadingContacts } = useContacts(nearbyUsers, user?.id);
 
 	const [searchQuery, setSearchQuery] = useState("");
 	const [searchPromise, setSearchPromise] = useState<Promise<any[]> | null>(null);
 
 	const isLoading = isLoadingNearby || isLoadingContacts;
-	
+
 	const isLocationPermissionError = Boolean(
 		nearbyError &&
 			(nearbyError.includes("localização") ||
@@ -42,16 +46,13 @@ export function useContactList() {
 	}, [searchQuery]);
 
 	const handleContactPress = useCallback((contactId: string, name?: string, avatar?: string) => {
-		if (user) {
-			ensureStableSession(user.id, contactId).catch(() => {});
-		}
-
+		// Sessão crypto inicia no chat (useMessages), não bloqueia a navegação.
 		router.navigate({
 			to: "/chat/$chatId",
 			params: { chatId: contactId },
 			search: { initialName: name, initialAvatar: avatar }
 		} as any);
-	}, [user, router]);
+	}, [router]);
 
 	const isSearchingMode = searchQuery.length >= 2;
 
@@ -65,6 +66,7 @@ export function useContactList() {
 		nearbyError,
 		isLocationPermissionError,
 		isSearchingMode,
+		perimeterKm,
 		openSettings,
 		handleContactPress,
 	};

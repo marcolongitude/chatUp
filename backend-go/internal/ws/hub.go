@@ -80,6 +80,10 @@ func (h *Hub) SendToUser(userID string, msg Outbound) {
 		select {
 		case c.Send <- msg:
 		default:
+			// Non-blocking send: log drop instead of silent discard under backpressure.
+			if h.logger != nil {
+				h.logger.Warn("websocket send dropped", "userId", userID, "type", msg.Type)
+			}
 		}
 	}
 }

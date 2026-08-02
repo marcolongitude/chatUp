@@ -90,7 +90,7 @@ export const es = {
 		title: "Conversaciones",
 		searching: "Buscando usuarios cercanos...",
 		noUsersFound: "No se encontraron usuarios cercanos",
-		usersWithin2km: "Los usuarios dentro de 2km aparecerán aquí automáticamente",
+		usersWithin2km: "Los usuarios dentro de {{km}} km aparecerán aquí automáticamente",
 		locationPermissionError: "Para ver usuarios cercanos, es necesario permitir el acceso a la ubicación.",
 		locationError: "Verifique si la ubicación está habilitada e intente nuevamente.",
 		openSettings: "Abrir Configuración",
@@ -106,6 +106,7 @@ export const es = {
 		noMessages: "Aún no hay mensajes.\n¡Comience a chatear!",
 		messagePlaceholder: "Escriba un mensaje...",
 		sending: "Enviando...",
+		send: "Enviar",
 	},
 
 	// Configuración
@@ -113,6 +114,9 @@ export const es = {
 		title: "Configuración",
 		language: "Idioma",
 		languageDescription: "Elija el idioma de la aplicación",
+		perimeter: "Alcance de descubrimiento",
+		perimeterDescription: "Elija hasta cuántos kilómetros buscar personas cercanas",
+		perimeterKm: "{{km}} km",
 		appVersion: "Versión de la Aplicación",
 		versionCode: "Version Code",
 		runtimeVersion: "Versión del Runtime",

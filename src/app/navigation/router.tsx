@@ -9,6 +9,8 @@ export const router = createRouter({
   routeTree,
   history,
   defaultPreload: 'intent',
+  // RN: keep false (a function is truthy and still enables DOM scroll setup).
+  scrollRestoration: false,
 });
 
 declare module '@tanstack/react-router' {

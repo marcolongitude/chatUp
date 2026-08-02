@@ -20,9 +20,10 @@ export const MessageItem = React.memo(({ message, isOwn }: MessageItemProps) => 
 			<MessageFooter isOwn={isOwn}>
 				<MessageTime isOwn={isOwn}>{formatTime(new Date(message.timestamp))}</MessageTime>
 				{isOwn && (
-					<MessageStatus 
-						isRead={message.read} 
-						isViewed={message.viewedAt !== null} 
+					<MessageStatus
+						status={message.deliveryStatus}
+						isRead={message.read}
+						isViewed={message.viewedAt != null}
 					/>
 				)}
 			</MessageFooter>

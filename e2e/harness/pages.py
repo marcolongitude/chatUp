@@ -1,0 +1,261 @@
+from __future__ import annotations
+
+import time
+from typing import Optional
+
+import uiautomator2 as u2
+
+
+def _find(d: u2.Device, test_id: str, timeout: float = 20.0):
+    """Resolve RN testID on Android (resourceId or content-desc)."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        for kwargs in (
+            {"resourceId": test_id},
+            {"description": test_id},
+            {"text": test_id},
+        ):
+            el = d(**kwargs)
+            if el.exists:
+                return el
+        # Package-prefixed resource ids
+        el = d(resourceIdMatches=f".*{test_id}$")
+        if el.exists:
+            return el
+        time.sleep(0.4)
+    raise TimeoutError(f"element not found: {test_id}")
+
+
+def wait_gone(d: u2.Device, test_id: str, timeout: float = 30.0) -> None:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if not d(resourceId=test_id).exists and not d(description=test_id).exists:
+            return
+        time.sleep(0.4)
+    raise TimeoutError(f"element still present: {test_id}")
+
+
+def wait_text(d: u2.Device, text: str, timeout: float = 30.0) -> None:
+    if not d(textContains=text).wait(timeout=timeout):
+        raise TimeoutError(f"text not found: {text}")
+
+
+class LoginPage:
+    def __init__(self, d: u2.Device) -> None:
+        self.d = d
+
+    def _looks_like_login(self) -> bool:
+        if self.d(resourceId="e2e.login.email").exists or self.d(description="e2e.login.email").exists:
+            return True
+        if self.d(className="android.widget.EditText").count >= 2:
+            for hint in ("Enter your email", "Digite seu", "password", "senha", "Log In", "Entrar"):
+                if self.d(textContains=hint).exists:
+                    return True
+        return False
+
+    def ensure_login_screen(self, timeout: float = 90.0) -> None:
+        """Reach login even if app opens main shell with a broken/empty session."""
+        from .devices import dismiss_system_dialogs, reset_and_launch
+
+        deadline = time.time() + timeout
+        last: Exception | None = None
+        hard_reset_done = False
+        while time.time() < deadline:
+            dismiss_system_dialogs(self.d)
+            if self._looks_like_login():
+                return
+            # Stale shell after app_clear / Keychain leftovers
+            for label in ("Logout", "Sair", "Log out"):
+                if self.d(text=label).exists:
+                    self.d(text=label).click()
+                    time.sleep(2.0)
+                    dismiss_system_dialogs(self.d)
+                    break
+            if (
+                not hard_reset_done
+                and (
+                    self.d(textContains="Not authenticated").exists
+                    or self.d(textContains="não autenticado").exists
+                )
+            ):
+                pkg = "com.chatup.app"
+                reset_and_launch(self.d, pkg, serial=self.d.serial)
+                hard_reset_done = True
+                continue
+            try:
+                _find(self.d, "e2e.login.email", timeout=2)
+                return
+            except Exception as exc:  # noqa: BLE001
+                last = exc
+            time.sleep(0.5)
+        raise TimeoutError(f"login screen not ready: {last}")
+
+    def wait_ready(self, timeout: float = 60.0) -> None:
+        self.ensure_login_screen(timeout=timeout)
+
+    def login(self, email: str, password: str) -> None:
+        self.wait_ready()
+        try:
+            email_el = _find(self.d, "e2e.login.email", timeout=5)
+        except TimeoutError:
+            edits = self.d(className="android.widget.EditText")
+            if edits.count < 2:
+                raise
+            email_el = edits[0]
+        email_el.click()
+        email_el.set_text(email)
+
+        try:
+            pwd_el = _find(self.d, "e2e.login.password", timeout=5)
+        except TimeoutError:
+            pwd_el = self.d(className="android.widget.EditText")[1]
+        pwd_el.click()
+        pwd_el.set_text(password)
+
+        # Keyboard / password managers often cover the submit button.
+        try:
+            self.d.hide_keyboard()
+        except Exception:  # noqa: BLE001
+            self.d.press("back")
+        time.sleep(0.4)
+        # Dismiss Samsung/Google password sheets if present
+        for label in ("OK", "Não", "Never", "No thanks", "Cancelar", "Cancel"):
+            if self.d(text=label).exists:
+                self.d(text=label).click()
+                time.sleep(0.3)
+
+        clicked = False
+        try:
+            _find(self.d, "e2e.login.submit", timeout=5).click()
+            clicked = True
+        except TimeoutError:
+            for label in ("Log In", "Entrar", "Login"):
+                if self.d(text=label).exists:
+                    self.d(text=label).click()
+                    clicked = True
+                    break
+        if not clicked:
+            # Last resort: tap lower primary area / swipe up then retry
+            self.d.swipe_ext("up", scale=0.6)
+            time.sleep(0.3)
+            for label in ("Log In", "Entrar", "Login"):
+                if self.d(text=label).exists:
+                    self.d(text=label).click()
+                    clicked = True
+                    break
+        if not clicked:
+            raise TimeoutError("login submit control not found")
+        # Wait until conversations (or any post-auth shell) appears
+        from .devices import dismiss_system_dialogs
+
+        deadline = time.time() + 60
+        while time.time() < deadline:
+            dismiss_system_dialogs(self.d)
+            if self.d(resourceId="e2e.conversations.screen").exists:
+                return
+            if self.d(textContains="Conversations").exists or self.d(textContains="Conversas").exists:
+                return
+            # Logout tab means main shell even if nearby list still loading
+            if self.d(text="Logout").exists or self.d(text="Sair").exists:
+                return
+            time.sleep(0.5)
+        raise TimeoutError("login did not reach main shell")
+
+
+class ConversationsPage:
+    def __init__(self, d: u2.Device) -> None:
+        self.d = d
+
+    def wait_ready(self, timeout: float = 60.0) -> None:
+        from .devices import dismiss_system_dialogs
+
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            dismiss_system_dialogs(self.d)
+            if self.d(resourceId="e2e.conversations.screen").exists:
+                return
+            if self.d(textContains="Conversations").exists or self.d(textContains="Conversas").exists:
+                return
+            if self.d(text="Logout").exists or self.d(text="Sair").exists:
+                return
+            time.sleep(0.4)
+        raise TimeoutError("conversations screen not ready")
+
+    def open_contact(self, user_id: str, display_name: str, timeout: float = 60.0) -> None:
+        # Already inside the target chat?
+        if self.d(resourceId="e2e.chat.input").exists and self.d(textContains=display_name).exists:
+            return
+        self.wait_ready(timeout=min(timeout, 30))
+        deadline = time.time() + timeout
+        last_err: Optional[Exception] = None
+        while time.time() < deadline:
+            try:
+                _find(self.d, f"e2e.contact.{user_id}", timeout=3).click()
+                return
+            except Exception as exc:  # noqa: BLE001
+                last_err = exc
+            if self.d(textContains=display_name).exists:
+                self.d(textContains=display_name).click()
+                return
+            time.sleep(1.0)
+        raise TimeoutError(
+            f"contact not in nearby list: {display_name} ({user_id}); last={last_err}"
+        )
+
+
+class ChatPage:
+    def __init__(self, d: u2.Device) -> None:
+        self.d = d
+
+    def wait_ready(self, timeout: float = 30.0) -> None:
+        _find(self.d, "e2e.chat.input", timeout=timeout)
+
+    def send_message(self, text: str) -> None:
+        """Send via DEV deep link so RN controlled state is updated reliably."""
+        import subprocess
+        import urllib.parse
+
+        self.wait_ready()
+        serial = self.d.serial
+        url = "chatup://e2e/chat-send?text=" + urllib.parse.quote(text, safe="")
+        subprocess.check_call(
+            [
+                "adb",
+                "-s",
+                serial,
+                "shell",
+                "am",
+                "start",
+                "-a",
+                "android.intent.action.VIEW",
+                "-d",
+                url,
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        time.sleep(2.0)
+
+    def go_back(self) -> None:
+        # Header back chevron or system back
+        if self.d(descriptionContains="back").exists:
+            self.d(descriptionContains="back").click()
+        elif self.d(resourceIdMatches=".*back.*").exists:
+            self.d(resourceIdMatches=".*back.*").click()
+        else:
+            self.d.press("back")
+        time.sleep(1.0)
+
+    def expect_message(self, text: str, timeout: float = 45.0) -> None:
+        deadline = time.time() + timeout
+        last_err: Exception | None = None
+        while time.time() < deadline:
+            try:
+                wait_text(self.d, text, timeout=3)
+                return
+            except Exception as exc:  # noqa: BLE001
+                last_err = exc
+            # Nudge list / pull fresh render
+            self.d.swipe_ext("down", scale=0.3)
+            time.sleep(0.8)
+        raise TimeoutError(f"text not found: {text}; last={last_err}")

@@ -171,6 +171,7 @@ export function LoginForm({
                 onChangeText={onChange}
                 onBlur={onBlur}
                 error={errors.email?.message}
+                testID="e2e.login.email"
               />
             )}
             name="email"
@@ -198,13 +199,20 @@ export function LoginForm({
                 onChangeText={onChange}
                 onBlur={onBlur}
                 error={errors.password?.message}
+                testID="e2e.login.password"
               />
             )}
             name="password"
           />
 
           <ButtonContainer>
-            <Button title={t("auth.login")} onPress={handleSubmit(handleFormSubmit)} variant="primary" loading={isLoading} />
+            <Button
+              title={t("auth.login")}
+              onPress={handleSubmit(handleFormSubmit)}
+              variant="primary"
+              loading={isLoading}
+              testID="e2e.login.submit"
+            />
           </ButtonContainer>
 
           <ForgotPasswordContainer>

@@ -10,7 +10,10 @@ import { AuthUser, useAuthSession } from "./use-auth-session";
 
 WebBrowser.maybeCompleteAuthSession();
 
-const buildNativeRedirectUri = (clientId: string) => `com.googleusercontent.apps.${clientId}:/oauthredirect`;
+const buildNativeRedirectUri = (clientId: string) => {
+  const id = clientId.replace(/\.apps\.googleusercontent\.com$/i, "");
+  return `com.googleusercontent.apps.${id}:/oauthredirect`;
+};
 
 const buildRedirectUri = (nativeRedirectUri?: string, useProxy?: boolean) =>
   AuthSession.makeRedirectUri({
