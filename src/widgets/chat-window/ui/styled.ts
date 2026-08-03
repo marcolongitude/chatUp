@@ -13,7 +13,10 @@ export const MessagesListContainer = styled.View`
     padding: ${(props) => props.theme.spacing.md}px;
 `;
 
-export const MessageBubble = styled.View<{ isOwn: boolean }>`
+export const MessageBubble = styled.View.attrs<{ isOwn: boolean; testID?: string }>((props) => ({
+    testID: props.testID,
+    accessibilityLabel: props.testID,
+}))<{ isOwn: boolean; testID?: string }>`
     max-width: 75%;
     padding: ${(props) => props.theme.spacing.sm}px ${(props) => props.theme.spacing.md}px;
     margin-bottom: ${(props) => props.theme.spacing.sm}px;
@@ -46,8 +49,8 @@ export const MessageTime = styled.Text.attrs(() => ({
     includeFontPadding: false,
 }))<{ isOwn: boolean }>`
     font-size: 11px;
-    color: ${(props) => (props.isOwn ? props.theme.colors.text.secondary : props.theme.colors.text.tertiary)};
-    opacity: 0.7;
+    color: ${(props) => (props.isOwn ? "rgba(255,255,255,0.85)" : props.theme.colors.text.tertiary)};
+    opacity: ${(props) => (props.isOwn ? 1 : 0.8)};
     padding-right: 2px;
 `;
 

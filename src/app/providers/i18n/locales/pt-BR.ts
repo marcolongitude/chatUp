@@ -108,6 +108,14 @@ export const ptBR = {
 		send: "Enviar",
 	},
 
+	notifications: {
+		title: "ChatUp",
+		fallbackSender: "Alguém",
+		singleOne: "1 mensagem de {{name}}",
+		singleMany: "{{count}} mensagens de {{name}}",
+		multiple: "{{messages}} mensagens de {{contacts}} pessoas",
+	},
+
 	// Configurações
 	settings: {
 		title: "Configurações",

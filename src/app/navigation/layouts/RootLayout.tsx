@@ -4,6 +4,7 @@ import { Outlet } from "@tanstack/react-router";
 import { UpdateDialog } from "@/shared/ui";
 import { requestNotificationPermissions } from "@/shared/lib/notifications";
 import { AuthExpiredBridge } from "@/features/auth";
+import { RealtimeNotificationsBridge } from "@/app/providers/RealtimeNotificationsBridge";
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {
 	constructor(props: { children: React.ReactNode }) {
@@ -83,6 +84,7 @@ export function RootLayout() {
 	return (
 		<ErrorBoundary>
 			<AuthExpiredBridge />
+			<RealtimeNotificationsBridge />
 			<Suspense fallback={<LoadingFallback />}>
 				<Outlet />
 			</Suspense>

@@ -60,12 +60,41 @@ def ensure_metro_reverse(usb: str, emu: str, port: int) -> None:
 def connect_pair(metro_port: int = 8081) -> DevicePair:
     usb, emu = discover_pair()
     ensure_metro_reverse(usb, emu, metro_port)
-    return DevicePair(
+    pair = DevicePair(
         usb_serial=usb,
         emu_serial=emu,
         usb=u2.connect(usb),
         emu=u2.connect(emu),
     )
+    # QEMU exposes "AT Translated Set 2 keyboard" → Settings spam + shade noise.
+    silence_emulator_keyboard_noise(pair.emu)
+    return pair
+
+
+def silence_emulator_keyboard_noise(d: u2.Device, *, leave_app: bool = False) -> None:
+    """Stop API 35 physical-keyboard setup loop on AVD (AT Translated Set 2).
+
+    Never press Home by default — that kicked ChatUp to launcher during login waits
+    and made ensure_login_screen loop until timeout (false 'stuck' failures).
+    """
+    if not str(d.serial).startswith("emulator-"):
+        return
+    try:
+        d.shell(
+            "ime set com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME"
+        )
+        d.shell("settings put secure show_ime_with_hard_keyboard 1")
+        d.shell(
+            "settings put secure default_input_method "
+            "com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME"
+        )
+        # Year-long snooze of the "Configure AT Translated Set 2 keyboard" notif (id=19).
+        d.shell("cmd notification snooze --for 31536000000 '-1|android|19|null|1000'")
+        d.shell("cmd statusbar collapse")
+        if leave_app:
+            d.press("home")
+    except Exception:  # noqa: BLE001
+        pass
 
 
 RUNTIME_PERMISSIONS = (
@@ -118,14 +147,23 @@ def dismiss_system_dialogs(d: u2.Device) -> None:
             "salvar senha",
             "save password",
             "Save password",
+            "AT Translated Set 2",
+            "Physical keyboard",
+            "Configure AT Translated",
         ):
             if d(textContains=contains).exists:
-                for label in ("Cancelar", "Cancel", "Nunca", "Never", "Não"):
+                for label in ("Cancelar", "Cancel", "Nunca", "Never", "Não", "Done", "OK"):
                     if d(text=label).exists:
                         d(text=label).click()
                         clicked = True
                         time.sleep(0.5)
                         break
+                else:
+                    # Leave keyboard settings if they stole focus
+                    if "keyboard" in contains.lower() or "AT Translated" in contains:
+                        d.press("back")
+                        clicked = True
+                        time.sleep(0.3)
         for rid in (
             "com.android.permissioncontroller:id/permission_allow_button",
             "com.android.permissioncontroller:id/permission_allow_foreground_only_button",
@@ -142,15 +180,18 @@ def dismiss_system_dialogs(d: u2.Device) -> None:
 
 def reset_and_launch(d: u2.Device, package: str, serial: str | None = None) -> None:
     serial = serial or d.serial
+    silence_emulator_keyboard_noise(d)
     d.app_stop(package)
     d.app_clear(package)
     grant_runtime_permissions(serial, package)
     d.app_start(package)
     time.sleep(3)
     dismiss_system_dialogs(d)
+    silence_emulator_keyboard_noise(d)
     # App may still flash a prompt once; dismiss again after bundle load.
     time.sleep(5)
     dismiss_system_dialogs(d)
+    silence_emulator_keyboard_noise(d)
 
 
 def relaunch(d: u2.Device, package: str) -> None:

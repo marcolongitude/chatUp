@@ -30,6 +30,8 @@ type: Opaque
 stringData:
   DATABASE_URL: "postgres://admin:password@postgres:5432/chatup?sslmode=disable"
   JWT_SECRET: "181b2246922adfbdd1f1774fd1de2cec30b769ccea26f1eb"
+  # Audience do id_token (sempre o Web Client ID, não o Android)
+  GOOGLE_CLIENT_ID: "510679848324-uicijmb0d26ebf3rlo0qil5pjuk9d1ea.apps.googleusercontent.com"
 ---
 apiVersion: apps/v1
 kind: Deployment

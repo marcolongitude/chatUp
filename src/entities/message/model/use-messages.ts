@@ -3,7 +3,7 @@ import { AppState } from "react-native";
 import * as ExpoCrypto from "expo-crypto";
 import { ensureStableSession, encryptMessage, decryptMessage } from "@/shared/lib/crypto";
 import { axiosInstance } from "@/shared/api/axiosClient";
-import { connectSocket, disconnectSocket } from "@/shared/lib/realtime/socket";
+import { subscribeSocket } from "@/shared/lib/realtime/socket";
 import { listByContact, saveByContact } from "@/shared/lib/local-db/messages";
 import {
 	enqueueOutbox,
@@ -14,18 +14,13 @@ import {
 } from "@/shared/lib/local-db/outbox";
 import { generateChatId } from "@/shared/lib/chat-id";
 import { trackRealtimeError, trackRealtimeEvent } from "@/shared/lib/telemetry/realtime";
+import { deliveryFromFlags } from "../lib/delivery-status";
 import type { Message, CreateMessageData, MessageDeliveryStatus } from "./types";
 
 const DECRYPT_CACHE_TTL_MS = 15 * 60 * 1000;
 const MAX_DECRYPT_CACHE_ENTRIES = 500;
 const OUTBOX_MAX_RETRIES = 8;
 const OUTBOX_POLL_MS = 5000;
-
-function deliveryFromFlags(isDelivered: boolean, isRead: boolean): MessageDeliveryStatus {
-	if (isRead) return "read";
-	if (isDelivered) return "delivered";
-	return "sent";
-}
 
 function messageKey(message: Message): string {
 	return message.clientMsgId ? `c:${message.clientMsgId}` : `i:${message.id}`;
@@ -283,7 +278,10 @@ export function useMessages(contactId: string, userId: string | undefined) {
 		if (!userId || !contactId) return;
 
 		let mounted = true;
-		connectSocket(async (event) => {
+		let unsubscribe: (() => void) | undefined;
+		let cancelled = false;
+
+		void subscribeSocket(async (event) => {
 			if (!mounted) return;
 
 			if (event.type === "ack") {
@@ -374,13 +372,22 @@ export function useMessages(contactId: string, userId: string | undefined) {
 			}
 
 			void loadMessages({ applyCache: false });
-		}).catch((error) => {
-			console.error("[Entities/Message] Socket connection error:", error);
-		});
+		})
+			.then((unsub) => {
+				if (cancelled) {
+					unsub();
+					return;
+				}
+				unsubscribe = unsub;
+			})
+			.catch((error) => {
+				console.error("[Entities/Message] Socket connection error:", error);
+			});
 
 		return () => {
 			mounted = false;
-			disconnectSocket();
+			cancelled = true;
+			unsubscribe?.();
 		};
 	}, [userId, contactId, chatId, loadMessages, patchLocalMessage, persist]);
 

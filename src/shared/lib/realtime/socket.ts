@@ -7,7 +7,7 @@ const RECONNECT_BASE_DELAY_MS = 1000;
 const RECONNECT_MAX_DELAY_MS = 20000;
 
 let socket: WebSocket | null = null;
-let activeHandler: SocketHandler | null = null;
+const handlers = new Set<SocketHandler>();
 let reconnectAttempts = 0;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let isConnecting = false;
@@ -34,6 +34,17 @@ function getReconnectDelayMs(attempt: number): number {
 	const expBackoff = Math.min(RECONNECT_MAX_DELAY_MS, RECONNECT_BASE_DELAY_MS * 2 ** Math.max(0, attempt - 1));
 	const jitter = Math.floor(Math.random() * 400);
 	return expBackoff + jitter;
+}
+
+function fanOut(payload: { type: string; data: any }): void {
+	for (const handler of handlers) {
+		try {
+			handler(payload);
+		} catch (error) {
+			console.error("[Realtime] Socket handler error:", error);
+			trackRealtimeError({ stage: "socket_message", details: { reason: "handler_error" } }, error);
+		}
+	}
 }
 
 async function openSocketConnection(): Promise<WebSocket | null> {
@@ -73,7 +84,7 @@ async function openSocketConnection(): Promise<WebSocket | null> {
 				result: "info",
 				details: { type: payload?.type ?? "unknown" },
 			});
-			activeHandler?.(payload);
+			fanOut(payload);
 		} catch (error) {
 			console.error("[Realtime] Invalid WS payload:", error);
 			trackRealtimeError({ stage: "socket_message", details: { reason: "invalid_payload" } }, error);
@@ -94,11 +105,11 @@ async function openSocketConnection(): Promise<WebSocket | null> {
 			socket = null;
 		}
 
-		if (!shouldReconnect) {
+		if (!shouldReconnect || handlers.size === 0) {
 			trackRealtimeEvent({
 				stage: "socket_disconnect",
 				result: "info",
-				details: { reason: "manual_disconnect" },
+				details: { reason: "manual_disconnect_or_no_handlers" },
 			});
 			return;
 		}
@@ -121,15 +132,31 @@ async function openSocketConnection(): Promise<WebSocket | null> {
 	return client;
 }
 
-export async function connectSocket(onMessage: SocketHandler): Promise<WebSocket | null> {
-	activeHandler = onMessage;
+/**
+ * Subscribe to realtime events. Keeps a single shared WS for the session.
+ * Returns an unsubscribe function that does NOT close the socket if other
+ * subscribers remain (chat UI + notification bridge).
+ */
+export async function subscribeSocket(onMessage: SocketHandler): Promise<() => void> {
+	handlers.add(onMessage);
 	shouldReconnect = true;
 
-	if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
-		return socket;
+	if (!socket || (socket.readyState !== WebSocket.OPEN && socket.readyState !== WebSocket.CONNECTING)) {
+		await openSocketConnection();
 	}
 
-	return await openSocketConnection();
+	return () => {
+		handlers.delete(onMessage);
+		if (handlers.size === 0) {
+			disconnectSocket();
+		}
+	};
+}
+
+/** @deprecated Prefer subscribeSocket — kept for call sites that still pass a single handler. */
+export async function connectSocket(onMessage: SocketHandler): Promise<WebSocket | null> {
+	await subscribeSocket(onMessage);
+	return socket;
 }
 
 export function sendSocketEvent(type: string, data: Record<string, unknown>) {
@@ -140,7 +167,7 @@ export function sendSocketEvent(type: string, data: Record<string, unknown>) {
 export function disconnectSocket() {
 	shouldReconnect = false;
 	clearReconnectTimer();
-	activeHandler = null;
+	handlers.clear();
 	if (socket) {
 		socket.close();
 		socket = null;

@@ -58,6 +58,8 @@ module.exports = () => {
 					"ACCESS_COARSE_LOCATION",
 					"android.permission.ACCESS_COARSE_LOCATION",
 					"android.permission.ACCESS_FINE_LOCATION",
+					"android.permission.POST_NOTIFICATIONS",
+					"POST_NOTIFICATIONS",
 				],
 				usesCleartextTraffic: true,
 			},
@@ -79,6 +81,13 @@ module.exports = () => {
 				"expo-web-browser",
 				"expo-build-properties",
 				"react-native-quick-crypto",
+				[
+					"expo-notifications",
+					{
+						color: "#5b9bd5",
+						defaultChannel: "messages",
+					},
+				],
 			],
 			updates: {
 				enabled: true,

@@ -109,6 +109,14 @@ export const es = {
 		send: "Enviar",
 	},
 
+	notifications: {
+		title: "ChatUp",
+		fallbackSender: "Alguien",
+		singleOne: "1 mensaje de {{name}}",
+		singleMany: "{{count}} mensajes de {{name}}",
+		multiple: "{{messages}} mensajes de {{contacts}} personas",
+	},
+
 	// Configuración
 	settings: {
 		title: "Configuración",

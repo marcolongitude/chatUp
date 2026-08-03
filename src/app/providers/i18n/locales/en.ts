@@ -108,6 +108,14 @@ export const en = {
 		send: "Send",
 	},
 
+	notifications: {
+		title: "ChatUp",
+		fallbackSender: "Someone",
+		singleOne: "1 message from {{name}}",
+		singleMany: "{{count}} messages from {{name}}",
+		multiple: "{{messages}} messages from {{contacts}} people",
+	},
+
 	// Settings
 	settings: {
 		title: "Settings",

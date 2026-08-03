@@ -14,13 +14,17 @@ export const MessageItem = React.memo(({ message, isOwn }: MessageItemProps) => 
 
 	if (!message || !message.id || !message.text) return null;
 
+	const e2eKey = message.text;
+
 	return (
-		<MessageBubble isOwn={isOwn}>
+		<MessageBubble isOwn={isOwn} testID={`e2e.message.row.${e2eKey}`}>
 			<MessageText isOwn={isOwn}>{message.text}</MessageText>
 			<MessageFooter isOwn={isOwn}>
 				<MessageTime isOwn={isOwn}>{formatTime(new Date(message.timestamp))}</MessageTime>
 				{isOwn && (
 					<MessageStatus
+						isOwn
+						e2eKey={e2eKey}
 						status={message.deliveryStatus}
 						isRead={message.read}
 						isViewed={message.viewedAt != null}

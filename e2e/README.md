@@ -22,7 +22,10 @@ Password (both): `E2eTest123!`
 
 ```bash
 npm run e2e:pair          # smoke + pair tests
+npm run e2e:pair:smoke    # smoke only
+npm run e2e:pair:notify   # notification + delivery ticks (high ROI)
 npm run e2e:pair -- -k reply   # subset
+npm run test:notify       # unit: status mapping + local notification logic
 ```
 
 Or:

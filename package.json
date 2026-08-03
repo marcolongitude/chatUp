@@ -56,6 +56,8 @@
     "pair:usb-emulator:full": "./scripts/pair-usb-emulator.sh --start-emu --install --launch",
     "e2e:pair": "./e2e/run.sh -m pair",
     "e2e:pair:smoke": "./e2e/run.sh -m smoke",
+    "e2e:pair:notify": "./e2e/run.sh tests/test_pair_notify_delivery.py",
+    "test:notify": "jest --testPathPattern='(delivery-status|notifications|MessageStatus)'",
     "eas:setup": "eas build:configure",
     "eas:login": "eas login",
     "eas:logout": "eas logout",
