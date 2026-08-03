@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"strings"
+	"time"
 
 	"chatup/backend-go/internal/config"
 	"chatup/backend-go/internal/security"
@@ -25,6 +26,7 @@ var (
 	ErrTxFailed         = errors.New("tx failed")
 	ErrDatabaseDown     = errors.New("database unavailable")
 	ErrInvalidMessageWS = errors.New("invalid ws payload")
+	ErrRefreshInvalid   = errors.New("invalid refresh token")
 )
 
 type Service struct {
@@ -51,6 +53,10 @@ type storePort interface {
 	UpdateLocation(ctx context.Context, userID string, latitude, longitude float64) error
 	ListUsersWithLocation(ctx context.Context, exceptUserID string) ([]store.UserLocation, error)
 	ListUsersNearby(ctx context.Context, exceptUserID string, latitude, longitude, radiusMeters float64) ([]store.UserLocationDistance, error)
+	CreateRefreshToken(ctx context.Context, userID, tokenHash string, expiresAt time.Time) (string, error)
+	GetValidRefreshToken(ctx context.Context, tokenHash string) (store.RefreshTokenRow, error)
+	RevokeRefreshToken(ctx context.Context, id string, replacedBy *string) error
+	RevokeAllRefreshTokensForUser(ctx context.Context, userID string) error
 }
 
 type hubPort interface {
@@ -68,8 +74,29 @@ func New(cfg config.Config, s storePort, hub hubPort, logger *slog.Logger) *Serv
 }
 
 type AuthResult struct {
-	AccessToken string
-	User        store.User
+	AccessToken  string
+	RefreshToken string
+	User         store.User
+}
+
+func (s *Service) issueAuthTokens(ctx context.Context, user store.User) (AuthResult, error) {
+	access, err := security.CreateToken(s.cfg.JWTSecret, user.ID, user.Email, s.cfg.JWTTTLMinutes)
+	if err != nil {
+		return AuthResult{}, err
+	}
+	plain, hash, err := security.NewRefreshToken()
+	if err != nil {
+		return AuthResult{}, err
+	}
+	expiresAt := time.Now().UTC().Add(time.Duration(s.cfg.JWTRefreshTTLDays) * 24 * time.Hour)
+	if _, err := s.store.CreateRefreshToken(ctx, user.ID, hash, expiresAt); err != nil {
+		return AuthResult{}, err
+	}
+	return AuthResult{
+		AccessToken:  access,
+		RefreshToken: plain,
+		User:         user,
+	}, nil
 }
 
 type RegisterInput struct {
@@ -98,11 +125,7 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (AuthResult, e
 		return AuthResult{}, ErrEmailExists
 	}
 
-	token, err := security.CreateToken(s.cfg.JWTSecret, user.ID, user.Email, s.cfg.JWTTTLMinutes)
-	if err != nil {
-		return AuthResult{}, err
-	}
-	return AuthResult{AccessToken: token, User: user}, nil
+	return s.issueAuthTokens(ctx, user)
 }
 
 func (s *Service) Login(ctx context.Context, in RegisterInput) (AuthResult, error) {
@@ -123,19 +146,11 @@ func (s *Service) Login(ctx context.Context, in RegisterInput) (AuthResult, erro
 		return AuthResult{}, ErrInvalidCreds
 	}
 
-	token, err := security.CreateToken(s.cfg.JWTSecret, user.ID, user.Email, s.cfg.JWTTTLMinutes)
-	if err != nil {
-		return AuthResult{}, err
-	}
-
-	return AuthResult{
-		AccessToken: token,
-		User: store.User{
-			ID:          user.ID,
-			Email:       user.Email,
-			DisplayName: user.DisplayName,
-		},
-	}, nil
+	return s.issueAuthTokens(ctx, store.User{
+		ID:          user.ID,
+		Email:       user.Email,
+		DisplayName: user.DisplayName,
+	})
 }
 
 func (s *Service) Google(ctx context.Context, idTokenRaw string) (AuthResult, error) {
@@ -164,11 +179,68 @@ func (s *Service) Google(ctx context.Context, idTokenRaw string) (AuthResult, er
 		}
 	}
 
-	token, err := security.CreateToken(s.cfg.JWTSecret, user.ID, user.Email, s.cfg.JWTTTLMinutes)
+	return s.issueAuthTokens(ctx, user)
+}
+
+func (s *Service) Refresh(ctx context.Context, refreshToken string) (AuthResult, error) {
+	if refreshToken == "" {
+		return AuthResult{}, ErrRefreshInvalid
+	}
+	hash := security.HashRefreshToken(refreshToken)
+	row, err := s.store.GetValidRefreshToken(ctx, hash)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return AuthResult{}, ErrRefreshInvalid
+		}
+		return AuthResult{}, ErrDatabaseDown
+	}
+
+	user, err := s.store.GetUserByID(ctx, row.UserID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return AuthResult{}, ErrRefreshInvalid
+		}
+		return AuthResult{}, ErrDatabaseDown
+	}
+
+	access, err := security.CreateToken(s.cfg.JWTSecret, user.ID, user.Email, s.cfg.JWTTTLMinutes)
 	if err != nil {
 		return AuthResult{}, err
 	}
-	return AuthResult{AccessToken: token, User: user}, nil
+	plain, hash, err := security.NewRefreshToken()
+	if err != nil {
+		return AuthResult{}, err
+	}
+	expiresAt := time.Now().UTC().Add(time.Duration(s.cfg.JWTRefreshTTLDays) * 24 * time.Hour)
+	newID, err := s.store.CreateRefreshToken(ctx, user.ID, hash, expiresAt)
+	if err != nil {
+		return AuthResult{}, err
+	}
+	if err := s.store.RevokeRefreshToken(ctx, row.ID, &newID); err != nil {
+		s.logger.Warn("failed to revoke old refresh token", "err", err, "id", row.ID)
+	}
+	return AuthResult{
+		AccessToken:  access,
+		RefreshToken: plain,
+		User:         user,
+	}, nil
+}
+
+func (s *Service) Logout(ctx context.Context, userID, refreshToken string) error {
+	if refreshToken != "" {
+		hash := security.HashRefreshToken(refreshToken)
+		row, err := s.store.GetValidRefreshToken(ctx, hash)
+		if err == nil {
+			return s.store.RevokeRefreshToken(ctx, row.ID, nil)
+		}
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return ErrDatabaseDown
+		}
+	}
+	if userID != "" {
+		return s.store.RevokeAllRefreshTokensForUser(ctx, userID)
+	}
+	return nil
 }
 
 func (s *Service) SearchUsers(ctx context.Context, q string) ([]store.SearchUser, error) {

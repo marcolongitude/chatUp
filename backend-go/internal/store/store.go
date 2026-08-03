@@ -429,6 +429,51 @@ func (s *Store) ListUsersNearby(ctx context.Context, exceptUserID string, latitu
 	return out, nil
 }
 
+type RefreshTokenRow struct {
+	ID        string
+	UserID    string
+	ExpiresAt time.Time
+}
+
+func (s *Store) CreateRefreshToken(ctx context.Context, userID, tokenHash string, expiresAt time.Time) (string, error) {
+	id := uuid.NewString()
+	_, err := s.db.Exec(ctx, `
+		INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at)
+		VALUES ($1, $2, $3, $4)
+	`, id, userID, tokenHash, expiresAt)
+	return id, err
+}
+
+func (s *Store) GetValidRefreshToken(ctx context.Context, tokenHash string) (RefreshTokenRow, error) {
+	var row RefreshTokenRow
+	err := s.db.QueryRow(ctx, `
+		SELECT id, user_id, expires_at
+		FROM refresh_tokens
+		WHERE token_hash = $1
+		  AND revoked_at IS NULL
+		  AND expires_at > NOW()
+	`, tokenHash).Scan(&row.ID, &row.UserID, &row.ExpiresAt)
+	return row, err
+}
+
+func (s *Store) RevokeRefreshToken(ctx context.Context, id string, replacedBy *string) error {
+	_, err := s.db.Exec(ctx, `
+		UPDATE refresh_tokens
+		SET revoked_at = NOW(), replaced_by = $2
+		WHERE id = $1 AND revoked_at IS NULL
+	`, id, replacedBy)
+	return err
+}
+
+func (s *Store) RevokeAllRefreshTokensForUser(ctx context.Context, userID string) error {
+	_, err := s.db.Exec(ctx, `
+		UPDATE refresh_tokens
+		SET revoked_at = NOW()
+		WHERE user_id = $1 AND revoked_at IS NULL
+	`, userID)
+	return err
+}
+
 func PtrStringFromAny(v any) *string {
 	if v == nil {
 		return nil

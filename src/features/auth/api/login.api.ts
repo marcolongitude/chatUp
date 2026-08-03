@@ -8,7 +8,11 @@ export async function loginApi(credentials: LoginCredentials): Promise<AuthRespo
     password: credentials.password,
   });
 
-  const raw = response.data as { accessToken?: string; token?: string };
+  const raw = response.data as {
+    accessToken?: string;
+    token?: string;
+    refreshToken?: string;
+  };
   const token = raw.accessToken || raw.token || "";
   if (!token) {
     throw new Error("Login response missing accessToken");
@@ -17,5 +21,6 @@ export async function loginApi(credentials: LoginCredentials): Promise<AuthRespo
   return {
     user: response.data.user,
     token,
+    refreshToken: raw.refreshToken,
   };
 }

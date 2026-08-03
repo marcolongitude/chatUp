@@ -24,12 +24,17 @@ export function useLogin() {
         getIdToken: async () => response.token,
       };
 
-      await setSession(response.token, backendUser, {
-        id: backendUser.id,
-        email: backendUser.email || "",
-        displayName: backendUser.displayName || "",
-        hasProfile: true,
-      });
+      await setSession(
+        response.token,
+        backendUser,
+        {
+          id: backendUser.id,
+          email: backendUser.email || "",
+          displayName: backendUser.displayName || "",
+          hasProfile: true,
+        },
+        response.refreshToken
+      );
 
       try {
         await initializeCrypto(backendUser.id);

@@ -10,7 +10,9 @@ metadata:
 data:
   PORT: "3000"
   CORS_ORIGIN: "*"
-  JWT_TTL: "1440"
+  JWT_ACCESS_TTL: "30"
+  JWT_TTL: "30"
+  JWT_REFRESH_TTL_DAYS: "30"
   UPLOAD_DIR: "/tmp/uploads"
   OTEL_EXPORTER_OTLP_ENDPOINT: "alloy.observability.svc.cluster.local:4317"
   OTEL_SERVICE_NAME: "chatup-backend-go"
@@ -62,7 +64,7 @@ spec:
     spec:
       containers:
         - name: backend-go
-          image: docker.io/marcotecmar/chatup-backend-go:20260802-ops2
+          image: docker.io/marcotecmar/chatup-backend-go:20260802-refresh
           imagePullPolicy: Always
           ports:
             - containerPort: 3000

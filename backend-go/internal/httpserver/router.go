@@ -44,11 +44,14 @@ func NewRouter(cfg config.Config, db *pgxpool.Pool, hub *ws.Hub, logger *slog.Lo
 	r.Post("/auth/login", h.login)
 	r.Post("/auth/register", h.register)
 	r.Post("/auth/google", h.google)
+	r.Post("/auth/refresh", h.refresh)
+	r.Post("/auth/logout", h.logout)
 	r.Get("/files/{filename}", h.getFile)
 	r.Get("/ws", hub.ServeWS(cfg.JWTSecret, h.handleWS))
 
 	r.Group(func(pr chi.Router) {
 		pr.Use(authmw.JWT(cfg.JWTSecret))
+		pr.Post("/auth/logout", h.logout) // optional Bearer: revoke all sessions for user
 		pr.Get("/users/search", h.searchUsers)
 		pr.Get("/users/{id}", h.getUser)
 		pr.Put("/users/{id}", h.updateUser)

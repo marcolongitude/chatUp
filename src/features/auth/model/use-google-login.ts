@@ -68,15 +68,24 @@ export function useGoogleLogin() {
         getIdToken: async () => authResponse.token,
       };
 
-      await setSession(authResponse.token, backendUser, {
-        id: backendUser.id,
-        email: backendUser.email || "",
-        displayName: backendUser.displayName || "",
-        hasProfile: true,
-        photoURL: backendUser.photoURL || undefined,
-      });
+      await setSession(
+        authResponse.token,
+        backendUser,
+        {
+          id: backendUser.id,
+          email: backendUser.email || "",
+          displayName: backendUser.displayName || "",
+          hasProfile: true,
+          photoURL: backendUser.photoURL || undefined,
+        },
+        authResponse.refreshToken
+      );
 
-      await initializeCrypto(backendUser.id);
+      try {
+        await initializeCrypto(backendUser.id);
+      } catch (cryptoError) {
+        console.warn("[Auth] Crypto init after Google login failed", cryptoError);
+      }
     },
     [setSession]
   );

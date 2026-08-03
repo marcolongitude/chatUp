@@ -98,15 +98,22 @@ func (h *Handlers) register(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	writeJSON(w, 201, map[string]any{
-		"accessToken": result.AccessToken,
+	writeJSON(w, 201, authResponse(result, h.cfg.JWTTTLMinutes*60))
+}
+
+func authResponse(result app.AuthResult, expiresInSec int) map[string]any {
+	return map[string]any{
+		"accessToken":  result.AccessToken,
+		"refreshToken": result.RefreshToken,
+		"tokenType":    "Bearer",
+		"expiresIn":    expiresInSec,
 		"user": map[string]any{
 			"id":          result.User.ID,
 			"username":    result.User.Email,
 			"email":       result.User.Email,
 			"displayName": result.User.DisplayName,
 		},
-	})
+	}
 }
 
 func (h *Handlers) login(w http.ResponseWriter, r *http.Request) {
@@ -132,14 +139,52 @@ func (h *Handlers) login(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	writeJSON(w, 200, map[string]any{
-		"accessToken": result.AccessToken,
-		"user": map[string]any{
-			"id":          result.User.ID,
-			"email":       result.User.Email,
-			"displayName": result.User.DisplayName,
-		},
-	})
+	writeJSON(w, 200, authResponse(result, h.cfg.JWTTTLMinutes*60))
+}
+
+func (h *Handlers) refresh(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		RefreshToken string `json:"refreshToken"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	result, err := h.svc.Refresh(r.Context(), req.RefreshToken)
+	if err != nil {
+		switch {
+		case errors.Is(err, app.ErrRefreshInvalid):
+			http.Error(w, "invalid refresh token", http.StatusUnauthorized)
+		case errors.Is(err, app.ErrDatabaseDown):
+			http.Error(w, "database unavailable", http.StatusServiceUnavailable)
+		default:
+			http.Error(w, "internal error", http.StatusInternalServerError)
+		}
+		return
+	}
+	writeJSON(w, 200, authResponse(result, h.cfg.JWTTTLMinutes*60))
+}
+
+func (h *Handlers) logout(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		RefreshToken string `json:"refreshToken"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	userID := ""
+	if v := r.Context().Value(authmw.UserIDKey); v != nil {
+		if s, ok := v.(string); ok {
+			userID = s
+		}
+	}
+	if err := h.svc.Logout(r.Context(), userID, req.RefreshToken); err != nil {
+		if errors.Is(err, app.ErrDatabaseDown) {
+			http.Error(w, "database unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, 200, map[string]any{"success": true})
 }
 
 func (h *Handlers) google(w http.ResponseWriter, r *http.Request) {
@@ -159,14 +204,7 @@ func (h *Handlers) google(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, 200, map[string]any{
-		"accessToken": result.AccessToken,
-		"user": map[string]any{
-			"id":          result.User.ID,
-			"email":       result.User.Email,
-			"displayName": result.User.DisplayName,
-		},
-	})
+	writeJSON(w, 200, authResponse(result, h.cfg.JWTTTLMinutes*60))
 }
 
 func (h *Handlers) searchUsers(w http.ResponseWriter, r *http.Request) {

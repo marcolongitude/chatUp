@@ -9,7 +9,11 @@ interface GoogleLoginPayload {
 export async function googleLoginApi(payload: GoogleLoginPayload): Promise<AuthResponse> {
   const response = await axiosInstance.post<AuthResponse>("/auth/google", payload);
 
-  const raw = response.data as { accessToken?: string; token?: string };
+  const raw = response.data as {
+    accessToken?: string;
+    token?: string;
+    refreshToken?: string;
+  };
   const token = raw.accessToken || raw.token || "";
   if (!token) {
     throw new Error("Google login response missing accessToken");
@@ -18,5 +22,6 @@ export async function googleLoginApi(payload: GoogleLoginPayload): Promise<AuthR
   return {
     user: response.data.user,
     token,
+    refreshToken: raw.refreshToken,
   };
 }

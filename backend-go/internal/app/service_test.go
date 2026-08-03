@@ -14,6 +14,9 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+// compile-time check that fakeStore satisfies storePort
+var _ storePort = (*fakeStore)(nil)
+
 type fakeStore struct {
 	getAuthUserByEmailFn  func(ctx context.Context, email string) (store.AuthUser, error)
 	updateUserFn          func(ctx context.Context, userID string, in store.UpdateUserInput) error
@@ -89,6 +92,18 @@ func (f *fakeStore) ListUsersWithLocation(ctx context.Context, exceptUserID stri
 func (f *fakeStore) ListUsersNearby(ctx context.Context, exceptUserID string, latitude, longitude, radiusMeters float64) ([]store.UserLocationDistance, error) {
 	return nil, errors.New("postgis unavailable in fake store")
 }
+func (f *fakeStore) CreateRefreshToken(ctx context.Context, userID, tokenHash string, expiresAt time.Time) (string, error) {
+	return "refresh-1", nil
+}
+func (f *fakeStore) GetValidRefreshToken(ctx context.Context, tokenHash string) (store.RefreshTokenRow, error) {
+	return store.RefreshTokenRow{}, pgx.ErrNoRows
+}
+func (f *fakeStore) RevokeRefreshToken(ctx context.Context, id string, replacedBy *string) error {
+	return nil
+}
+func (f *fakeStore) RevokeAllRefreshTokensForUser(ctx context.Context, userID string) error {
+	return nil
+}
 
 type fakeHub struct {
 	online      map[string]bool
@@ -109,7 +124,8 @@ func newTestService(st *fakeStore, hb *fakeHub) *Service {
 	return New(
 		config.Config{
 			JWTSecret:     "test-secret",
-			JWTTTLMinutes: 60,
+			JWTTTLMinutes:     30,
+			JWTRefreshTTLDays: 30,
 		},
 		st,
 		hb,

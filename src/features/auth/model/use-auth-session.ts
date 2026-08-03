@@ -5,6 +5,7 @@ import { initializeCrypto } from "../lib/crypto-init";
 import type { UserProfile } from "./auth";
 
 const STORAGE_KEY_TOKEN = "auth.token";
+const STORAGE_KEY_REFRESH = "auth.refreshToken";
 const STORAGE_KEY_USER = "auth.user";
 
 export interface AuthUser {
@@ -42,9 +43,11 @@ async function restoreSessionOnce(): Promise<void> {
 	restorePromise = (async () => {
 		try {
 			const token = await AsyncStorage.getItem(STORAGE_KEY_TOKEN);
+			const refreshToken = await AsyncStorage.getItem(STORAGE_KEY_REFRESH);
 			const savedUserRaw = await AsyncStorage.getItem(STORAGE_KEY_USER);
 
-			if (!token || !savedUserRaw) {
+			// Access may be expired; refresh token is enough to restore (axios will renew).
+			if ((!token && !refreshToken) || !savedUserRaw) {
 				globalUser = null;
 				globalUserProfile = null;
 				return;
@@ -52,7 +55,7 @@ async function restoreSessionOnce(): Promise<void> {
 
 			const savedUser = JSON.parse(savedUserRaw) as Omit<AuthUser, "getIdToken">;
 			if (!savedUser?.id) {
-				await AsyncStorage.multiRemove([STORAGE_KEY_TOKEN, STORAGE_KEY_USER]);
+				await AsyncStorage.multiRemove([STORAGE_KEY_TOKEN, STORAGE_KEY_REFRESH, STORAGE_KEY_USER]);
 				globalUser = null;
 				globalUserProfile = null;
 				return;
@@ -102,7 +105,12 @@ export function useAuthSession() {
 		};
 	}, []);
 
-	const setSession = async (token: string, user: AuthUser, profile: UserProfile) => {
+	const setSession = async (
+		token: string,
+		user: AuthUser,
+		profile: UserProfile,
+		refreshToken?: string
+	) => {
 		if (!token?.trim()) {
 			throw new Error("Login returned an empty access token");
 		}
@@ -111,6 +119,9 @@ export function useAuthSession() {
 		}
 
 		await AsyncStorage.setItem(STORAGE_KEY_TOKEN, token);
+		if (refreshToken?.trim()) {
+			await AsyncStorage.setItem(STORAGE_KEY_REFRESH, refreshToken);
+		}
 		await AsyncStorage.setItem(
 			STORAGE_KEY_USER,
 			JSON.stringify({
@@ -133,7 +144,7 @@ export function useAuthSession() {
 	};
 
 	const clearSession = async () => {
-		await AsyncStorage.multiRemove([STORAGE_KEY_TOKEN, STORAGE_KEY_USER]);
+		await AsyncStorage.multiRemove([STORAGE_KEY_TOKEN, STORAGE_KEY_REFRESH, STORAGE_KEY_USER]);
 		globalUser = null;
 		globalUserProfile = null;
 		globalIsLoading = false;
