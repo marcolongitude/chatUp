@@ -1,10 +1,9 @@
 import React, { useState } from "react";
-import { ActivityIndicator, Alert, Platform } from "react-native";
+import { ActivityIndicator, Alert } from "react-native";
 import { useTheme } from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import Constants from "expo-constants";
-import * as Updates from "expo-updates";
 import styled from "styled-components/native";
 import { Card } from "@/shared/ui";
 import { useTranslation } from "@/app/providers/i18n";
@@ -70,26 +69,11 @@ const LanguageOptionText = styled.Text`
 	color: ${(props) => props.theme.colors.text.primary};
 `;
 
-const VersionInfo = styled.View`
-	padding: ${(props) => props.theme.spacing.xs}px;
-`;
-
-const VersionRow = styled.View`
-	flex-direction: row;
-	justify-content: space-between;
-	align-items: center;
-	margin-bottom: ${(props) => props.theme.spacing.xs}px;
-`;
-
-const VersionLabel = styled.Text`
-	font-size: ${(props) => props.theme.typography.fontSize.base}px;
-	color: ${(props) => props.theme.colors.text.secondary};
-`;
-
 const VersionValue = styled.Text`
 	font-size: ${(props) => props.theme.typography.fontSize.base}px;
 	color: ${(props) => props.theme.colors.text.primary};
 	font-weight: ${(props) => props.theme.typography.fontWeight.semibold};
+	padding: ${(props) => props.theme.spacing.xs}px;
 `;
 
 const LoadingContainer = styled.View`
@@ -144,13 +128,8 @@ export function SettingsPage() {
 		}
 	};
 
-	const appVersion = Constants.expoConfig?.version || "1.0.0";
-	const versionCode = Constants.expoConfig?.android?.versionCode || 1;
-	const runtimeVersion =
-		Updates.isEnabled && Updates.runtimeVersion ? Updates.runtimeVersion : __DEV__ ? "Development" : "N/A";
-	const channel = Updates.isEnabled && Updates.channel ? Updates.channel : __DEV__ ? "Development" : "N/A";
-	const isAndroid = Platform.OS === "android";
-	const isDev = __DEV__;
+	const appVersion =
+		Constants.nativeAppVersion || Constants.expoConfig?.version || "1.0.0";
 
 	return (
 		<Container>
@@ -208,33 +187,10 @@ export function SettingsPage() {
 					)}
 				</Section>
 
-				{isAndroid && (
-					<Section>
-						<SectionTitle>{translate("settings.appVersion")}</SectionTitle>
-						<VersionInfo>
-							<VersionRow>
-								<VersionLabel>{translate("settings.appVersion")}</VersionLabel>
-								<VersionValue>{appVersion}</VersionValue>
-							</VersionRow>
-							{isDev && (
-								<>
-									<VersionRow>
-										<VersionLabel>{translate("settings.versionCode")}</VersionLabel>
-										<VersionValue>{versionCode}</VersionValue>
-									</VersionRow>
-									<VersionRow>
-										<VersionLabel>{translate("settings.runtimeVersion")}</VersionLabel>
-										<VersionValue>{runtimeVersion}</VersionValue>
-									</VersionRow>
-									<VersionRow>
-										<VersionLabel>{translate("settings.channel")}</VersionLabel>
-										<VersionValue>{channel}</VersionValue>
-									</VersionRow>
-								</>
-							)}
-						</VersionInfo>
-					</Section>
-				)}
+				<Section>
+					<SectionTitle>{translate("settings.appVersion")}</SectionTitle>
+					<VersionValue>{appVersion}</VersionValue>
+				</Section>
 			</Content>
 		</Container>
 	);

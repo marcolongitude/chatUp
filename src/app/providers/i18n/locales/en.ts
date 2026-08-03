@@ -66,7 +66,6 @@ export const en = {
 	// Profile
 	profile: {
 		title: "Profile",
-		userId: "User ID",
 		email: "Email",
 		displayName: "Display Name",
 		phoneNumber: "Phone Number",
@@ -125,9 +124,6 @@ export const en = {
 		perimeterDescription: "Choose how many kilometers away to look for people nearby",
 		perimeterKm: "{{km}} km",
 		appVersion: "App Version",
-		versionCode: "Version Code",
-		runtimeVersion: "Runtime Version",
-		channel: "Channel",
 		selectLanguage: "Select Language",
 		portuguese: "Português (Brasil)",
 		english: "English",

@@ -66,7 +66,6 @@ export const ptBR = {
 	// Perfil
 	profile: {
 		title: "Perfil",
-		userId: "ID do Usuário",
 		email: "Email",
 		displayName: "Nome de Exibição",
 		phoneNumber: "Telefone",
@@ -125,9 +124,6 @@ export const ptBR = {
 		perimeterDescription: "Escolha até quantos quilômetros o app busca pessoas próximas",
 		perimeterKm: "{{km}} km",
 		appVersion: "Versão do Aplicativo",
-		versionCode: "Version Code",
-		runtimeVersion: "Versão do Runtime",
-		channel: "Canal",
 		selectLanguage: "Selecionar Idioma",
 		portuguese: "Português (Brasil)",
 		english: "English",
