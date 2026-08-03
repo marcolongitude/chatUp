@@ -20,6 +20,13 @@ export interface NearbyUser {
 	avatar?: string;
 	distance?: number;
 	lastSeen?: string;
-	latitude: number;
-	longitude: number;
+	latitude?: number;
+	longitude?: number;
+	locationVisible?: boolean;
+	inGrace?: boolean;
+	familyLink?: boolean;
+	location?: {
+		latitude: number;
+		longitude: number;
+	};
 }

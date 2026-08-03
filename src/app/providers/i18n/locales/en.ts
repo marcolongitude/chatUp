@@ -130,6 +130,30 @@ export const en = {
 		spanish: "Español",
 	},
 
+	family: {
+		title: "Family mode",
+		description:
+			"Mutual-consent link. Without location accepted by both, the contact stays on your list for up to 30 minutes after leaving the perimeter — without showing where they are.",
+		searchPlaceholder: "Search by name or email",
+		invite: "Invite",
+		empty: "No family links yet",
+		accept: "Accept",
+		decline: "Decline",
+		revoke: "Remove link",
+		cancelInvite: "Cancel invite",
+		shareMyLocation: "Share my location with this contact",
+		peerSharesLocation: "They also shared location",
+		peerDoesNotShareLocation: "They have not shared location yet",
+		statusAcceptedWithLocation: "Accepted · location sharing active",
+		statusAcceptedNoLocation: "Accepted · list control only (30 min grace)",
+		statusPendingOutgoing: "Invite sent · waiting for accept",
+		statusPendingIncoming: "Invite received · accept to enable",
+		inviteSentTitle: "Invite sent",
+		inviteSentMessage: "Family invite sent to {{name}}",
+		inviteFailed: "Could not send the family invite",
+		peerNotFound: "No user found to invite",
+	},
+
 	// General errors
 	errors: {
 		generic: "An error occurred",

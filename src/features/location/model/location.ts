@@ -13,8 +13,11 @@ export interface NearbyUserModel {
   id: string;
   name: string;
   avatar?: string;
-  location: LocationModel;
+  location?: LocationModel;
   distance: number;
+  locationVisible?: boolean;
+  inGrace?: boolean;
+  familyLink?: boolean;
 }
 
 export interface LocationPermissionStatus {

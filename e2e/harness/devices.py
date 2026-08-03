@@ -115,8 +115,41 @@ def grant_runtime_permissions(serial: str, package: str) -> None:
         )
 
 
+def dismiss_dev_overlays(d: u2.Device) -> None:
+    """Dismiss RN LogBox / error toasts that cover the tab bar in __DEV__."""
+    for _ in range(4):
+        dismissed = False
+        for label in ("Dismiss", "Minimize", "Hide", "Dispensar", "OK"):
+            if d(text=label).exists:
+                d(text=label).click()
+                dismissed = True
+                time.sleep(0.3)
+        # LogBox collapsed banner often exposes a content-desc starting with "!,".
+        for el in d(descriptionStartsWith="!,"):
+            if el.exists:
+                try:
+                    # Tap the right edge (often the dismiss control).
+                    info = el.info.get("bounds") or {}
+                    right = int(info.get("right", 0))
+                    top = int(info.get("top", 0))
+                    bottom = int(info.get("bottom", 0))
+                    if right and bottom > top:
+                        d.click(max(right - 40, 0), (top + bottom) // 2)
+                        dismissed = True
+                        time.sleep(0.3)
+                except Exception:  # noqa: BLE001
+                    pass
+        if d(textContains="useActionState").exists or d(textContains="LogBox").exists:
+            d.press("back")
+            dismissed = True
+            time.sleep(0.3)
+        if not dismissed:
+            break
+
+
 def dismiss_system_dialogs(d: u2.Device) -> None:
     """Close permission / password-manager sheets that block the app."""
+    dismiss_dev_overlays(d)
     for _ in range(6):
         clicked = False
         for text in (

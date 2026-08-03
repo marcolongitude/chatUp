@@ -458,16 +458,22 @@ func (h *Handlers) nearby(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]map[string]any, 0, len(users))
 	for _, user := range users {
-		out = append(out, map[string]any{
-			"id":     user.ID,
-			"name":   user.Name,
-			"avatar": user.Avatar,
-			"location": map[string]any{
+		item := map[string]any{
+			"id":              user.ID,
+			"name":            user.Name,
+			"avatar":          user.Avatar,
+			"distance":        user.DistanceM,
+			"locationVisible": user.LocationVisible,
+			"inGrace":         user.InGrace,
+			"familyLink":      user.FamilyLink,
+		}
+		if user.LocationVisible {
+			item["location"] = map[string]any{
 				"latitude":  user.Latitude,
 				"longitude": user.Longitude,
-			},
-			"distance": user.DistanceM,
-		})
+			}
+		}
+		out = append(out, item)
 	}
 	writeJSON(w, 200, out)
 }

@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Blocks push when security/flow guardrails fail.
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+echo "[pre-push] running ChatUp guardrails..."
+./scripts/test-guardrails.sh --full

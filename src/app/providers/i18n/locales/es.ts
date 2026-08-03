@@ -131,6 +131,30 @@ export const es = {
 		spanish: "Español",
 	},
 
+	family: {
+		title: "Modo familia",
+		description:
+			"Vínculo con consentimiento mutuo. Sin ubicación aceptada por ambos, el contacto permanece en la lista hasta 30 minutos después de salir del perímetro — sin mostrar dónde está.",
+		searchPlaceholder: "Buscar por nombre o correo",
+		invite: "Invitar",
+		empty: "Aún no hay vínculos familiares",
+		accept: "Aceptar",
+		decline: "Rechazar",
+		revoke: "Quitar vínculo",
+		cancelInvite: "Cancelar invitación",
+		shareMyLocation: "Compartir mi ubicación con este contacto",
+		peerSharesLocation: "La otra persona también compartió ubicación",
+		peerDoesNotShareLocation: "La otra persona aún no compartió ubicación",
+		statusAcceptedWithLocation: "Aceptado · ubicación activa entre ustedes",
+		statusAcceptedNoLocation: "Aceptado · solo control de lista (gracia 30 min)",
+		statusPendingOutgoing: "Invitación enviada · esperando aceptación",
+		statusPendingIncoming: "Invitación recibida · acepta para activar",
+		inviteSentTitle: "Invitación enviada",
+		inviteSentMessage: "Invitación familiar enviada a {{name}}",
+		inviteFailed: "No se pudo enviar la invitación familiar",
+		peerNotFound: "No se encontró un usuario para invitar",
+	},
+
 	// Errores generales
 	errors: {
 		generic: "Ocurrió un error",

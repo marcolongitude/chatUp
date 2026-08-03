@@ -18,6 +18,9 @@ type Config struct {
 	CORSOrigin           string
 	OTLPEndpoint         string
 	ServiceName          string
+	// FamilyGraceSeconds: keep family peers on nearby list after leaving perimeter
+	// when mutual location share is off. Default 1800 (30m). Override only for tests.
+	FamilyGraceSeconds int
 }
 
 func Load() Config {
@@ -35,17 +38,22 @@ func Load() Config {
 	if refreshDays <= 0 {
 		refreshDays = 30
 	}
+	familyGrace, _ := strconv.Atoi(getEnv("FAMILY_GRACE_SECONDS", "1800"))
+	if familyGrace <= 0 {
+		familyGrace = 1800
+	}
 	return Config{
-		Port:              getEnv("PORT", "3000"),
-		DatabaseURL:       getEnv("DATABASE_URL", "postgres://admin:password@localhost:5432/chatup?sslmode=disable"),
-		JWTSecret:         getEnv("JWT_SECRET", "SECRET_KEY_DEV"),
-		JWTTTLMinutes:     accessTTL,
-		JWTRefreshTTLDays: refreshDays,
-		GoogleClientID:    getEnv("GOOGLE_CLIENT_ID", ""),
-		UploadDir:         getEnv("UPLOAD_DIR", "./uploads"),
-		CORSOrigin:        getEnv("CORS_ORIGIN", "*"),
-		OTLPEndpoint:      getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "alloy.observability.svc.cluster.local:4317"),
-		ServiceName:       getEnv("OTEL_SERVICE_NAME", "chatup-backend-go"),
+		Port:               getEnv("PORT", "3000"),
+		DatabaseURL:        getEnv("DATABASE_URL", "postgres://admin:password@localhost:5432/chatup?sslmode=disable"),
+		JWTSecret:          getEnv("JWT_SECRET", "SECRET_KEY_DEV"),
+		JWTTTLMinutes:      accessTTL,
+		JWTRefreshTTLDays:  refreshDays,
+		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
+		UploadDir:          getEnv("UPLOAD_DIR", "./uploads"),
+		CORSOrigin:         getEnv("CORS_ORIGIN", "*"),
+		OTLPEndpoint:       getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "alloy.observability.svc.cluster.local:4317"),
+		ServiceName:        getEnv("OTEL_SERVICE_NAME", "chatup-backend-go"),
+		FamilyGraceSeconds: familyGrace,
 	}
 }
 

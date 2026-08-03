@@ -1,5 +1,5 @@
 import React from 'react';
-import { createRoute, Navigate } from '@tanstack/react-router';
+import { Outlet, createRoute, Navigate } from '@tanstack/react-router';
 import { rootRoute } from './rootRoute';
 import { LoginPage } from '@/app/routes/login';
 import { SignUpPage } from '@/app/routes/signup';
@@ -91,6 +91,9 @@ export const appLayoutRoute = createRoute({
 export const tabsRoute = createRoute({
   getParentRoute: () => appLayoutRoute,
   path: 'main',
+  component: function MainTabsOutlet() {
+    return <Outlet />;
+  },
 });
 
 // ... (conversationsRoute, profileRoute, etc. stay same but change getParentRoute)

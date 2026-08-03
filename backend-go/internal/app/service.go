@@ -53,6 +53,16 @@ type storePort interface {
 	UpdateLocation(ctx context.Context, userID string, latitude, longitude float64) error
 	ListUsersWithLocation(ctx context.Context, exceptUserID string) ([]store.UserLocation, error)
 	ListUsersNearby(ctx context.Context, exceptUserID string, latitude, longitude, radiusMeters float64) ([]store.UserLocationDistance, error)
+	CreateFamilyLink(ctx context.Context, actorID, peerID string) (store.FamilyLink, error)
+	GetFamilyLinkByID(ctx context.Context, id string) (store.FamilyLink, error)
+	GetFamilyLinkByPair(ctx context.Context, userAID, userBID string) (store.FamilyLink, error)
+	AcceptFamilyLink(ctx context.Context, linkID, actorID string) (store.FamilyLink, error)
+	RevokeFamilyLink(ctx context.Context, linkID, actorID string) error
+	SetFamilyLocationShare(ctx context.Context, linkID, actorID string, enabled bool) (store.FamilyLink, error)
+	ListFamilyLinksForUser(ctx context.Context, userID string) ([]store.FamilyLink, error)
+	ListAcceptedFamilyPeers(ctx context.Context, userID string) (map[string]bool, error)
+	TouchNearbyPresence(ctx context.Context, observerID string, subjectIDs []string) error
+	ListFamilyGraceSubjects(ctx context.Context, observerID string, grace time.Duration) ([]store.PresenceGraceRow, error)
 	CreateRefreshToken(ctx context.Context, userID, tokenHash string, expiresAt time.Time) (string, error)
 	GetValidRefreshToken(ctx context.Context, tokenHash string) (store.RefreshTokenRow, error)
 	RevokeRefreshToken(ctx context.Context, id string, replacedBy *string) error
@@ -416,20 +426,29 @@ func (s *Service) UpdateLocation(ctx context.Context, userID string, latitude, l
 }
 
 type NearbyUser struct {
-	ID        string
-	Name      string
-	Avatar    string
-	Latitude  float64
-	Longitude float64
-	DistanceM int
+	ID              string
+	Name            string
+	Avatar          string
+	Latitude        float64
+	Longitude       float64
+	DistanceM       int
+	LocationVisible bool
+	InGrace         bool
+	FamilyLink      bool
 }
 
 func (s *Service) Nearby(ctx context.Context, userID string, latitude, longitude, radiusKm float64) ([]NearbyUser, error) {
 	radiusMeters := radiusKm * 1000
+	familyPeers, err := s.store.ListAcceptedFamilyPeers(ctx, userID)
+	if err != nil {
+		// Family tables may be missing before migration 0007 — keep geometric nearby.
+		familyPeers = map[string]bool{}
+	}
+
+	geo := make([]NearbyUser, 0)
 	if nearby, err := s.store.ListUsersNearby(ctx, userID, latitude, longitude, radiusMeters); err == nil {
-		out := make([]NearbyUser, 0, len(nearby))
 		for _, u := range nearby {
-			out = append(out, NearbyUser{
+			geo = append(geo, NearbyUser{
 				ID:        u.ID,
 				Name:      u.Name,
 				Avatar:    u.Avatar,
@@ -438,28 +457,68 @@ func (s *Service) Nearby(ctx context.Context, userID string, latitude, longitude
 				DistanceM: u.DistanceM,
 			})
 		}
-		return out, nil
+	} else {
+		// Fallback until PostGIS migration (0004) is applied.
+		users, listErr := s.store.ListUsersWithLocation(ctx, userID)
+		if listErr != nil {
+			return nil, ErrQueryFailed
+		}
+		for _, u := range users {
+			distanceKm := Haversine(latitude, longitude, u.Latitude, u.Longitude)
+			if distanceKm <= radiusKm {
+				geo = append(geo, NearbyUser{
+					ID:        u.ID,
+					Name:      u.Name,
+					Avatar:    u.Avatar,
+					Latitude:  u.Latitude,
+					Longitude: u.Longitude,
+					DistanceM: int(distanceKm * 1000),
+				})
+			}
+		}
 	}
 
-	// Fallback until PostGIS migration (0004) is applied.
-	users, err := s.store.ListUsersWithLocation(ctx, userID)
-	if err != nil {
-		return nil, ErrQueryFailed
+	insideIDs := make([]string, 0, len(geo))
+	out := make([]NearbyUser, 0, len(geo))
+	seen := make(map[string]struct{}, len(geo))
+	for _, u := range geo {
+		insideIDs = append(insideIDs, u.ID)
+		locationShareActive, isFamily := familyPeers[u.ID]
+		item := u
+		item.FamilyLink = isFamily
+		// Location coords only when not a family peer, or family with mutual location share.
+		item.LocationVisible = !isFamily || locationShareActive
+		if !item.LocationVisible {
+			item.Latitude = 0
+			item.Longitude = 0
+		}
+		out = append(out, item)
+		seen[u.ID] = struct{}{}
 	}
-	out := make([]NearbyUser, 0)
-	for _, u := range users {
-		distanceKm := Haversine(latitude, longitude, u.Latitude, u.Longitude)
-		if distanceKm <= radiusKm {
+
+	_ = s.store.TouchNearbyPresence(ctx, userID, insideIDs)
+
+	grace := FamilyGracePeriod
+	if s.cfg.FamilyGraceSeconds > 0 {
+		grace = time.Duration(s.cfg.FamilyGraceSeconds) * time.Second
+	}
+	graceRows, graceErr := s.store.ListFamilyGraceSubjects(ctx, userID, grace)
+	if graceErr == nil {
+		for _, row := range graceRows {
+			if _, ok := seen[row.SubjectID]; ok {
+				continue
+			}
 			out = append(out, NearbyUser{
-				ID:        u.ID,
-				Name:      u.Name,
-				Avatar:    u.Avatar,
-				Latitude:  u.Latitude,
-				Longitude: u.Longitude,
-				DistanceM: int(distanceKm * 1000),
+				ID:              row.SubjectID,
+				Name:            row.Name,
+				Avatar:          row.Avatar,
+				LocationVisible: false,
+				InGrace:         true,
+				FamilyLink:      true,
 			})
 		}
 	}
+
 	return out, nil
 }
 

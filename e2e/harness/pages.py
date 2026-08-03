@@ -396,3 +396,71 @@ class NotificationShade:
                 pass
             time.sleep(1.0)
         raise TimeoutError(f"could not open ChatUp notification: {last_err}")
+
+
+class SettingsPage:
+    def __init__(self, d: u2.Device) -> None:
+        self.d = d
+
+    def _tap_center(self, test_id: str, timeout: float = 20.0) -> None:
+        """
+        RN Pressable/TouchableOpacity often ignores UiAutomator .click().
+        Coordinate tap via adb is reliable for bottom tabs.
+        """
+        el = _find(self.d, test_id, timeout=timeout)
+        info = el.info
+        bounds = info.get("bounds") or {}
+        left = int(bounds.get("left", 0))
+        top = int(bounds.get("top", 0))
+        right = int(bounds.get("right", 0))
+        bottom = int(bounds.get("bottom", 0))
+        x = (left + right) // 2
+        y = (top + bottom) // 2
+        # u2 click works on some devices; always follow with shell tap.
+        try:
+            el.click()
+        except Exception:  # noqa: BLE001
+            pass
+        self.d.shell(f"input tap {x} {y}")
+
+    def open(self, timeout: float = 30.0) -> None:
+        from .devices import dismiss_dev_overlays, dismiss_system_dialogs
+
+        dismiss_system_dialogs(self.d)
+        dismiss_dev_overlays(self.d)
+        self._tap_center("e2e.tab.settings", timeout=min(15.0, timeout))
+        deadline = time.time() + timeout
+        last: Exception | None = None
+        while time.time() < deadline:
+            dismiss_dev_overlays(self.d)
+            try:
+                _find(self.d, "e2e.settings.screen", timeout=2.0)
+                return
+            except Exception as exc:  # noqa: BLE001
+                last = exc
+            for hint in ("Modo família", "Family mode", "Modo familia", "Versão do Aplicativo", "App Version"):
+                if self.d(textContains=hint).exists:
+                    return
+            # Retry tap if LogBox ate the first one.
+            try:
+                self._tap_center("e2e.tab.settings", timeout=3.0)
+            except Exception:  # noqa: BLE001
+                pass
+            time.sleep(0.4)
+        raise TimeoutError(f"settings screen not reached: {last}")
+
+    def expect_family_section(self, timeout: float = 30.0) -> None:
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            try:
+                _find(self.d, "e2e.family.section", timeout=1.5)
+                return
+            except TimeoutError:
+                pass
+            for hint in ("Modo família", "Family mode", "Modo familia"):
+                if self.d(textContains=hint).exists:
+                    return
+            # Family block is below the fold on small screens.
+            self.d.swipe_ext("up", scale=0.6)
+            time.sleep(0.4)
+        raise TimeoutError("family settings section not found")

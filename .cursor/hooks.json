@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "command": ".cursor/hooks/mark-guardrails-dirty.sh",
+        "matcher": "Write|TabWrite|EditNotebook|Delete"
+      }
+    ],
+    "stop": [
+      {
+        "command": ".cursor/hooks/stop-guardrails.sh",
+        "timeout": 600,
+        "loop_limit": 2
+      }
+    ]
+  }
+}

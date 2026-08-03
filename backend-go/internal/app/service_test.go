@@ -92,6 +92,36 @@ func (f *fakeStore) ListUsersWithLocation(ctx context.Context, exceptUserID stri
 func (f *fakeStore) ListUsersNearby(ctx context.Context, exceptUserID string, latitude, longitude, radiusMeters float64) ([]store.UserLocationDistance, error) {
 	return nil, errors.New("postgis unavailable in fake store")
 }
+func (f *fakeStore) CreateFamilyLink(ctx context.Context, actorID, peerID string) (store.FamilyLink, error) {
+	return store.FamilyLink{}, nil
+}
+func (f *fakeStore) GetFamilyLinkByID(ctx context.Context, id string) (store.FamilyLink, error) {
+	return store.FamilyLink{}, pgx.ErrNoRows
+}
+func (f *fakeStore) GetFamilyLinkByPair(ctx context.Context, userAID, userBID string) (store.FamilyLink, error) {
+	return store.FamilyLink{}, pgx.ErrNoRows
+}
+func (f *fakeStore) AcceptFamilyLink(ctx context.Context, linkID, actorID string) (store.FamilyLink, error) {
+	return store.FamilyLink{}, store.ErrFamilyNotAcceptable
+}
+func (f *fakeStore) RevokeFamilyLink(ctx context.Context, linkID, actorID string) error {
+	return nil
+}
+func (f *fakeStore) SetFamilyLocationShare(ctx context.Context, linkID, actorID string, enabled bool) (store.FamilyLink, error) {
+	return store.FamilyLink{}, nil
+}
+func (f *fakeStore) ListFamilyLinksForUser(ctx context.Context, userID string) ([]store.FamilyLink, error) {
+	return nil, nil
+}
+func (f *fakeStore) ListAcceptedFamilyPeers(ctx context.Context, userID string) (map[string]bool, error) {
+	return map[string]bool{}, nil
+}
+func (f *fakeStore) TouchNearbyPresence(ctx context.Context, observerID string, subjectIDs []string) error {
+	return nil
+}
+func (f *fakeStore) ListFamilyGraceSubjects(ctx context.Context, observerID string, grace time.Duration) ([]store.PresenceGraceRow, error) {
+	return nil, nil
+}
 func (f *fakeStore) CreateRefreshToken(ctx context.Context, userID, tokenHash string, expiresAt time.Time) (string, error) {
 	return "refresh-1", nil
 }

@@ -21,12 +21,47 @@ Password (both): `E2eTest123!`
 ## Run
 
 ```bash
+npm run test:guardrails      # REQUIRED gate: Go + Jest ROI + family security API
+npm run test:guardrails:unit # fast local (no staging network)
+npm run hooks:install        # enable git pre-push guardrails
+
 npm run e2e:pair          # smoke + pair tests
 npm run e2e:pair:smoke    # smoke only
 npm run e2e:pair:notify   # notification + delivery ticks (high ROI)
+npm run e2e:family:security  # API-only family privacy (anti destination leak)
+npm run e2e:family:ui        # dual-device opens Modo família in Settings
+npm run test:family          # Go unit: nearby family strip/grace contracts
 npm run e2e:pair -- -k reply   # subset
 npm run test:notify       # unit: status mapping + local notification logic
 ```
+
+### Automatic gates
+
+| Gate | When | What runs |
+|------|------|-----------|
+| GitHub Actions `guardrails.yml` | push/PR → `developer`/`main` | Go + Jest + family security API |
+| `.githooks/pre-push` | `git push` (after `npm run hooks:install`) | `npm run test:guardrails` |
+| Cursor `stop` hook | agent edited files in the session | same full guardrails; asks agent to fix on fail |
+
+Device suites (`e2e:pair:*`, `e2e:family:ui`) stay manual / local — they need USB+emulator.
+
+### Family security harness (important)
+
+`tests/test_family_security_api.py` is intentionally strict:
+
+| Case | Must hold |
+|------|-----------|
+| Family accepted, location share off | nearby peer has **no** `location` / coords |
+| Only one side enables share | still **no** coords |
+| Both enable share | coords allowed between the pair |
+| Peer leaves perimeter, share off | stays on list with `inGrace` and **no** coords |
+| After grace expiry (DB backdate) | peer disappears from list |
+| Mutual share + leave perimeter | peer drops immediately (no grace) |
+| Family revoked while in grace | peer drops immediately |
+
+Grace expiry uses `kubectl exec` into staging Postgres (`nearby_presence` backdate). If kubectl is unavailable, that single assertion is skipped — all leak checks still run.
+
+`FAMILY_GRACE_SECONDS` (backend env, default `1800`) is only for controlled test overrides — do **not** lower it on shared staging without coordinating.
 
 Or:
 

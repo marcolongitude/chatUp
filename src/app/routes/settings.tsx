@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ActivityIndicator, Alert } from "react-native";
+import { ActivityIndicator, Alert, View } from "react-native";
 import { useTheme } from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -9,6 +9,7 @@ import { Card } from "@/shared/ui";
 import { useTranslation } from "@/app/providers/i18n";
 import { saveLanguage } from "@/app/providers/i18n";
 import { PERIMETER_OPTIONS_KM, usePerimeter, type PerimeterKm } from "@/features/location";
+import { FamilySettingsSection } from "@/features/family";
 
 const Container = styled.ScrollView`
 	flex: 1;
@@ -132,6 +133,7 @@ export function SettingsPage() {
 		Constants.nativeAppVersion || Constants.expoConfig?.version || "1.0.0";
 
 	return (
+		<View style={{ flex: 1 }} testID="e2e.settings.screen" accessibilityLabel="e2e.settings.screen">
 		<Container>
 			<Header>
 				<Logo source={require("~/assets/logo-chatup.png")} contentFit="contain" cachePolicy="memory-disk" />
@@ -188,10 +190,16 @@ export function SettingsPage() {
 				</Section>
 
 				<Section>
+					<SectionTitle>{translate("family.title")}</SectionTitle>
+					<FamilySettingsSection />
+				</Section>
+
+				<Section>
 					<SectionTitle>{translate("settings.appVersion")}</SectionTitle>
 					<VersionValue>{appVersion}</VersionValue>
 				</Section>
 			</Content>
 		</Container>
+		</View>
 	);
 }
