@@ -1,13 +1,14 @@
 import React from "react";
-import { 
-    ContactItem, 
-    AvatarContainer, 
-    AvatarText, 
-    ContactInfo, 
-    ContactDetails, 
-    ContactName, 
-    UnreadBadge, 
-    UnreadCount 
+import {
+	ContactItem,
+	AvatarContainer,
+	AvatarImage,
+	AvatarText,
+	ContactInfo,
+	ContactDetails,
+	ContactName,
+	UnreadBadge,
+	UnreadCount,
 } from "./styled";
 
 interface ContactListItemProps {
@@ -21,7 +22,7 @@ interface ContactListItemProps {
 }
 
 export function ContactListItem({ contact, onPress }: ContactListItemProps) {
-	const initials = contact.name	
+	const initials = contact.name
 		? contact.name
 				.split(" ")
 				.map((n: string) => n[0])
@@ -29,6 +30,8 @@ export function ContactListItem({ contact, onPress }: ContactListItemProps) {
 				.toUpperCase()
 				.slice(0, 2)
 		: "??";
+
+	const avatarUri = contact.avatar?.trim() || undefined;
 
 	return (
 		<ContactItem
@@ -38,7 +41,16 @@ export function ContactListItem({ contact, onPress }: ContactListItemProps) {
 			accessibilityLabel={`e2e.contact.${contact.name}`}
 		>
 			<AvatarContainer>
-				<AvatarText>{initials}</AvatarText>
+				{avatarUri ? (
+					<AvatarImage
+						source={{ uri: avatarUri }}
+						contentFit="cover"
+						cachePolicy="memory-disk"
+						transition={150}
+					/>
+				) : (
+					<AvatarText>{initials}</AvatarText>
+				)}
 			</AvatarContainer>
 			<ContactInfo>
 				<ContactDetails>

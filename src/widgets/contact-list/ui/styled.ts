@@ -1,3 +1,4 @@
+import { Image } from "expo-image";
 import styled from "styled-components/native";
 
 // --- Styled Components ---
@@ -42,6 +43,12 @@ export const AvatarContainer = styled.View`
 	justify-content: center;
 	align-items: center;
 	margin-right: ${(props) => props.theme.spacing.md}px;
+	overflow: hidden;
+`;
+
+export const AvatarImage = styled(Image)`
+	width: 100%;
+	height: 100%;
 `;
 
 export const AvatarText = styled.Text`

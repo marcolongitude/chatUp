@@ -38,7 +38,7 @@ func (f *fakeStore) GetAuthUserByEmail(ctx context.Context, email string) (store
 func (f *fakeStore) FindUserByEmail(ctx context.Context, email string) (store.User, error) {
 	return store.User{}, nil
 }
-func (f *fakeStore) CreateGoogleUser(ctx context.Context, email, googleID, displayName string) (store.User, error) {
+func (f *fakeStore) CreateGoogleUser(ctx context.Context, email, googleID, displayName, photoURL string) (store.User, error) {
 	return store.User{}, nil
 }
 func (f *fakeStore) SearchUsers(ctx context.Context, term string) ([]store.SearchUser, error) {

@@ -52,13 +52,23 @@ export function RealtimeNotificationsBridge() {
 				router.navigate({ to: "/main/conversations" });
 				return;
 			}
-			router.navigate({
-				to: "/chat/$chatId",
-				params: { chatId: target.senderId },
-				search: {
-					initialName: target.senderName,
-				},
-			} as never);
+			void (async () => {
+				let initialAvatar: string | undefined;
+				try {
+					const profile = await userApi.getUserById(target.senderId);
+					initialAvatar = profile.photoURL || undefined;
+				} catch {
+					// Header will fall back to initials / fetch again.
+				}
+				router.navigate({
+					to: "/chat/$chatId",
+					params: { chatId: target.senderId },
+					search: {
+						initialName: target.senderName,
+						initialAvatar,
+					},
+				} as never);
+			})();
 		});
 	}, [isAuthenticated, router]);
 

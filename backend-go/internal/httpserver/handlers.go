@@ -112,6 +112,7 @@ func authResponse(result app.AuthResult, expiresInSec int) map[string]any {
 			"username":    result.User.Email,
 			"email":       result.User.Email,
 			"displayName": result.User.DisplayName,
+			"photoURL":    result.User.PhotoURL,
 		},
 	}
 }

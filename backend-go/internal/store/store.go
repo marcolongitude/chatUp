@@ -91,9 +91,13 @@ func (s *Store) FindUserByEmail(ctx context.Context, email string) (User, error)
 	return out, nil
 }
 
-func (s *Store) CreateGoogleUser(ctx context.Context, email, googleID, displayName string) (User, error) {
+func (s *Store) CreateGoogleUser(ctx context.Context, email, googleID, displayName, photoURL string) (User, error) {
 	id := uuid.NewString()
-	_, err := s.db.Exec(ctx, `INSERT INTO users(id,email,google_id,display_name,created_at,updated_at) VALUES($1,$2,$3,$4,NOW(),NOW())`, id, email, googleID, displayName)
+	var photo *string
+	if photoURL != "" {
+		photo = &photoURL
+	}
+	_, err := s.db.Exec(ctx, `INSERT INTO users(id,email,google_id,display_name,photo_url,created_at,updated_at) VALUES($1,$2,$3,$4,$5,NOW(),NOW())`, id, email, googleID, displayName, photo)
 	if err != nil {
 		return User{}, err
 	}
@@ -101,6 +105,7 @@ func (s *Store) CreateGoogleUser(ctx context.Context, email, googleID, displayNa
 		ID:          id,
 		Email:       email,
 		DisplayName: displayName,
+		PhotoURL:    photoURL,
 	}, nil
 }
 

@@ -40,7 +40,7 @@ type storePort interface {
 	CreateUser(ctx context.Context, email, passwordHash, displayName string) (store.User, error)
 	GetAuthUserByEmail(ctx context.Context, email string) (store.AuthUser, error)
 	FindUserByEmail(ctx context.Context, email string) (store.User, error)
-	CreateGoogleUser(ctx context.Context, email, googleID, displayName string) (store.User, error)
+	CreateGoogleUser(ctx context.Context, email, googleID, displayName, photoURL string) (store.User, error)
 	SearchUsers(ctx context.Context, term string) ([]store.SearchUser, error)
 	GetUserByID(ctx context.Context, userID string) (store.User, error)
 	UpdateUser(ctx context.Context, userID string, in store.UpdateUserInput) error
@@ -153,6 +153,11 @@ func (s *Service) Login(ctx context.Context, in RegisterInput) (AuthResult, erro
 	})
 }
 
+func claimString(claims map[string]any, key string) string {
+	v, _ := claims[key].(string)
+	return strings.TrimSpace(v)
+}
+
 func (s *Service) Google(ctx context.Context, idTokenRaw string) (AuthResult, error) {
 	if idTokenRaw == "" {
 		return AuthResult{}, ErrInvalidToken
@@ -161,21 +166,42 @@ func (s *Service) Google(ctx context.Context, idTokenRaw string) (AuthResult, er
 	if err != nil {
 		return AuthResult{}, ErrInvalidToken
 	}
-	email, _ := payload.Claims["email"].(string)
+	email := claimString(payload.Claims, "email")
 	if email == "" {
 		return AuthResult{}, ErrInvalidToken
+	}
+
+	picture := claimString(payload.Claims, "picture")
+	name := claimString(payload.Claims, "name")
+	if name == "" {
+		name = claimString(payload.Claims, "given_name")
 	}
 
 	user, err := s.store.FindUserByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			display := strings.Split(email, "@")[0]
-			user, err = s.store.CreateGoogleUser(ctx, email, payload.Subject, display)
+			display := name
+			if display == "" {
+				display = strings.Split(email, "@")[0]
+			}
+			user, err = s.store.CreateGoogleUser(ctx, email, payload.Subject, display, picture)
 			if err != nil {
 				return AuthResult{}, err
 			}
 		} else {
 			return AuthResult{}, err
+		}
+	} else if picture != "" && user.PhotoURL != picture {
+		// Keep Google profile photo in sync for returning users.
+		in := store.UpdateUserInput{PhotoURL: &picture}
+		if user.DisplayName == "" && name != "" {
+			in.DisplayName = &name
+		}
+		if updateErr := s.store.UpdateUser(ctx, user.ID, in); updateErr == nil {
+			user.PhotoURL = picture
+			if in.DisplayName != nil {
+				user.DisplayName = *in.DisplayName
+			}
 		}
 	}
 
