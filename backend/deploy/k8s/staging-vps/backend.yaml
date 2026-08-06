@@ -30,8 +30,9 @@ type: Opaque
 stringData:
   DATABASE_URL: "postgres://admin:password@postgres:5432/chatup?sslmode=disable"
   JWT_SECRET: "181b2246922adfbdd1f1774fd1de2cec30b769ccea26f1eb"
-  # Audience do id_token (sempre o Web Client ID, não o Android)
+  # Audiences aceitos no id_token (Web + Android nativo)
   GOOGLE_CLIENT_ID: "510679848324-uicijmb0d26ebf3rlo0qil5pjuk9d1ea.apps.googleusercontent.com"
+  GOOGLE_ANDROID_CLIENT_ID: "510679848324-4nfiam1u85fciohe6t8p6n2rdtdkq5kk.apps.googleusercontent.com"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -66,7 +67,7 @@ spec:
     spec:
       containers:
         - name: backend-go
-          image: docker.io/marcotecmar/chatup-backend-go:20260803-family
+          image: docker.io/marcotecmar/chatup-backend-go:20260804-google-aud
           imagePullPolicy: Always
           ports:
             - containerPort: 3000

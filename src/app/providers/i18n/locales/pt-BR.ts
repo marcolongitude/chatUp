@@ -29,6 +29,8 @@ export const ptBR = {
 		continueWithGoogle: "Continuar com Google",
 		continueWithFacebook: "Continuar com Facebook",
 		googleSignInFailed: "Não foi possível entrar com o Google",
+		googleSignInConfigError:
+			"Login Google mal configurado neste APK (SHA-1). Atualize o client Android no Google Cloud Console.",
 		googleClientIdMissing: "Google OAuth não está configurado",
 		dontHaveAccount: "Não tem uma conta? ",
 		alreadyHaveAccount: "Já tem uma conta? ",

@@ -13,8 +13,9 @@ type Config struct {
 	JWTSecret            string
 	JWTTTLMinutes        int // access token TTL
 	JWTRefreshTTLDays    int // refresh token TTL
-	GoogleClientID       string
-	UploadDir            string
+	GoogleClientID        string
+	GoogleAndroidClientID string
+	UploadDir             string
 	CORSOrigin           string
 	OTLPEndpoint         string
 	ServiceName          string
@@ -48,8 +49,9 @@ func Load() Config {
 		JWTSecret:          getEnv("JWT_SECRET", "SECRET_KEY_DEV"),
 		JWTTTLMinutes:      accessTTL,
 		JWTRefreshTTLDays:  refreshDays,
-		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
-		UploadDir:          getEnv("UPLOAD_DIR", "./uploads"),
+		GoogleClientID:        getEnv("GOOGLE_CLIENT_ID", ""),
+		GoogleAndroidClientID: getEnv("GOOGLE_ANDROID_CLIENT_ID", ""),
+		UploadDir:             getEnv("UPLOAD_DIR", "./uploads"),
 		CORSOrigin:         getEnv("CORS_ORIGIN", "*"),
 		OTLPEndpoint:       getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "alloy.observability.svc.cluster.local:4317"),
 		ServiceName:        getEnv("OTEL_SERVICE_NAME", "chatup-backend-go"),

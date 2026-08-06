@@ -8,21 +8,34 @@ require("dotenv").config();
 /** Base pública da API (staging VPS Rancher). */
 const DEFAULT_PUBLIC_API_URL = "https://chatup-api.147.15.92.201.sslip.io";
 
+/** Client IDs OAuth — fallbacks para não depender só do env no build nativo. */
+const DEFAULT_GOOGLE_ANDROID_CLIENT_ID =
+	"510679848324-4nfiam1u85fciohe6t8p6n2rdtdkq5kk.apps.googleusercontent.com";
+const DEFAULT_GOOGLE_WEB_CLIENT_ID =
+	"510679848324-uicijmb0d26ebf3rlo0qil5pjuk9d1ea.apps.googleusercontent.com";
+
 module.exports = () => {
-	const googleAndroidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
+	const googleAndroidClientId =
+		process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || DEFAULT_GOOGLE_ANDROID_CLIENT_ID;
+	const googleWebClientId =
+		process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || DEFAULT_GOOGLE_WEB_CLIENT_ID;
 	const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
 	const toGoogleScheme = (clientId) => {
 		const id = String(clientId).replace(/\.apps\.googleusercontent\.com$/i, "");
 		return `com.googleusercontent.apps.${id}`;
 	};
-	const googleSchemes = [googleAndroidClientId, googleIosClientId].filter(Boolean).map(toGoogleScheme);
-	const schemes = ["chatup", ...googleSchemes];
+	// iosUrlScheme do plugin Google Sign-In (iOS client, senão web).
+	const iosUrlScheme = toGoogleScheme(googleIosClientId || googleWebClientId);
+	const googleSchemes = [googleAndroidClientId, googleIosClientId, googleWebClientId]
+		.filter(Boolean)
+		.map(toGoogleScheme);
+	const schemes = ["chatup", ...new Set(googleSchemes)];
 
 	return {
 		expo: {
 			name: "chatUp",
 			slug: "chatUp",
-			version: "1.0.2",
+			version: "1.0.3",
 			orientation: "portrait",
 			// Ícone do app (iOS, Android, splash) – assets/logoIcon.png
 			icon: "./assets/logoIcon.png",
@@ -50,7 +63,7 @@ module.exports = () => {
 					backgroundColor: "#ffffff",
 				},
 				package: "com.chatup.app",
-				versionCode: 3,
+				versionCode: 4,
 				edgeToEdgeEnabled: true,
 				predictiveBackGestureEnabled: false,
 				permissions: [
@@ -88,6 +101,12 @@ module.exports = () => {
 						defaultChannel: "messages",
 					},
 				],
+				[
+					"@react-native-google-signin/google-signin",
+					{
+						iosUrlScheme,
+					},
+				],
 			],
 			updates: {
 				enabled: true,
@@ -95,7 +114,7 @@ module.exports = () => {
 				fallbackToCacheTimeout: 0,
 				url: "https://u.expo.dev/d662ef19-e2a8-4cf3-b18a-564a4faa4a3d",
 			},
-			runtimeVersion: "1.0.2",
+			runtimeVersion: "1.0.3",
 			extra: {
 				router: {
 					origin: false,

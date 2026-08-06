@@ -193,6 +193,7 @@ metadata:
     app.kubernetes.io/name: postgres
     app.kubernetes.io/part-of: chatup
     env: staging
+    observability: enabled
     service: postgres
 spec:
   replicas: 1
@@ -208,6 +209,7 @@ spec:
         app.kubernetes.io/name: postgres
         app.kubernetes.io/part-of: chatup
         env: staging
+        observability: enabled
         service: postgres
     spec:
       containers:

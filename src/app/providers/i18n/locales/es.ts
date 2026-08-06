@@ -29,6 +29,8 @@ export const es = {
 		continueWithGoogle: "Continuar con Google",
 		continueWithFacebook: "Continuar con Facebook",
 		googleSignInFailed: "No se pudo iniciar sesión con Google",
+		googleSignInConfigError:
+			"Google Sign-In mal configurado en este APK (SHA-1). Actualice el cliente Android en Google Cloud Console.",
 		googleClientIdMissing: "Google OAuth no está configurado",
 		dontHaveAccount: "¿No tiene una cuenta? ",
 		alreadyHaveAccount: "¿Ya tiene una cuenta? ",

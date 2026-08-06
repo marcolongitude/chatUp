@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"strings"
@@ -168,13 +170,87 @@ func claimString(claims map[string]any, key string) string {
 	return strings.TrimSpace(v)
 }
 
+func (s *Service) googleAudiences() []string {
+	seen := map[string]struct{}{}
+	out := make([]string, 0, 2)
+	for _, aud := range []string{s.cfg.GoogleClientID, s.cfg.GoogleAndroidClientID} {
+		aud = strings.TrimSpace(aud)
+		if aud == "" {
+			continue
+		}
+		if _, ok := seen[aud]; ok {
+			continue
+		}
+		seen[aud] = struct{}{}
+		out = append(out, aud)
+	}
+	return out
+}
+
+func (s *Service) validateGoogleIDToken(ctx context.Context, idTokenRaw string) (*idtoken.Payload, error) {
+	audiences := s.googleAudiences()
+	if len(audiences) == 0 {
+		s.logger.Error("google_login_misconfigured", "reason", "missing GOOGLE_CLIENT_ID")
+		return nil, ErrInvalidToken
+	}
+
+	var lastErr error
+	for _, aud := range audiences {
+		payload, err := idtoken.Validate(ctx, idTokenRaw, aud)
+		if err == nil {
+			return payload, nil
+		}
+		lastErr = err
+	}
+
+	s.logger.Warn(
+		"google_id_token_invalid",
+		"err", lastErr,
+		"audiences_tried", len(audiences),
+		"token_aud", peekJWTClaim(idTokenRaw, "aud"),
+		"token_azp", peekJWTClaim(idTokenRaw, "azp"),
+		"token_iss", peekJWTClaim(idTokenRaw, "iss"),
+	)
+	return nil, ErrInvalidToken
+}
+
+// peekJWTClaim reads an unverified JWT claim for diagnostics only.
+func peekJWTClaim(jwtRaw, claim string) string {
+	parts := strings.Split(jwtRaw, ".")
+	if len(parts) < 2 {
+		return ""
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return ""
+	}
+	var claims map[string]any
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return ""
+	}
+	switch v := claims[claim].(type) {
+	case string:
+		return v
+	case []any:
+		parts := make([]string, 0, len(v))
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				parts = append(parts, s)
+			}
+		}
+		return strings.Join(parts, ",")
+	default:
+		return ""
+	}
+}
+
 func (s *Service) Google(ctx context.Context, idTokenRaw string) (AuthResult, error) {
 	if idTokenRaw == "" {
 		return AuthResult{}, ErrInvalidToken
 	}
-	payload, err := idtoken.Validate(ctx, idTokenRaw, s.cfg.GoogleClientID)
+	payload, err := s.validateGoogleIDToken(ctx, idTokenRaw)
 	if err != nil {
-		return AuthResult{}, ErrInvalidToken
+		return AuthResult{}, err
 	}
 	email := claimString(payload.Claims, "email")
 	if email == "" {
