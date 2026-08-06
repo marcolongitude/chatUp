@@ -35,7 +35,7 @@ module.exports = () => {
 		expo: {
 			name: "chatUp",
 			slug: "chatUp",
-			version: "1.0.3",
+			version: "1.0.4",
 			orientation: "portrait",
 			// Ícone do app (iOS, Android, splash) – assets/logoIcon.png
 			icon: "./assets/logoIcon.png",
@@ -63,7 +63,7 @@ module.exports = () => {
 					backgroundColor: "#ffffff",
 				},
 				package: "com.chatup.app",
-				versionCode: 4,
+				versionCode: 5,
 				edgeToEdgeEnabled: true,
 				predictiveBackGestureEnabled: false,
 				permissions: [
@@ -114,7 +114,7 @@ module.exports = () => {
 				fallbackToCacheTimeout: 0,
 				url: "https://u.expo.dev/d662ef19-e2a8-4cf3-b18a-564a4faa4a3d",
 			},
-			runtimeVersion: "1.0.3",
+			runtimeVersion: "1.0.4",
 			extra: {
 				router: {
 					origin: false,
