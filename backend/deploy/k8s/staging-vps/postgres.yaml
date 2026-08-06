@@ -180,8 +180,16 @@ data:
     );
     CREATE INDEX IF NOT EXISTS idx_nearby_presence_observer_inside
       ON nearby_presence (observer_id, last_inside_at DESC);
+  0008_location_updated_at.sql: |
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS location_updated_at TIMESTAMPTZ;
+    UPDATE users
+    SET location_updated_at = updated_at
+    WHERE latitude IS NOT NULL
+      AND longitude IS NOT NULL
+      AND location_updated_at IS NULL;
   # NOTE: 0004_postgis_nearby.sql omitted — needs postgis/postgis image; Haversine fallback remains.
-  # NOTE: 0006/0007 apply only on fresh PVC init; on existing DB run SQL manually / Job.
+  # NOTE: 0006/0007/0008 apply only on fresh PVC init; on existing DB run SQL manually / Job.
 ---
 apiVersion: apps/v1
 kind: Deployment

@@ -89,10 +89,10 @@ func (f *fakeStore) UpdateLocation(ctx context.Context, userID string, latitude,
 func (f *fakeStore) GetUserGeo(ctx context.Context, userID string) (store.UserGeo, bool, error) {
 	return store.UserGeo{}, false, nil
 }
-func (f *fakeStore) ListUsersWithLocation(ctx context.Context, exceptUserID string) ([]store.UserLocation, error) {
+func (f *fakeStore) ListUsersWithLocation(ctx context.Context, exceptUserID string, staleAfter time.Duration) ([]store.UserLocation, error) {
 	return nil, nil
 }
-func (f *fakeStore) ListUsersNearby(ctx context.Context, exceptUserID string, latitude, longitude, radiusMeters float64) ([]store.UserLocationDistance, error) {
+func (f *fakeStore) ListUsersNearby(ctx context.Context, exceptUserID string, latitude, longitude, radiusMeters float64, staleAfter time.Duration) ([]store.UserLocationDistance, error) {
 	return nil, errors.New("postgis unavailable in fake store")
 }
 func (f *fakeStore) CreateFamilyLink(ctx context.Context, actorID, peerID string) (store.FamilyLink, error) {

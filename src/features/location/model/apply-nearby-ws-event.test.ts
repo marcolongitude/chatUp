@@ -52,4 +52,25 @@ describe("applyNearbyWsEvent", () => {
 		expect(snap.family[0]?.inGrace).toBe(true);
 		expect(snap.discovery.find((c) => c.id === "f1")).toBeUndefined();
 	});
+
+	it("applies nearby.sync snapshot", () => {
+		expect(
+			applyNearbyWsEvent({
+				type: "nearby.sync",
+				data: {
+					snapshot: {
+						version: 99,
+						observerId: "me",
+						perimeterKm: 2,
+						family: [{ id: "f9", name: "Fam", familyLink: true }],
+						discovery: [{ id: "d9", name: "Disc", familyLink: false }],
+					},
+				},
+			})
+		).toBe(true);
+		const snap = getNearbyStoreState().snapshot!;
+		expect(snap.perimeterKm).toBe(2);
+		expect(snap.family.map((c) => c.id)).toEqual(["f9"]);
+		expect(snap.discovery.map((c) => c.id)).toEqual(["d9"]);
+	});
 });

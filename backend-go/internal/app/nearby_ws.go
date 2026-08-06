@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"sync"
+	"time"
 
 	"chatup/backend-go/internal/ws"
 )
@@ -174,11 +175,12 @@ func (s *Service) publishNearbyAfterLocationChange(ctx context.Context, moverID 
 	}
 
 	// Candidatos geográficos no raio máximo (podem passar a ver o mover).
-	if near, err := s.store.ListUsersNearby(ctx, moverID, lat, lng, maxDiscoveryRadiusKm*1000); err == nil {
+	staleAfter := s.locationStaleAfter()
+	if near, err := s.store.ListUsersNearby(ctx, moverID, lat, lng, maxDiscoveryRadiusKm*1000, staleAfter); err == nil {
 		for _, u := range near {
 			affected[u.ID] = struct{}{}
 		}
-	} else if all, listErr := s.store.ListUsersWithLocation(ctx, moverID); listErr == nil {
+	} else if all, listErr := s.store.ListUsersWithLocation(ctx, moverID, staleAfter); listErr == nil {
 		for _, u := range all {
 			if Haversine(lat, lng, u.Latitude, u.Longitude) <= maxDiscoveryRadiusKm {
 				affected[u.ID] = struct{}{}
@@ -209,4 +211,47 @@ func (s *Service) refreshNearbyForUser(ctx context.Context, userID string) {
 		r = 1
 	}
 	s.refreshNearbyObserver(ctx, userID, geo.Latitude, geo.Longitude, r)
+}
+
+func nearbySnapshotPayload(observerID string, perimeterKm float64, users []NearbyUser) map[string]any {
+	family := make([]map[string]any, 0)
+	discovery := make([]map[string]any, 0)
+	for _, u := range users {
+		item := nearbyUserPayload(u)
+		item["queue"] = nearbyQueue(u)
+		if u.FamilyLink {
+			family = append(family, item)
+		} else {
+			discovery = append(discovery, item)
+		}
+	}
+	return map[string]any{
+		"version":     time.Now().UnixMilli(),
+		"observerId":  observerID,
+		"perimeterKm": perimeterKm,
+		"family":      family,
+		"discovery":   discovery,
+	}
+}
+
+// SyncNearbyOnConnect envia snapshot completo (nearby.sync) ao conectar/reconectar o WS.
+func (s *Service) SyncNearbyOnConnect(ctx context.Context, userID string) {
+	geo, ok, err := s.store.GetUserGeo(ctx, userID)
+	if err != nil || !ok {
+		return
+	}
+	r := float64(geo.NearbyRadiusKm)
+	if r <= 0 {
+		r = 1
+	}
+	users, err := s.Nearby(ctx, userID, geo.Latitude, geo.Longitude, r)
+	if err != nil {
+		return
+	}
+	s.hub.SendToUser(userID, ws.Outbound{
+		Type: "nearby.sync",
+		Data: map[string]any{
+			"snapshot": nearbySnapshotPayload(userID, r, users),
+		},
+	})
 }

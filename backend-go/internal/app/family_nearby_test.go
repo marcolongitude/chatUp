@@ -14,10 +14,31 @@ type nearbyFakeStore struct {
 	familyPeers   map[string]bool
 	grace         []store.PresenceGraceRow
 	touchedIDs    []string
+	userGeo       map[string]store.UserGeo
 }
 
-func (f *nearbyFakeStore) ListUsersWithLocation(ctx context.Context, exceptUserID string) ([]store.UserLocation, error) {
-	return f.geo, nil
+func (f *nearbyFakeStore) GetUserGeo(ctx context.Context, userID string) (store.UserGeo, bool, error) {
+	if f.userGeo != nil {
+		if g, ok := f.userGeo[userID]; ok {
+			return g, true, nil
+		}
+	}
+	return store.UserGeo{}, false, nil
+}
+
+func (f *nearbyFakeStore) ListUsersWithLocation(ctx context.Context, exceptUserID string, staleAfter time.Duration) ([]store.UserLocation, error) {
+	if staleAfter <= 0 {
+		return f.geo, nil
+	}
+	cutoff := time.Now().UTC().Add(-staleAfter)
+	out := make([]store.UserLocation, 0, len(f.geo))
+	for _, u := range f.geo {
+		if !u.LocationUpdatedAt.IsZero() && u.LocationUpdatedAt.Before(cutoff) {
+			continue
+		}
+		out = append(out, u)
+	}
+	return out, nil
 }
 
 func (f *nearbyFakeStore) ListAcceptedFamilyPeers(ctx context.Context, userID string) (map[string]bool, error) {

@@ -50,12 +50,13 @@ type SearchUser struct {
 }
 
 type UserLocation struct {
-	ID        string
-	Email     string
-	Name      string
-	Avatar    string
-	Latitude  float64
-	Longitude float64
+	ID                string
+	Email             string
+	Name              string
+	Avatar            string
+	Latitude          float64
+	Longitude         float64
+	LocationUpdatedAt time.Time
 }
 
 type UserGeo struct {
@@ -390,10 +391,18 @@ func (s *Store) UpdateLocation(ctx context.Context, userID string, latitude, lon
 		SET latitude=$2,
 		    longitude=$3,
 		    location = ST_SetSRID(ST_MakePoint($3, $2), 4326)::geography,
+		    location_updated_at=NOW(),
 		    updated_at=NOW()
 		WHERE id=$1`, userID, latitude, longitude)
 	if err != nil {
-		_, err = s.db.Exec(ctx, `UPDATE users SET latitude=$2, longitude=$3, updated_at=NOW() WHERE id=$1`, userID, latitude, longitude)
+		// Fallback without PostGIS / before migration 0008 column exists.
+		_, err = s.db.Exec(ctx, `
+			UPDATE users
+			SET latitude=$2, longitude=$3, location_updated_at=NOW(), updated_at=NOW()
+			WHERE id=$1`, userID, latitude, longitude)
+		if err != nil {
+			_, err = s.db.Exec(ctx, `UPDATE users SET latitude=$2, longitude=$3, updated_at=NOW() WHERE id=$1`, userID, latitude, longitude)
+		}
 	}
 	return err
 }
@@ -403,14 +412,53 @@ type UserLocationDistance struct {
 	DistanceM int
 }
 
-func (s *Store) ListUsersWithLocation(ctx context.Context, exceptUserID string) ([]UserLocation, error) {
-	rows, err := s.db.Query(ctx, `SELECT id,email,COALESCE(display_name,''),COALESCE(photo_url,''),latitude,longitude
-		FROM users WHERE id <> $1 AND latitude IS NOT NULL AND longitude IS NOT NULL`, exceptUserID)
+func (s *Store) ListUsersWithLocation(ctx context.Context, exceptUserID string, staleAfter time.Duration) ([]UserLocation, error) {
+	cutoff := time.Time{}
+	if staleAfter > 0 {
+		cutoff = time.Now().UTC().Add(-staleAfter)
+	}
+	rows, err := s.db.Query(ctx, `
+		SELECT id,email,COALESCE(display_name,''),COALESCE(photo_url,''),latitude,longitude,
+		       COALESCE(location_updated_at, updated_at)
+		FROM users
+		WHERE id <> $1
+		  AND latitude IS NOT NULL AND longitude IS NOT NULL
+		  AND ($2::timestamptz IS NULL OR COALESCE(location_updated_at, updated_at) >= $2)
+	`, exceptUserID, nullableTime(cutoff))
 	if err != nil {
-		return nil, err
+		// Pre-0008: column missing — fall back without stale filter.
+		rows, err = s.db.Query(ctx, `SELECT id,email,COALESCE(display_name,''),COALESCE(photo_url,''),latitude,longitude
+			FROM users WHERE id <> $1 AND latitude IS NOT NULL AND longitude IS NOT NULL`, exceptUserID)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		return scanUserLocationsLegacy(rows)
 	}
 	defer rows.Close()
 
+	out := make([]UserLocation, 0)
+	for rows.Next() {
+		var u UserLocation
+		if err := rows.Scan(&u.ID, &u.Email, &u.Name, &u.Avatar, &u.Latitude, &u.Longitude, &u.LocationUpdatedAt); err != nil {
+			return nil, err
+		}
+		if u.Name == "" {
+			u.Name = strings.Split(u.Email, "@")[0]
+		}
+		out = append(out, u)
+	}
+	return out, nil
+}
+
+func nullableTime(t time.Time) any {
+	if t.IsZero() {
+		return nil
+	}
+	return t
+}
+
+func scanUserLocationsLegacy(rows pgx.Rows) ([]UserLocation, error) {
 	out := make([]UserLocation, 0)
 	for rows.Next() {
 		var u UserLocation
@@ -426,7 +474,11 @@ func (s *Store) ListUsersWithLocation(ctx context.Context, exceptUserID string) 
 }
 
 // ListUsersNearby uses PostGIS when available (migration 0004). Caller should fall back on error.
-func (s *Store) ListUsersNearby(ctx context.Context, exceptUserID string, latitude, longitude, radiusMeters float64) ([]UserLocationDistance, error) {
+func (s *Store) ListUsersNearby(ctx context.Context, exceptUserID string, latitude, longitude, radiusMeters float64, staleAfter time.Duration) ([]UserLocationDistance, error) {
+	cutoff := time.Time{}
+	if staleAfter > 0 {
+		cutoff = time.Now().UTC().Add(-staleAfter)
+	}
 	rows, err := s.db.Query(ctx, `
 		SELECT id,
 		       email,
@@ -434,13 +486,15 @@ func (s *Store) ListUsersNearby(ctx context.Context, exceptUserID string, latitu
 		       COALESCE(photo_url,''),
 		       ST_Y(location::geometry) AS latitude,
 		       ST_X(location::geometry) AS longitude,
-		       ST_Distance(location, ST_SetSRID(ST_MakePoint($3, $2), 4326)::geography)::int AS distance_m
+		       ST_Distance(location, ST_SetSRID(ST_MakePoint($3, $2), 4326)::geography)::int AS distance_m,
+		       COALESCE(location_updated_at, updated_at) AS location_updated_at
 		FROM users
 		WHERE id <> $1
 		  AND location IS NOT NULL
 		  AND ST_DWithin(location, ST_SetSRID(ST_MakePoint($3, $2), 4326)::geography, $4)
+		  AND ($5::timestamptz IS NULL OR COALESCE(location_updated_at, updated_at) >= $5)
 		ORDER BY distance_m ASC
-		LIMIT 200`, exceptUserID, latitude, longitude, radiusMeters)
+		LIMIT 200`, exceptUserID, latitude, longitude, radiusMeters, nullableTime(cutoff))
 	if err != nil {
 		return nil, err
 	}
@@ -449,7 +503,7 @@ func (s *Store) ListUsersNearby(ctx context.Context, exceptUserID string, latitu
 	out := make([]UserLocationDistance, 0)
 	for rows.Next() {
 		var u UserLocationDistance
-		if err := rows.Scan(&u.ID, &u.Email, &u.Name, &u.Avatar, &u.Latitude, &u.Longitude, &u.DistanceM); err != nil {
+		if err := rows.Scan(&u.ID, &u.Email, &u.Name, &u.Avatar, &u.Latitude, &u.Longitude, &u.DistanceM, &u.LocationUpdatedAt); err != nil {
 			return nil, err
 		}
 		if u.Name == "" {

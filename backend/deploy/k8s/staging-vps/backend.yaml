@@ -16,6 +16,8 @@ data:
   UPLOAD_DIR: "/tmp/uploads"
   OTEL_EXPORTER_OTLP_ENDPOINT: "alloy.observability.svc.cluster.local:4317"
   OTEL_SERVICE_NAME: "chatup-backend-go"
+  FAMILY_GRACE_SECONDS: "1800"
+  LOCATION_STALE_SECONDS: "1800"
 ---
 apiVersion: v1
 kind: Secret

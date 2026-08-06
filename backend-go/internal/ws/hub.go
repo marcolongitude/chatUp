@@ -98,7 +98,7 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
-func (h *Hub) ServeWS(secret string, handler func(userID string, env Envelope)) http.HandlerFunc {
+func (h *Hub) ServeWS(secret string, handler func(userID string, env Envelope), onConnect ...func(userID string)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := r.URL.Query().Get("token")
 		claims, err := security.ParseToken(secret, token)
@@ -113,6 +113,9 @@ func (h *Hub) ServeWS(secret string, handler func(userID string, env Envelope)) 
 		}
 		client := &Client{Conn: conn, UserID: claims.Sub, Send: make(chan Outbound, 64)}
 		h.Register(client)
+		if len(onConnect) > 0 && onConnect[0] != nil {
+			go onConnect[0](client.UserID)
+		}
 
 		go func() {
 			defer conn.Close()

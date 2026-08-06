@@ -55,8 +55,8 @@ type storePort interface {
 	GetAndConsumeKeyBundle(ctx context.Context, userID string) (store.KeyBundle, bool, error)
 	UpdateLocation(ctx context.Context, userID string, latitude, longitude float64) error
 	GetUserGeo(ctx context.Context, userID string) (store.UserGeo, bool, error)
-	ListUsersWithLocation(ctx context.Context, exceptUserID string) ([]store.UserLocation, error)
-	ListUsersNearby(ctx context.Context, exceptUserID string, latitude, longitude, radiusMeters float64) ([]store.UserLocationDistance, error)
+	ListUsersWithLocation(ctx context.Context, exceptUserID string, staleAfter time.Duration) ([]store.UserLocation, error)
+	ListUsersNearby(ctx context.Context, exceptUserID string, latitude, longitude, radiusMeters float64, staleAfter time.Duration) ([]store.UserLocationDistance, error)
 	CreateFamilyLink(ctx context.Context, actorID, peerID string) (store.FamilyLink, error)
 	GetFamilyLinkByID(ctx context.Context, id string) (store.FamilyLink, error)
 	GetFamilyLinkByPair(ctx context.Context, userAID, userBID string) (store.FamilyLink, error)
@@ -526,8 +526,16 @@ func (s *Service) Nearby(ctx context.Context, userID string, latitude, longitude
 	return out, nil
 }
 
+func (s *Service) locationStaleAfter() time.Duration {
+	if s.cfg.LocationStaleSeconds <= 0 {
+		return 30 * time.Minute
+	}
+	return time.Duration(s.cfg.LocationStaleSeconds) * time.Second
+}
+
 func (s *Service) computeNearby(ctx context.Context, userID string, latitude, longitude, radiusKm float64) ([]NearbyUser, error) {
 	radiusMeters := radiusKm * 1000
+	staleAfter := s.locationStaleAfter()
 	familyPeers, err := s.store.ListAcceptedFamilyPeers(ctx, userID)
 	if err != nil {
 		// Family tables may be missing before migration 0007 — keep geometric nearby.
@@ -535,7 +543,7 @@ func (s *Service) computeNearby(ctx context.Context, userID string, latitude, lo
 	}
 
 	geo := make([]NearbyUser, 0)
-	if nearby, err := s.store.ListUsersNearby(ctx, userID, latitude, longitude, radiusMeters); err == nil {
+	if nearby, err := s.store.ListUsersNearby(ctx, userID, latitude, longitude, radiusMeters, staleAfter); err == nil {
 		for _, u := range nearby {
 			geo = append(geo, NearbyUser{
 				ID:        u.ID,
@@ -548,11 +556,15 @@ func (s *Service) computeNearby(ctx context.Context, userID string, latitude, lo
 		}
 	} else {
 		// Fallback until PostGIS migration (0004) is applied.
-		users, listErr := s.store.ListUsersWithLocation(ctx, userID)
+		users, listErr := s.store.ListUsersWithLocation(ctx, userID, staleAfter)
 		if listErr != nil {
 			return nil, ErrQueryFailed
 		}
+		cutoff := time.Now().UTC().Add(-staleAfter)
 		for _, u := range users {
+			if !u.LocationUpdatedAt.IsZero() && u.LocationUpdatedAt.Before(cutoff) {
+				continue
+			}
 			distanceKm := Haversine(latitude, longitude, u.Latitude, u.Longitude)
 			if distanceKm <= radiusKm {
 				geo = append(geo, NearbyUser{

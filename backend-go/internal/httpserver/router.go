@@ -47,7 +47,7 @@ func NewRouter(cfg config.Config, db *pgxpool.Pool, hub *ws.Hub, logger *slog.Lo
 	r.Post("/auth/refresh", h.refresh)
 	r.Post("/auth/logout", h.logout)
 	r.Get("/files/{filename}", h.getFile)
-	r.Get("/ws", hub.ServeWS(cfg.JWTSecret, h.handleWS))
+	r.Get("/ws", hub.ServeWS(cfg.JWTSecret, h.handleWS, h.onWSConnect))
 
 	r.Group(func(pr chi.Router) {
 		pr.Use(authmw.JWT(cfg.JWTSecret))
@@ -76,4 +76,10 @@ func (h *Handlers) handleWS(userID string, env ws.Envelope) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	h.svc.HandleWSMessage(ctx, userID, env)
+}
+
+func (h *Handlers) onWSConnect(userID string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
+	h.svc.SyncNearbyOnConnect(ctx, userID)
 }

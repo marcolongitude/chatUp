@@ -22,6 +22,9 @@ type Config struct {
 	// FamilyGraceSeconds: keep family peers on nearby list after leaving perimeter
 	// when mutual location share is off. Default 1800 (30m). Override only for tests.
 	FamilyGraceSeconds int
+	// LocationStaleSeconds: exclude peers whose GPS was not refreshed within this window
+	// from geometric discovery (anti stale "other city"). Default 1800 (30m). Family grace unaffected.
+	LocationStaleSeconds int
 }
 
 func Load() Config {
@@ -43,6 +46,10 @@ func Load() Config {
 	if familyGrace <= 0 {
 		familyGrace = 1800
 	}
+	locationStale, _ := strconv.Atoi(getEnv("LOCATION_STALE_SECONDS", "1800"))
+	if locationStale <= 0 {
+		locationStale = 1800
+	}
 	return Config{
 		Port:               getEnv("PORT", "3000"),
 		DatabaseURL:        getEnv("DATABASE_URL", "postgres://admin:password@localhost:5432/chatup?sslmode=disable"),
@@ -55,7 +62,8 @@ func Load() Config {
 		CORSOrigin:         getEnv("CORS_ORIGIN", "*"),
 		OTLPEndpoint:       getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "alloy.observability.svc.cluster.local:4317"),
 		ServiceName:        getEnv("OTEL_SERVICE_NAME", "chatup-backend-go"),
-		FamilyGraceSeconds: familyGrace,
+		FamilyGraceSeconds:   familyGrace,
+		LocationStaleSeconds: locationStale,
 	}
 }
 

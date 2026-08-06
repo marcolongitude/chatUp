@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"testing"
+	"time"
 
 	"chatup/backend-go/internal/store"
 )
@@ -70,5 +71,52 @@ func TestNearbyQueue(t *testing.T) {
 	}
 	if nearbyQueue(NearbyUser{FamilyLink: false}) != "discovery" {
 		t.Fatal("discovery queue")
+	}
+}
+
+func TestComputeNearbyExcludesStalePeer(t *testing.T) {
+	st := &nearbyFakeStore{
+		geo: []store.UserLocation{
+			{ID: "fresh", Name: "Fresh", Latitude: -23.0, Longitude: -46.0, LocationUpdatedAt: time.Now()},
+			{ID: "stale", Name: "Stale", Latitude: -23.001, Longitude: -46.001, LocationUpdatedAt: time.Now().Add(-2 * time.Hour)},
+		},
+		familyPeers: map[string]bool{},
+	}
+	cfg := newTestService(&fakeStore{}, &fakeHub{}).cfg
+	cfg.LocationStaleSeconds = 1800
+	svc := New(cfg, st, &fakeHub{}, nil)
+
+	out, err := svc.Nearby(context.Background(), "me", -23.0, -46.0, 3)
+	if err != nil {
+		t.Fatalf("Nearby: %v", err)
+	}
+	if len(out) != 1 || out[0].ID != "fresh" {
+		t.Fatalf("expected only fresh peer, got %+v", out)
+	}
+}
+
+func TestSyncNearbyOnConnectEmitsSnapshot(t *testing.T) {
+	st := &nearbyFakeStore{
+		geo: []store.UserLocation{
+			{ID: "peer", Name: "Peer", Latitude: -23.0, Longitude: -46.0, LocationUpdatedAt: time.Now()},
+		},
+		userGeo: map[string]store.UserGeo{
+			"me": {Latitude: -23.0, Longitude: -46.0, NearbyRadiusKm: 1},
+		},
+	}
+	hub := &fakeHub{online: map[string]bool{"me": true}}
+	svc := New(newTestService(&fakeStore{}, hub).cfg, st, hub, nil)
+
+	svc.SyncNearbyOnConnect(context.Background(), "me")
+
+	found := false
+	for _, typ := range hub.sentTypes {
+		if typ == "nearby.sync" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected nearby.sync, got %v", hub.sentTypes)
 	}
 }
