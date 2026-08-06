@@ -1,42 +1,44 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "@tanstack/react-router";
 import { useAuth } from "@/features/auth";
-import { useLocation, useNearbyUsers } from "@/features/location";
-import { useContacts } from "@/entities/contact";
+import { openLocationSettings, useNearbyLists } from "@/features/location";
 import { axiosInstance } from "@/shared/api";
 
 export function useContactList() {
 	const router = useRouter();
 	const { user } = useAuth();
 
-	const { openSettings, permissionStatus } = useLocation();
 	const {
-		nearbyUsers,
-		isLoading: isLoadingNearby,
+		familyContacts,
+		discoveryContacts,
+		isLoading,
+		isRefreshing,
 		error: nearbyError,
 		perimeterKm,
-	} = useNearbyUsers(user?.id);
-	const { contacts, isLoading: isLoadingContacts } = useContacts(nearbyUsers, user?.id);
+		permissionGranted,
+	} = useNearbyLists();
 
 	const [searchQuery, setSearchQuery] = useState("");
-	const [searchPromise, setSearchPromise] = useState<Promise<any[]> | null>(null);
-
-	const isLoading = isLoadingNearby || isLoadingContacts;
+	const [searchPromise, setSearchPromise] = useState<Promise<unknown[]> | null>(null);
 
 	const isLocationPermissionError = Boolean(
 		nearbyError &&
 			(nearbyError.includes("localização") ||
 				nearbyError.includes("permissão") ||
 				nearbyError.includes("Localização") ||
-				!permissionStatus?.granted)
+				nearbyError.includes("location") ||
+				nearbyError.includes("permission") ||
+				permissionGranted === false)
 	);
 
 	useEffect(() => {
 		const timer = setTimeout(() => {
 			if (searchQuery.length >= 2) {
-				const promise = axiosInstance.get(`/users/search`, {
-					params: { q: searchQuery }
-				}).then(res => res.data);
+				const promise = axiosInstance
+					.get(`/users/search`, {
+						params: { q: searchQuery },
+					})
+					.then((res) => res.data as unknown[]);
 				setSearchPromise(promise);
 			} else {
 				setSearchPromise(null);
@@ -45,21 +47,27 @@ export function useContactList() {
 		return () => clearTimeout(timer);
 	}, [searchQuery]);
 
-	const handleContactPress = useCallback((contactId: string, name?: string, avatar?: string) => {
-		// Sessão crypto inicia no chat (useMessages), não bloqueia a navegação.
-		router.navigate({
-			to: "/chat/$chatId",
-			params: { chatId: contactId },
-			search: { initialName: name, initialAvatar: avatar }
-		} as any);
-	}, [router]);
+	const handleContactPress = useCallback(
+		(contactId: string, name?: string, avatar?: string) => {
+			router.navigate({
+				to: "/chat/$chatId",
+				params: { chatId: contactId },
+				search: { initialName: name, initialAvatar: avatar },
+			} as never);
+		},
+		[router]
+	);
 
 	const isSearchingMode = searchQuery.length >= 2;
+	const isEmpty = familyContacts.length === 0 && discoveryContacts.length === 0;
 
 	return {
 		user,
-		contacts,
+		familyContacts,
+		discoveryContacts,
+		isEmpty,
 		isLoading,
+		isRefreshing,
 		searchQuery,
 		setSearchQuery,
 		searchPromise,
@@ -67,7 +75,7 @@ export function useContactList() {
 		isLocationPermissionError,
 		isSearchingMode,
 		perimeterKm,
-		openSettings,
+		openSettings: openLocationSettings,
 		handleContactPress,
 	};
 }

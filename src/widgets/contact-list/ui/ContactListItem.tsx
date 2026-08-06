@@ -7,6 +7,7 @@ import {
 	ContactInfo,
 	ContactDetails,
 	ContactName,
+	ContactSubtitle,
 	UnreadBadge,
 	UnreadCount,
 } from "./styled";
@@ -17,6 +18,7 @@ interface ContactListItemProps {
 		name: string;
 		avatar?: string;
 		unreadCount?: number;
+		subtitle?: string;
 	};
 	onPress: () => void;
 }
@@ -55,6 +57,7 @@ export function ContactListItem({ contact, onPress }: ContactListItemProps) {
 			<ContactInfo>
 				<ContactDetails>
 					<ContactName testID={`e2e.contact.name.${contact.id}`}>{contact.name}</ContactName>
+					{contact.subtitle ? <ContactSubtitle>{contact.subtitle}</ContactSubtitle> : null}
 				</ContactDetails>
 				{contact.unreadCount && contact.unreadCount > 0 ? (
 					<UnreadBadge>

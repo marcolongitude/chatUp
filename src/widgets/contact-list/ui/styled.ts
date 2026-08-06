@@ -74,6 +74,30 @@ export const ContactName = styled.Text`
 	color: ${(props) => props.theme.colors.text.primary};
 `;
 
+export const ContactSubtitle = styled.Text`
+	font-size: 13px;
+	color: ${(props) => props.theme.colors.text.tertiary};
+	margin-top: 2px;
+`;
+
+export const SectionHeader = styled.Text`
+	font-size: 13px;
+	font-weight: 700;
+	letter-spacing: 0.4px;
+	text-transform: uppercase;
+	color: ${(props) => props.theme.colors.text.tertiary};
+	background-color: ${(props) => props.theme.colors.background.primary};
+	padding: ${(props) => props.theme.spacing.sm}px ${(props) => props.theme.spacing.lg}px;
+	padding-top: ${(props) => props.theme.spacing.md}px;
+`;
+
+export const RefreshHint = styled.Text`
+	font-size: 12px;
+	color: ${(props) => props.theme.colors.text.tertiary};
+	text-align: center;
+	padding: ${(props) => props.theme.spacing.xs}px;
+`;
+
 export const UnreadBadge = styled.View`
 	min-width: 24px;
 	height: 24px;

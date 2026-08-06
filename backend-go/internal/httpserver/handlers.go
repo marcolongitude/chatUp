@@ -450,7 +450,7 @@ func (h *Handlers) nearby(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(authmw.UserIDKey).(string)
 	lat := app.ParseFloat(r.URL.Query().Get("latitude"), 0)
 	lng := app.ParseFloat(r.URL.Query().Get("longitude"), 0)
-	radius := app.ParseFloat(r.URL.Query().Get("radius"), 2)
+	radius := app.ParseFloat(r.URL.Query().Get("radius"), 1)
 	users, err := h.svc.Nearby(r.Context(), userID, lat, lng, radius)
 	if err != nil {
 		http.Error(w, "query error", http.StatusInternalServerError)

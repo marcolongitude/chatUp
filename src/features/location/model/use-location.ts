@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { Linking, Platform, Alert, PermissionsAndroid } from "react-native";
+import { Platform, PermissionsAndroid } from "react-native";
 import * as Location from "expo-location";
 import Constants from "expo-constants";
 
+import { openLocationSettings } from "../lib/open-location-settings";
 import type { LocationModel, LocationPermissionStatus } from "./location";
 
 const MOCK_LOCATION: LocationModel = {
@@ -172,18 +173,6 @@ export function useLocation() {
     });
   }, [checkPermission, updateLocation]);
 
-  const openSettings = useCallback(async () => {
-    try {
-      if (Platform.OS === "android") {
-        await Linking.openSettings();
-      } else {
-        await Linking.openURL("app-settings:");
-      }
-    } catch {
-      Alert.alert("Erro", "Não foi possível abrir as configurações.");
-    }
-  }, []);
-
   return {
     location,
     isLoading,
@@ -191,6 +180,6 @@ export function useLocation() {
     permissionStatus,
     requestPermission,
     updateLocation,
-    openSettings,
+    openSettings: openLocationSettings,
   };
 }

@@ -89,6 +89,7 @@ export const ptBR = {
 	conversations: {
 		title: "Conversas",
 		searching: "Buscando usuários próximos...",
+		refreshing: "Atualizando lista...",
 		noUsersFound: "Nenhum usuário próximo encontrado",
 		usersWithin2km: "Usuários dentro de {{km}} km aparecerão aqui automaticamente",
 		locationPermissionError: "Para ver usuários próximos, é necessário permitir o acesso à localização.",
@@ -96,6 +97,9 @@ export const ptBR = {
 		openSettings: "Abrir Configurações",
 		searchPlaceholder: "Buscar usuários por nome ou email...",
 		noResultsFound: "Nenhum usuário encontrado para sua busca.",
+		sectionFamily: "Família",
+		sectionNearby: "Perto de você",
+		familyGraceHint: "Fora do alcance — permanece por um tempo",
 	},
 
 	// Chat

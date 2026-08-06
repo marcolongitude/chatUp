@@ -90,6 +90,7 @@ export const es = {
 	conversations: {
 		title: "Conversaciones",
 		searching: "Buscando usuarios cercanos...",
+		refreshing: "Actualizando lista...",
 		noUsersFound: "No se encontraron usuarios cercanos",
 		usersWithin2km: "Los usuarios dentro de {{km}} km aparecerán aquí automáticamente",
 		locationPermissionError: "Para ver usuarios cercanos, es necesario permitir el acceso a la ubicación.",
@@ -97,6 +98,9 @@ export const es = {
 		openSettings: "Abrir Configuración",
 		searchPlaceholder: "Buscar usuarios por nombre o email...",
 		noResultsFound: "No se encontraron usuarios para su búsqueda.",
+		sectionFamily: "Familia",
+		sectionNearby: "Cerca de ti",
+		familyGraceHint: "Fuera de alcance — permanece un tiempo",
 	},
 
 	// Chat

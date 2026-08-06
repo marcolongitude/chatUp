@@ -89,6 +89,7 @@ export const en = {
 	conversations: {
 		title: "Conversations",
 		searching: "Searching for nearby users...",
+		refreshing: "Updating list...",
 		noUsersFound: "No nearby users found",
 		usersWithin2km: "Users within {{km}} km will appear here automatically",
 		locationPermissionError: "To see nearby users, you need to allow location access.",
@@ -96,6 +97,9 @@ export const en = {
 		openSettings: "Open Settings",
 		searchPlaceholder: "Search users by name or email...",
 		noResultsFound: "No users found for your search.",
+		sectionFamily: "Family",
+		sectionNearby: "Near you",
+		familyGraceHint: "Out of range — stays for a while",
 	},
 
 	// Chat
