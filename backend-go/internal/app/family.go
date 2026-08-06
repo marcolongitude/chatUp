@@ -121,6 +121,10 @@ func (s *Service) AcceptFamilyLink(ctx context.Context, actorID, linkID string) 
 		}
 		return FamilyLinkView{}, ErrQueryFailed
 	}
+	s.refreshNearbyForUser(ctx, actorID)
+	if peerID := familyPeerID(link, actorID); peerID != "" {
+		s.refreshNearbyForUser(ctx, peerID)
+	}
 	links, listErr := s.store.ListFamilyLinksForUser(ctx, actorID)
 	if listErr == nil {
 		for _, item := range links {
@@ -133,11 +137,16 @@ func (s *Service) AcceptFamilyLink(ctx context.Context, actorID, linkID string) 
 }
 
 func (s *Service) RevokeFamilyLink(ctx context.Context, actorID, linkID string) error {
+	before, _ := s.store.GetFamilyLinkByID(ctx, linkID)
 	if err := s.store.RevokeFamilyLink(ctx, linkID, actorID); err != nil {
 		if errors.Is(err, store.ErrFamilyNotFound) {
 			return ErrNotFound
 		}
 		return ErrQueryFailed
+	}
+	s.refreshNearbyForUser(ctx, actorID)
+	if peerID := familyPeerID(before, actorID); peerID != "" {
+		s.refreshNearbyForUser(ctx, peerID)
 	}
 	return nil
 }
@@ -154,6 +163,10 @@ func (s *Service) SetFamilyLocationShare(ctx context.Context, actorID, linkID st
 			return FamilyLinkView{}, ErrQueryFailed
 		}
 	}
+	s.refreshNearbyForUser(ctx, actorID)
+	if peerID := familyPeerID(link, actorID); peerID != "" {
+		s.refreshNearbyForUser(ctx, peerID)
+	}
 	links, listErr := s.store.ListFamilyLinksForUser(ctx, actorID)
 	if listErr == nil {
 		for _, item := range links {
@@ -163,4 +176,17 @@ func (s *Service) SetFamilyLocationShare(ctx context.Context, actorID, linkID st
 		}
 	}
 	return FamilyLinkView{ID: link.ID, Status: link.Status}, nil
+}
+
+func familyPeerID(link store.FamilyLink, actorID string) string {
+	if link.PeerID != "" && link.PeerID != actorID {
+		return link.PeerID
+	}
+	if link.UserAID == actorID {
+		return link.UserBID
+	}
+	if link.UserBID == actorID {
+		return link.UserAID
+	}
+	return ""
 }

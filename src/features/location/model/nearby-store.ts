@@ -1,5 +1,4 @@
-import type { NearbySnapshot } from "./nearby-contract";
-import type { NearbyDeltaEvent } from "./nearby-contract";
+import type { NearbyDeltaEvent, NearbySnapshot } from "./nearby-contract";
 import { applyNearbyDelta } from "./nearby-reducer";
 
 export interface NearbyStoreState {
@@ -74,6 +73,19 @@ export function replaceNearbySnapshot(snapshot: NearbySnapshot): void {
 }
 
 export function patchNearbyDelta(event: NearbyDeltaEvent): void {
-	if (!state.snapshot) return;
-	setState({ snapshot: applyNearbyDelta(state.snapshot, event) });
+	const base =
+		state.snapshot ??
+		({
+			version: 0,
+			observerId: "",
+			perimeterKm: 1,
+			family: [],
+			discovery: [],
+			updatedAt: Date.now(),
+		} as NearbySnapshot);
+	setState({
+		snapshot: applyNearbyDelta(base, event),
+		isBootstrapping: false,
+		error: null,
+	});
 }

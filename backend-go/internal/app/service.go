@@ -32,10 +32,11 @@ var (
 )
 
 type Service struct {
-	cfg    config.Config
-	store  storePort
-	hub    hubPort
-	logger *slog.Logger
+	cfg         config.Config
+	store       storePort
+	hub         hubPort
+	logger      *slog.Logger
+	nearbyCache *nearbyCache
 }
 
 type storePort interface {
@@ -53,6 +54,7 @@ type storePort interface {
 	CountPreKeys(ctx context.Context, userID string) (int, error)
 	GetAndConsumeKeyBundle(ctx context.Context, userID string) (store.KeyBundle, bool, error)
 	UpdateLocation(ctx context.Context, userID string, latitude, longitude float64) error
+	GetUserGeo(ctx context.Context, userID string) (store.UserGeo, bool, error)
 	ListUsersWithLocation(ctx context.Context, exceptUserID string) ([]store.UserLocation, error)
 	ListUsersNearby(ctx context.Context, exceptUserID string, latitude, longitude, radiusMeters float64) ([]store.UserLocationDistance, error)
 	CreateFamilyLink(ctx context.Context, actorID, peerID string) (store.FamilyLink, error)
@@ -78,10 +80,11 @@ type hubPort interface {
 
 func New(cfg config.Config, s storePort, hub hubPort, logger *slog.Logger) *Service {
 	return &Service{
-		cfg:    cfg,
-		store:  s,
-		hub:    hub,
-		logger: logger,
+		cfg:         cfg,
+		store:       s,
+		hub:         hub,
+		logger:      logger,
+		nearbyCache: newNearbyCache(),
 	}
 }
 
@@ -498,6 +501,7 @@ func (s *Service) UpdateLocation(ctx context.Context, userID string, latitude, l
 	if err := s.store.UpdateLocation(ctx, userID, latitude, longitude); err != nil {
 		return ErrQueryFailed
 	}
+	s.publishNearbyAfterLocationChange(ctx, userID, latitude, longitude)
 	return nil
 }
 
@@ -514,6 +518,15 @@ type NearbyUser struct {
 }
 
 func (s *Service) Nearby(ctx context.Context, userID string, latitude, longitude, radiusKm float64) ([]NearbyUser, error) {
+	out, err := s.computeNearby(ctx, userID, latitude, longitude, radiusKm)
+	if err != nil {
+		return nil, err
+	}
+	s.nearbyCache.replace(userID, out)
+	return out, nil
+}
+
+func (s *Service) computeNearby(ctx context.Context, userID string, latitude, longitude, radiusKm float64) ([]NearbyUser, error) {
 	radiusMeters := radiusKm * 1000
 	familyPeers, err := s.store.ListAcceptedFamilyPeers(ctx, userID)
 	if err != nil {

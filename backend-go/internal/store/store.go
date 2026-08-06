@@ -58,6 +58,32 @@ type UserLocation struct {
 	Longitude float64
 }
 
+type UserGeo struct {
+	Latitude       float64
+	Longitude      float64
+	NearbyRadiusKm int
+}
+
+func (s *Store) GetUserGeo(ctx context.Context, userID string) (UserGeo, bool, error) {
+	var geo UserGeo
+	var lat, lng *float64
+	err := s.db.QueryRow(ctx, `
+		SELECT latitude, longitude, COALESCE(nearby_radius_km, 1)
+		FROM users WHERE id=$1`, userID).Scan(&lat, &lng, &geo.NearbyRadiusKm)
+	if err != nil {
+		return UserGeo{}, false, err
+	}
+	if lat == nil || lng == nil {
+		return UserGeo{}, false, nil
+	}
+	geo.Latitude = *lat
+	geo.Longitude = *lng
+	if geo.NearbyRadiusKm <= 0 {
+		geo.NearbyRadiusKm = 1
+	}
+	return geo, true, nil
+}
+
 func (s *Store) CreateUser(ctx context.Context, email, passwordHash, displayName string) (User, error) {
 	id := uuid.NewString()
 	_, err := s.db.Exec(ctx, `INSERT INTO users(id,email,password_hash,display_name,created_at,updated_at) VALUES($1,$2,$3,$4,NOW(),NOW())`, id, email, passwordHash, displayName)
