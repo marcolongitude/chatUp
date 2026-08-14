@@ -412,6 +412,22 @@ func (s *Store) UpdateLocation(ctx context.Context, userID string, latitude, lon
 	return err
 }
 
+// TouchLocationFreshness refreshes location_updated_at without changing coordinates.
+// Used for WS presence so discovery stays live without HTTP PUT floods.
+func (s *Store) TouchLocationFreshness(ctx context.Context, userID string) error {
+	_, err := s.db.Exec(ctx, `
+		UPDATE users
+		SET location_updated_at = NOW(), updated_at = NOW()
+		WHERE id = $1
+		  AND latitude IS NOT NULL
+		  AND longitude IS NOT NULL`, userID)
+	if err != nil {
+		_, err = s.db.Exec(ctx, `
+			UPDATE users SET updated_at = NOW() WHERE id = $1`, userID)
+	}
+	return err
+}
+
 type UserLocationDistance struct {
 	UserLocation
 	DistanceM int

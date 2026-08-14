@@ -20,7 +20,8 @@ const MOCK_LOCATION: LocationModel = {
 
 const SHOULD_USE_MOCK = __DEV__ || Constants.expoConfig?.extra?.forceMockLocation === true;
 const WATCH_TIME_INTERVAL_MS = 15_000;
-const WATCH_DISTANCE_M = 10;
+/** 0 = prioriza timeInterval no Android (parado no chat ainda atualiza). */
+const WATCH_DISTANCE_M = 0;
 
 export function useLocation() {
 	const [location, setLocation] = useState<LocationModel | null>(null);

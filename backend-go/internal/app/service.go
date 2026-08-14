@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 	"strings"
+	"sync"
 	"time"
 
 	"chatup/backend-go/internal/config"
@@ -32,11 +33,13 @@ var (
 )
 
 type Service struct {
-	cfg         config.Config
-	store       storePort
-	hub         hubPort
-	logger      *slog.Logger
-	nearbyCache *nearbyCache
+	cfg               config.Config
+	store             storePort
+	hub               hubPort
+	logger            *slog.Logger
+	nearbyCache       *nearbyCache
+	presenceTouchMu   sync.Mutex
+	lastPresenceTouch map[string]time.Time
 }
 
 type storePort interface {
@@ -54,6 +57,7 @@ type storePort interface {
 	CountPreKeys(ctx context.Context, userID string) (int, error)
 	GetAndConsumeKeyBundle(ctx context.Context, userID string) (store.KeyBundle, bool, error)
 	UpdateLocation(ctx context.Context, userID string, latitude, longitude float64) error
+	TouchLocationFreshness(ctx context.Context, userID string) error
 	GetUserGeo(ctx context.Context, userID string) (store.UserGeo, bool, error)
 	ListUsersWithLocation(ctx context.Context, exceptUserID string, staleAfter time.Duration) ([]store.UserLocation, error)
 	ListUsersNearby(ctx context.Context, exceptUserID string, latitude, longitude, radiusMeters float64, staleAfter time.Duration) ([]store.UserLocationDistance, error)
@@ -80,11 +84,12 @@ type hubPort interface {
 
 func New(cfg config.Config, s storePort, hub hubPort, logger *slog.Logger) *Service {
 	return &Service{
-		cfg:         cfg,
-		store:       s,
-		hub:         hub,
-		logger:      logger,
-		nearbyCache: newNearbyCache(),
+		cfg:               cfg,
+		store:             s,
+		hub:               hub,
+		logger:            logger,
+		nearbyCache:       newNearbyCache(),
+		lastPresenceTouch: make(map[string]time.Time),
 	}
 }
 
@@ -505,6 +510,31 @@ func (s *Service) UpdateLocation(ctx context.Context, userID string, latitude, l
 	return nil
 }
 
+// TouchPresence refreshes location_updated_at for an online user without a new GPS fix.
+// Throttled so WS pings cannot hammer Postgres.
+func (s *Service) TouchPresence(ctx context.Context, userID string) {
+	s.presenceTouchMu.Lock()
+	last := s.lastPresenceTouch[userID]
+	if time.Since(last) < 90*time.Second {
+		s.presenceTouchMu.Unlock()
+		return
+	}
+	if s.lastPresenceTouch == nil {
+		s.lastPresenceTouch = make(map[string]time.Time)
+	}
+	s.lastPresenceTouch[userID] = time.Now()
+	s.presenceTouchMu.Unlock()
+
+	if err := s.store.TouchLocationFreshness(ctx, userID); err != nil {
+		return
+	}
+	geo, ok, err := s.store.GetUserGeo(ctx, userID)
+	if err != nil || !ok {
+		return
+	}
+	s.publishNearbyAfterLocationChange(ctx, userID, geo.Latitude, geo.Longitude)
+}
+
 type NearbyUser struct {
 	ID              string
 	Name            string
@@ -538,8 +568,8 @@ func (s *Service) computeNearby(ctx context.Context, userID string, latitude, lo
 	staleAfter := s.locationStaleAfter()
 	familyPeers, err := s.store.ListAcceptedFamilyPeers(ctx, userID)
 	if err != nil {
-		// Family tables may be missing before migration 0007 — keep geometric nearby.
-		familyPeers = map[string]bool{}
+		// Fail closed: never treat family peers as discovery (would leak destination).
+		return nil, ErrQueryFailed
 	}
 
 	geo := make([]NearbyUser, 0)
@@ -624,7 +654,13 @@ func (s *Service) computeNearby(ctx context.Context, userID string, latitude, lo
 }
 
 func (s *Service) HandleWSMessage(ctx context.Context, userID string, env ws.Envelope) {
-	if env.Type != "sendMessage" {
+	switch env.Type {
+	case "presence.ping":
+		s.TouchPresence(ctx, userID)
+		return
+	case "sendMessage":
+		// continue below
+	default:
 		return
 	}
 	var payload struct {

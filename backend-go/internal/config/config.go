@@ -22,8 +22,9 @@ type Config struct {
 	// FamilyGraceSeconds: keep family peers on nearby list after leaving perimeter
 	// when mutual location share is off. Default 1800 (30m). Independent of location stale.
 	FamilyGraceSeconds int
-	// LocationStaleSeconds: exclude peers whose GPS was not refreshed within this window
-	// from geometric discovery (anti stale "other city"). Default 300 (5m). Family grace unaffected.
+	// LocationStaleSeconds: exclude peers whose GPS/presence was not refreshed within this window
+	// from geometric discovery (anti stale "other city"). Default 900 (15m). Family grace unaffected.
+	// Clients keep freshness via WS presence.ping (~2m), not HTTP heartbeats.
 	LocationStaleSeconds int
 }
 
@@ -46,9 +47,9 @@ func Load() Config {
 	if familyGrace <= 0 {
 		familyGrace = 1800
 	}
-	locationStale, _ := strconv.Atoi(getEnv("LOCATION_STALE_SECONDS", "300"))
+	locationStale, _ := strconv.Atoi(getEnv("LOCATION_STALE_SECONDS", "900"))
 	if locationStale <= 0 {
-		locationStale = 300
+		locationStale = 900
 	}
 	return Config{
 		Port:               getEnv("PORT", "3000"),

@@ -142,11 +142,18 @@ class StagingApi:
         if not link_id:
             raise RuntimeError(f"family request missing id: {link}")
 
-        # Peer accepts
+        # Peer accepts (idempotent if already accepted)
         peer_links = self.list_family_links(token_b)
         match = next((x for x in peer_links if str(x.get("id")) == link_id), None)
         if not match:
+            # Link id can change after revoke→recreate races; match by peer.
+            match = next(
+                (x for x in peer_links if str(x.get("peerId")) == requester_id),
+                None,
+            )
+        if not match:
             raise RuntimeError(f"peer does not see pending link {link_id}: {peer_links}")
+        link_id = str(match.get("id") or link_id)
         if match.get("status") == "pending":
             self.accept_family_link(token_b, link_id)
 
@@ -154,6 +161,15 @@ class StagingApi:
             (x for x in self.list_family_links(token_a) if str(x.get("id")) == link_id),
             None,
         )
+        if not accepted:
+            accepted = next(
+                (
+                    x
+                    for x in self.list_family_links(token_a)
+                    if str(x.get("peerId")) == peer_id and x.get("status") == "accepted"
+                ),
+                None,
+            )
         if not accepted or accepted.get("status") != "accepted":
             raise RuntimeError(f"family link not accepted: {accepted}")
         return accepted
@@ -166,6 +182,9 @@ class StagingApi:
         minutes: int = 31,
     ) -> None:
         """Force grace expiry via staging postgres (kubectl)."""
+        import os
+        from pathlib import Path
+
         sql = (
             "UPDATE nearby_presence "
             f"SET last_inside_at = NOW() - interval '{int(minutes)} minutes' "
@@ -173,6 +192,7 @@ class StagingApi:
         )
         cmd = [
             "kubectl",
+            "--insecure-skip-tls-verify",
             "-n",
             "chatup",
             "exec",
@@ -188,7 +208,17 @@ class StagingApi:
             "-c",
             sql,
         ]
-        proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        env = os.environ.copy()
+        candidates = [
+            env.get("CHATUP_KUBECONFIG"),
+            env.get("KUBECONFIG"),
+            "/tmp/chatup-ops/kubeconfig.yaml",
+            str(Path.home() / ".kube" / "chatup-vps.yaml"),
+        ]
+        kubeconfig = next((p for p in candidates if p and Path(p).is_file()), None)
+        if kubeconfig:
+            env["KUBECONFIG"] = kubeconfig
+        proc = subprocess.run(cmd, capture_output=True, text=True, check=False, env=env)
         if proc.returncode != 0:
             raise RuntimeError(
                 f"backdate presence failed: {proc.stderr or proc.stdout or proc.returncode}"
