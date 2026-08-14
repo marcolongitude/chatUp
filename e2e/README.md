@@ -61,7 +61,9 @@ Device suites (`e2e:pair:*`, `e2e:family:ui`) stay manual / local — they need 
 
 Grace expiry uses `kubectl exec` into staging Postgres (`nearby_presence` backdate). If kubectl is unavailable, that single assertion is skipped — all leak checks still run.
 
-`FAMILY_GRACE_SECONDS` (backend env, default `1800`) is only for controlled test overrides — do **not** lower it on shared staging without coordinating.
+`FAMILY_GRACE_SECONDS` (backend env, default `1800` / 30m) is the family leave-grace — do **not** lower it on shared staging without coordinating.
+
+`LOCATION_STALE_SECONDS` (default `300` / 5m) only drops peers with stale GPS from geometric discovery; it is independent of family grace.
 
 Or:
 

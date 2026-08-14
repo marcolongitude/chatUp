@@ -20,10 +20,10 @@ type Config struct {
 	OTLPEndpoint         string
 	ServiceName          string
 	// FamilyGraceSeconds: keep family peers on nearby list after leaving perimeter
-	// when mutual location share is off. Default 1800 (30m). Override only for tests.
+	// when mutual location share is off. Default 1800 (30m). Independent of location stale.
 	FamilyGraceSeconds int
 	// LocationStaleSeconds: exclude peers whose GPS was not refreshed within this window
-	// from geometric discovery (anti stale "other city"). Default 1800 (30m). Family grace unaffected.
+	// from geometric discovery (anti stale "other city"). Default 300 (5m). Family grace unaffected.
 	LocationStaleSeconds int
 }
 
@@ -46,9 +46,9 @@ func Load() Config {
 	if familyGrace <= 0 {
 		familyGrace = 1800
 	}
-	locationStale, _ := strconv.Atoi(getEnv("LOCATION_STALE_SECONDS", "1800"))
+	locationStale, _ := strconv.Atoi(getEnv("LOCATION_STALE_SECONDS", "300"))
 	if locationStale <= 0 {
-		locationStale = 1800
+		locationStale = 300
 	}
 	return Config{
 		Port:               getEnv("PORT", "3000"),

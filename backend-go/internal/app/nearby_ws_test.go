@@ -83,7 +83,7 @@ func TestComputeNearbyExcludesStalePeer(t *testing.T) {
 		familyPeers: map[string]bool{},
 	}
 	cfg := newTestService(&fakeStore{}, &fakeHub{}).cfg
-	cfg.LocationStaleSeconds = 1800
+	cfg.LocationStaleSeconds = 300
 	svc := New(cfg, st, &fakeHub{}, nil)
 
 	out, err := svc.Nearby(context.Background(), "me", -23.0, -46.0, 3)
@@ -101,7 +101,12 @@ func TestSyncNearbyOnConnectEmitsSnapshot(t *testing.T) {
 			{ID: "peer", Name: "Peer", Latitude: -23.0, Longitude: -46.0, LocationUpdatedAt: time.Now()},
 		},
 		userGeo: map[string]store.UserGeo{
-			"me": {Latitude: -23.0, Longitude: -46.0, NearbyRadiusKm: 1},
+			"me": {
+				Latitude:          -23.0,
+				Longitude:         -46.0,
+				NearbyRadiusKm:    1,
+				LocationUpdatedAt: time.Now(),
+			},
 		},
 	}
 	hub := &fakeHub{online: map[string]bool{"me": true}}
@@ -118,5 +123,41 @@ func TestSyncNearbyOnConnectEmitsSnapshot(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected nearby.sync, got %v", hub.sentTypes)
+	}
+}
+
+func TestSyncNearbyOnConnectSkipsDiscoveryWhenObserverStale(t *testing.T) {
+	st := &nearbyFakeStore{
+		geo: []store.UserLocation{
+			{ID: "peer", Name: "Peer", Latitude: -23.0, Longitude: -46.0, LocationUpdatedAt: time.Now()},
+		},
+		userGeo: map[string]store.UserGeo{
+			"me": {
+				Latitude:          -23.0,
+				Longitude:         -46.0,
+				NearbyRadiusKm:    1,
+				LocationUpdatedAt: time.Now().Add(-2 * time.Hour),
+			},
+		},
+		familyPeers: map[string]bool{},
+	}
+	hub := &fakeHub{online: map[string]bool{"me": true}}
+	cfg := newTestService(&fakeStore{}, hub).cfg
+	cfg.LocationStaleSeconds = 300
+	svc := New(cfg, st, hub, nil)
+
+	svc.SyncNearbyOnConnect(context.Background(), "me")
+
+	data, ok := hub.lastData.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map data, got %#v", hub.lastData)
+	}
+	snap, ok := data["snapshot"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected snapshot, got %#v", data)
+	}
+	discovery, _ := snap["discovery"].([]map[string]any)
+	if len(discovery) != 0 {
+		t.Fatalf("expected empty discovery for stale observer, got %#v", discovery)
 	}
 }

@@ -142,11 +142,13 @@ type fakeHub struct {
 	online      map[string]bool
 	sentToUsers []string
 	sentTypes   []string
+	lastData    any
 }
 
 func (h *fakeHub) SendToUser(userID string, msg ws.Outbound) {
 	h.sentToUsers = append(h.sentToUsers, userID)
 	h.sentTypes = append(h.sentTypes, msg.Type)
+	h.lastData = msg.Data
 }
 
 func (h *fakeHub) IsOnline(userID string) bool {

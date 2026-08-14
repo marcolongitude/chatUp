@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"chatup/backend-go/internal/store"
 	"chatup/backend-go/internal/ws"
 )
 
@@ -152,8 +153,33 @@ func (s *Service) refreshNearbyObserver(ctx context.Context, observerID string, 
 	if err != nil {
 		return
 	}
+	// Sem GPS fresco no servidor, discovery some (família/grace permanece).
+	if geo, ok, geoErr := s.store.GetUserGeo(ctx, observerID); geoErr == nil && ok && !s.isObserverLocationFresh(geo) {
+		next = nearbyFamilyOnly(next)
+	}
 	s.nearbyCache.replace(observerID, next)
 	s.emitNearbyDiff(observerID, diffNearbyLists(old, next))
+}
+
+func (s *Service) isObserverLocationFresh(geo store.UserGeo) bool {
+	staleAfter := s.locationStaleAfter()
+	if staleAfter <= 0 {
+		return true
+	}
+	if geo.LocationUpdatedAt.IsZero() {
+		return false
+	}
+	return time.Since(geo.LocationUpdatedAt.UTC()) <= staleAfter
+}
+
+func nearbyFamilyOnly(users []NearbyUser) []NearbyUser {
+	out := make([]NearbyUser, 0, len(users))
+	for _, u := range users {
+		if u.FamilyLink {
+			out = append(out, u)
+		}
+	}
+	return out
 }
 
 func (s *Service) publishNearbyAfterLocationChange(ctx context.Context, moverID string, lat, lng float64) {
@@ -248,6 +274,12 @@ func (s *Service) SyncNearbyOnConnect(ctx context.Context, userID string) {
 	if err != nil {
 		return
 	}
+	// Observador com location_updated_at velho não recebe discovery (evita lista
+	// unidirecional: ver os outros sem aparecer para eles).
+	if !s.isObserverLocationFresh(geo) {
+		users = nearbyFamilyOnly(users)
+	}
+	s.nearbyCache.replace(userID, users)
 	s.hub.SendToUser(userID, ws.Outbound{
 		Type: "nearby.sync",
 		Data: map[string]any{

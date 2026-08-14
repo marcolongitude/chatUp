@@ -60,17 +60,19 @@ type UserLocation struct {
 }
 
 type UserGeo struct {
-	Latitude       float64
-	Longitude      float64
-	NearbyRadiusKm int
+	Latitude          float64
+	Longitude         float64
+	NearbyRadiusKm    int
+	LocationUpdatedAt time.Time
 }
 
 func (s *Store) GetUserGeo(ctx context.Context, userID string) (UserGeo, bool, error) {
 	var geo UserGeo
 	var lat, lng *float64
+	var locAt *time.Time
 	err := s.db.QueryRow(ctx, `
-		SELECT latitude, longitude, COALESCE(nearby_radius_km, 1)
-		FROM users WHERE id=$1`, userID).Scan(&lat, &lng, &geo.NearbyRadiusKm)
+		SELECT latitude, longitude, COALESCE(nearby_radius_km, 1), location_updated_at
+		FROM users WHERE id=$1`, userID).Scan(&lat, &lng, &geo.NearbyRadiusKm, &locAt)
 	if err != nil {
 		return UserGeo{}, false, err
 	}
@@ -79,6 +81,9 @@ func (s *Store) GetUserGeo(ctx context.Context, userID string) (UserGeo, bool, e
 	}
 	geo.Latitude = *lat
 	geo.Longitude = *lng
+	if locAt != nil {
+		geo.LocationUpdatedAt = locAt.UTC()
+	}
 	if geo.NearbyRadiusKm <= 0 {
 		geo.NearbyRadiusKm = 1
 	}
