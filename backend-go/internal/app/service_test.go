@@ -86,6 +86,9 @@ func (f *fakeStore) GetAndConsumeKeyBundle(ctx context.Context, userID string) (
 func (f *fakeStore) UpdateLocation(ctx context.Context, userID string, latitude, longitude float64) error {
 	return nil
 }
+func (f *fakeStore) TouchLocationFreshness(ctx context.Context, userID string) error {
+	return nil
+}
 func (f *fakeStore) GetUserGeo(ctx context.Context, userID string) (store.UserGeo, bool, error) {
 	return store.UserGeo{}, false, nil
 }

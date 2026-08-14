@@ -262,6 +262,9 @@ func nearbySnapshotPayload(observerID string, perimeterKm float64, users []Nearb
 
 // SyncNearbyOnConnect envia snapshot completo (nearby.sync) ao conectar/reconectar o WS.
 func (s *Service) SyncNearbyOnConnect(ctx context.Context, userID string) {
+	// Liveness sem HTTP: marca presença na última posição conhecida.
+	s.TouchPresence(ctx, userID)
+
 	geo, ok, err := s.store.GetUserGeo(ctx, userID)
 	if err != nil || !ok {
 		return
@@ -269,6 +272,10 @@ func (s *Service) SyncNearbyOnConnect(ctx context.Context, userID string) {
 	r := float64(geo.NearbyRadiusKm)
 	if r <= 0 {
 		r = 1
+	}
+	// Re-read after TouchPresence so observer freshness uses the new timestamp.
+	if fresh, ok2, err2 := s.store.GetUserGeo(ctx, userID); err2 == nil && ok2 {
+		geo = fresh
 	}
 	users, err := s.Nearby(ctx, userID, geo.Latitude, geo.Longitude, r)
 	if err != nil {

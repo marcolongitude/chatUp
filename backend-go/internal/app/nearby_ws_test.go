@@ -126,7 +126,7 @@ func TestSyncNearbyOnConnectEmitsSnapshot(t *testing.T) {
 	}
 }
 
-func TestSyncNearbyOnConnectSkipsDiscoveryWhenObserverStale(t *testing.T) {
+func TestSyncNearbyOnConnectTouchPresenceRefreshesObserver(t *testing.T) {
 	st := &nearbyFakeStore{
 		geo: []store.UserLocation{
 			{ID: "peer", Name: "Peer", Latitude: -23.0, Longitude: -46.0, LocationUpdatedAt: time.Now()},
@@ -157,7 +157,25 @@ func TestSyncNearbyOnConnectSkipsDiscoveryWhenObserverStale(t *testing.T) {
 		t.Fatalf("expected snapshot, got %#v", data)
 	}
 	discovery, _ := snap["discovery"].([]map[string]any)
-	if len(discovery) != 0 {
-		t.Fatalf("expected empty discovery for stale observer, got %#v", discovery)
+	if len(discovery) != 1 {
+		t.Fatalf("expected discovery restored via presence touch, got %#v", discovery)
+	}
+}
+
+func TestSyncNearbyOnConnectSkipsDiscoveryWhenNoGeo(t *testing.T) {
+	st := &nearbyFakeStore{
+		geo: []store.UserLocation{
+			{ID: "peer", Name: "Peer", Latitude: -23.0, Longitude: -46.0, LocationUpdatedAt: time.Now()},
+		},
+		userGeo:     map[string]store.UserGeo{},
+		familyPeers: map[string]bool{},
+	}
+	hub := &fakeHub{online: map[string]bool{"me": true}}
+	svc := New(newTestService(&fakeStore{}, hub).cfg, st, hub, nil)
+
+	svc.SyncNearbyOnConnect(context.Background(), "me")
+
+	if len(hub.sentTypes) != 0 {
+		t.Fatalf("expected no nearby.sync without geo, got %v", hub.sentTypes)
 	}
 }

@@ -10,11 +10,25 @@ import (
 
 type nearbyFakeStore struct {
 	fakeStore
-	geo           []store.UserLocation
-	familyPeers   map[string]bool
-	grace         []store.PresenceGraceRow
-	touchedIDs    []string
-	userGeo       map[string]store.UserGeo
+	geo             []store.UserLocation
+	familyPeers     map[string]bool
+	familyPeersErr  error
+	grace           []store.PresenceGraceRow
+	touchedIDs      []string
+	userGeo         map[string]store.UserGeo
+}
+
+func (f *nearbyFakeStore) TouchLocationFreshness(ctx context.Context, userID string) error {
+	if f.userGeo == nil {
+		return nil
+	}
+	g, ok := f.userGeo[userID]
+	if !ok {
+		return nil
+	}
+	g.LocationUpdatedAt = time.Now()
+	f.userGeo[userID] = g
+	return nil
 }
 
 func (f *nearbyFakeStore) GetUserGeo(ctx context.Context, userID string) (store.UserGeo, bool, error) {
@@ -42,6 +56,12 @@ func (f *nearbyFakeStore) ListUsersWithLocation(ctx context.Context, exceptUserI
 }
 
 func (f *nearbyFakeStore) ListAcceptedFamilyPeers(ctx context.Context, userID string) (map[string]bool, error) {
+	if f.familyPeersErr != nil {
+		return nil, f.familyPeersErr
+	}
+	if f.familyPeers == nil {
+		return map[string]bool{}, nil
+	}
 	return f.familyPeers, nil
 }
 
@@ -52,6 +72,23 @@ func (f *nearbyFakeStore) TouchNearbyPresence(ctx context.Context, observerID st
 
 func (f *nearbyFakeStore) ListFamilyGraceSubjects(ctx context.Context, observerID string, grace time.Duration) ([]store.PresenceGraceRow, error) {
 	return f.grace, nil
+}
+
+func TestNearbyFailsClosedWhenFamilyPeersQueryErrors(t *testing.T) {
+	st := &nearbyFakeStore{
+		geo: []store.UserLocation{
+			{ID: "kid", Name: "Kid", Latitude: -23.0, Longitude: -46.0},
+		},
+		familyPeersErr: context.DeadlineExceeded,
+	}
+	svc := New(newTestService(&fakeStore{}, &fakeHub{online: map[string]bool{}}).cfg, st, &fakeHub{online: map[string]bool{}}, nil)
+	out, err := svc.Nearby(context.Background(), "parent", -23.0, -46.0, 3)
+	if err != ErrQueryFailed {
+		t.Fatalf("want ErrQueryFailed, got err=%v out=%+v", err, out)
+	}
+	if out != nil {
+		t.Fatalf("must not return peers when family lookup fails: %+v", out)
+	}
 }
 
 func TestNearbyKeepsFamilyInGraceWithoutLocation(t *testing.T) {
@@ -67,10 +104,7 @@ func TestNearbyKeepsFamilyInGraceWithoutLocation(t *testing.T) {
 			{SubjectID: "grace-1", Name: "GraceKid", Avatar: "a.png", LastInsideAt: time.Now()},
 		},
 	}
-	svc := newTestService(&st.fakeStore, &fakeHub{online: map[string]bool{}})
-	// Replace store with nearby-capable fake via embedding — newTestService already wired fakeStore.
-	// Re-bind: construct service manually.
-	svc = New(svc.cfg, st, &fakeHub{online: map[string]bool{}}, svc.logger)
+	svc := New(newTestService(&fakeStore{}, &fakeHub{online: map[string]bool{}}).cfg, st, &fakeHub{online: map[string]bool{}}, nil)
 
 	out, err := svc.Nearby(context.Background(), "observer", -23.0, -46.0, 3)
 	if err != nil {
