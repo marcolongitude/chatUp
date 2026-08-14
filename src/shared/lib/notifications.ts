@@ -264,6 +264,23 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 	}
 }
 
+export async function getNotificationPermissionStatus(): Promise<{
+	granted: boolean;
+	canAskAgain: boolean;
+	status: string;
+}> {
+	try {
+		const result = await Notifications.getPermissionsAsync();
+		return {
+			granted: result.status === "granted",
+			canAskAgain: result.canAskAgain,
+			status: result.status,
+		};
+	} catch {
+		return { granted: false, canAskAgain: true, status: "undetermined" };
+	}
+}
+
 export function clearPendingNotifications(): void {
 	pendingNotifications.clear();
 	if (notificationTimeout) {

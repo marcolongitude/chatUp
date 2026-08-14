@@ -1,6 +1,10 @@
 import { useEffect } from "react";
 import { useAuthSession } from "@/features/auth";
-import { applyNearbyWsEvent, useNearbySession } from "@/features/location";
+import {
+	applyNearbyWsEvent,
+	getNearbyStoreState,
+	useNearbySession,
+} from "@/features/location";
 import { subscribeSocket } from "@/shared/lib/realtime/socket";
 
 /**
@@ -20,7 +24,8 @@ export function NearbySessionBridge() {
 		void (async () => {
 			const unsub = await subscribeSocket((event) => {
 				if (!String(event.type ?? "").startsWith("nearby.")) return;
-				applyNearbyWsEvent(event);
+				const allowDiscovery = getNearbyStoreState().permissionGranted === true;
+				applyNearbyWsEvent(event, { allowDiscovery });
 			});
 			if (cancelled) {
 				unsub();

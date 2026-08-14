@@ -4,6 +4,7 @@ export * from "./nearby-reducer";
 export * from "./nearby-store";
 export * from "./apply-nearby-ws-event";
 export * from "./perimeter-preference";
+export * from "./location-session-actions";
 export * from "./use-location";
 export * from "./use-nearby-session";
 export * from "./use-nearby-store";

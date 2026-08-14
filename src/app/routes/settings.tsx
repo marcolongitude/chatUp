@@ -8,7 +8,7 @@ import styled from "styled-components/native";
 import { Card } from "@/shared/ui";
 import { useTranslation } from "@/app/providers/i18n";
 import { saveLanguage } from "@/app/providers/i18n";
-import { PERIMETER_OPTIONS_KM, usePerimeter, type PerimeterKm } from "@/features/location";
+import { PERIMETER_OPTIONS_KM, usePerimeter, type PerimeterKm, AppPermissionsSection } from "@/features/location";
 import { FamilySettingsSection } from "@/features/family";
 
 const Container = styled.ScrollView`
@@ -187,6 +187,12 @@ export function SettingsPage() {
 							<ActivityIndicator size="small" color={theme.colors.button.primary} />
 						</LoadingContainer>
 					)}
+				</Section>
+
+				<Section>
+					<SectionTitle>{translate("settings.permissions")}</SectionTitle>
+					<SectionDescription>{translate("settings.permissionsDescription")}</SectionDescription>
+					<AppPermissionsSection />
 				</Section>
 
 				<Section>

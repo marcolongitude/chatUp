@@ -30,17 +30,23 @@ function mapWsContact(raw: Record<string, unknown>, queue: NearbyQueue): NearbyC
 }
 
 /** Aplica evento WS `nearby.*` na NearbyStore (mesmo motor do HTTP). */
-export function applyNearbyWsEvent(event: { type: string; data: unknown }): boolean {
+export function applyNearbyWsEvent(
+	event: { type: string; data: unknown },
+	options?: { allowDiscovery?: boolean }
+): boolean {
+	const allowDiscovery = options?.allowDiscovery !== false;
 	const data = (event.data ?? {}) as Record<string, unknown>;
 
 	switch (event.type) {
 		case "nearby.entered":
 		case "nearby.updated": {
+			const queue = asQueue(data.queue);
+			if (!allowDiscovery && queue === "discovery") return false;
 			const userRaw = data.user as Record<string, unknown> | undefined;
 			if (!userRaw?.id) return false;
 			const delta: NearbyDeltaEvent = {
 				type: event.type,
-				queue: asQueue(data.queue),
+				queue,
 				user: mapWsUser(userRaw),
 				version: typeof data.version === "number" ? data.version : undefined,
 			};
@@ -63,12 +69,15 @@ export function applyNearbyWsEvent(event: { type: string; data: unknown }): bool
 			if (!raw || !Array.isArray(raw.family) || !Array.isArray(raw.discovery)) {
 				return false;
 			}
+			const discoveryRaw = allowDiscovery
+				? (raw.discovery as Record<string, unknown>[])
+				: [];
 			const snapshot: Omit<NearbySnapshot, "updatedAt"> = {
 				version: Number(raw.version ?? Date.now()),
 				observerId: String(raw.observerId ?? ""),
 				perimeterKm: Number(raw.perimeterKm ?? 1),
 				family: (raw.family as Record<string, unknown>[]).map((c) => mapWsContact(c, "family")),
-				discovery: (raw.discovery as Record<string, unknown>[]).map((c) => mapWsContact(c, "discovery")),
+				discovery: discoveryRaw.map((c) => mapWsContact(c, "discovery")),
 			};
 			patchNearbyDelta({ type: "nearby.sync", snapshot });
 			return true;

@@ -83,9 +83,10 @@ export function patchNearbyDelta(event: NearbyDeltaEvent): void {
 			discovery: [],
 			updatedAt: Date.now(),
 		} as NearbySnapshot);
+	const keepPermissionError = state.permissionGranted === false && Boolean(state.error);
 	setState({
 		snapshot: applyNearbyDelta(base, event),
 		isBootstrapping: false,
-		error: null,
+		error: keepPermissionError ? state.error : null,
 	});
 }

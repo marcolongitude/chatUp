@@ -1,7 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "@tanstack/react-router";
 import { useAuth } from "@/features/auth";
-import { openLocationSettings, useNearbyLists } from "@/features/location";
+import {
+	useNearbyLists,
+	requestSessionLocationPermission,
+	openSessionLocationSettings,
+	refreshSessionLocation,
+} from "@/features/location";
+
 import { axiosInstance } from "@/shared/api";
 
 export function useContactList() {
@@ -20,16 +26,20 @@ export function useContactList() {
 
 	const [searchQuery, setSearchQuery] = useState("");
 	const [searchPromise, setSearchPromise] = useState<Promise<unknown[]> | null>(null);
+	const [isRequestingPermission, setIsRequestingPermission] = useState(false);
 
-	const isLocationPermissionError = Boolean(
-		nearbyError &&
-			(nearbyError.includes("localização") ||
-				nearbyError.includes("permissão") ||
-				nearbyError.includes("Localização") ||
-				nearbyError.includes("location") ||
-				nearbyError.includes("permission") ||
-				permissionGranted === false)
-	);
+	const needsLocationPermission = permissionGranted === false;
+
+	const isLocationPermissionError =
+		needsLocationPermission ||
+		Boolean(
+			nearbyError &&
+				(nearbyError.includes("localização") ||
+					nearbyError.includes("permissão") ||
+					nearbyError.includes("Localização") ||
+					nearbyError.includes("location") ||
+					nearbyError.includes("permission"))
+		);
 
 	useEffect(() => {
 		const timer = setTimeout(() => {
@@ -58,6 +68,20 @@ export function useContactList() {
 		[router]
 	);
 
+	const handleEnableLocation = useCallback(async () => {
+		setIsRequestingPermission(true);
+		try {
+			const granted = await requestSessionLocationPermission();
+			if (granted) {
+				await refreshSessionLocation();
+				return;
+			}
+			await openSessionLocationSettings();
+		} finally {
+			setIsRequestingPermission(false);
+		}
+	}, []);
+
 	const isSearchingMode = searchQuery.length >= 2;
 	const isEmpty = familyContacts.length === 0 && discoveryContacts.length === 0;
 
@@ -73,9 +97,12 @@ export function useContactList() {
 		searchPromise,
 		nearbyError,
 		isLocationPermissionError,
+		needsLocationPermission,
+		isRequestingPermission,
 		isSearchingMode,
 		perimeterKm,
-		openSettings: openLocationSettings,
+		handleEnableLocation,
+		openSettings: openSessionLocationSettings,
 		handleContactPress,
 	};
 }

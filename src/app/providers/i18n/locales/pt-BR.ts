@@ -95,6 +95,8 @@ export const ptBR = {
 		locationPermissionError: "Para ver usuários próximos, é necessário permitir o acesso à localização.",
 		locationError: "Verifique se a localização está habilitada e tente novamente.",
 		openSettings: "Abrir Configurações",
+		enableLocation: "Permitir localização",
+		requestingPermission: "Solicitando...",
 		searchPlaceholder: "Buscar usuários por nome ou email...",
 		noResultsFound: "Nenhum usuário encontrado para sua busca.",
 		sectionFamily: "Família",
@@ -134,6 +136,21 @@ export const ptBR = {
 		portuguese: "Português (Brasil)",
 		english: "English",
 		spanish: "Español",
+		permissions: "Permissões do aplicativo",
+		permissionsDescription:
+			"Revise e reconceda localização e notificações a qualquer momento, sem precisar sair da conta.",
+		permissionLocation: "Localização",
+		permissionNotifications: "Notificações",
+		permissionGranted: "Permitida",
+		permissionDenied: "Negada",
+		permissionLocationHint:
+			"Necessária para listar contatos próximos automaticamente na tela Conversas.",
+		permissionNotificationsHint: "Necessária para avisar quando chegar mensagem nova.",
+		permissionEnableLocation: "Permitir localização",
+		permissionRefreshLocation: "Atualizar localização agora",
+		permissionEnableNotifications: "Permitir notificações",
+		permissionRefreshNotifications: "Verificar notificações",
+		permissionOpenSystemSettings: "Abrir configurações do sistema",
 	},
 
 	family: {

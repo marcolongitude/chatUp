@@ -49,9 +49,11 @@ export function ContactList() {
 		searchPromise,
 		nearbyError,
 		isLocationPermissionError,
+		needsLocationPermission,
+		isRequestingPermission,
 		isSearchingMode,
 		perimeterKm,
-		openSettings,
+		handleEnableLocation,
 		handleContactPress,
 	} = useContactList();
 
@@ -144,9 +146,9 @@ export function ContactList() {
 								contentContainerStyle={isEmpty ? { flex: 1 } : undefined}
 								ListEmptyComponent={
 									<EmptyContainer>
-										{nearbyError ? (
+										{isLocationPermissionError || nearbyError ? (
 											<>
-												{isLocationPermissionError && (
+												{(isLocationPermissionError || needsLocationPermission) && (
 													<ErrorIcon>
 														<Ionicons
 															name="location-outline"
@@ -155,7 +157,9 @@ export function ContactList() {
 														/>
 													</ErrorIcon>
 												)}
-												<ErrorText>{nearbyError}</ErrorText>
+												<ErrorText>
+													{nearbyError || t("conversations.locationPermissionError")}
+												</ErrorText>
 												<EmptyText>
 													{isLocationPermissionError
 														? t("conversations.locationPermissionError")
@@ -164,9 +168,14 @@ export function ContactList() {
 												{isLocationPermissionError && (
 													<ErrorButtonContainer>
 														<Button
-															title={t("conversations.openSettings")}
-															onPress={openSettings}
+															title={
+																isRequestingPermission
+																	? t("conversations.requestingPermission")
+																	: t("conversations.enableLocation")
+															}
+															onPress={handleEnableLocation}
 															variant="primary"
+															disabled={isRequestingPermission}
 														/>
 													</ErrorButtonContainer>
 												)}

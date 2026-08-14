@@ -17,7 +17,8 @@ import { useLocation } from "./use-location";
 import { usePerimeter } from "./use-perimeter";
 
 export const nearbyUsersQueryKeyRoot = ["nearbyUsers"] as const;
-const LOCATION_UPDATE_THROTTLE_MS = 60_000;
+/** Intervalo mínimo entre PUT /location — alinhado ao watch do GPS. */
+const LOCATION_UPDATE_THROTTLE_MS = 15_000;
 
 /** Arredonda coords na queryKey para evitar refetch por jitter do GPS. */
 function roundCoord(value: number): number {
@@ -48,6 +49,7 @@ export function useNearbySession(userId: string | undefined): void {
 
 	const lastLocationPushRef = useRef(0);
 	const lastUserIdRef = useRef<string | undefined>(undefined);
+	const wasCanFetchRef = useRef(false);
 
 	useEffect(() => {
 		if (!userId) {
@@ -76,15 +78,33 @@ export function useNearbySession(userId: string | undefined): void {
 			return;
 		}
 		if (!isLocationLoading && !permissionGranted) {
-			setNearbyError("No location permission");
+			setNearbyError("Permissão de localização negada.");
 			setNearbyBootstrapping(false);
+			return;
+		}
+		if (permissionGranted && !locationError) {
+			const currentError = getNearbyStoreState().error;
+			if (
+				currentError &&
+				(currentError.includes("permissão") ||
+					currentError.includes("permission") ||
+					currentError.includes("localização negada") ||
+					currentError.includes("No location"))
+			) {
+				setNearbyError(null);
+			}
 		}
 	}, [userId, locationError, isLocationLoading, permissionGranted]);
 
 	useEffect(() => {
-		if (!canFetch || !userLocation) return;
+		if (!canFetch || !userLocation) {
+			wasCanFetchRef.current = false;
+			return;
+		}
+		const forcePush = !wasCanFetchRef.current;
+		wasCanFetchRef.current = true;
 		const now = Date.now();
-		if (now - lastLocationPushRef.current < LOCATION_UPDATE_THROTTLE_MS) return;
+		if (!forcePush && now - lastLocationPushRef.current < LOCATION_UPDATE_THROTTLE_MS) return;
 		lastLocationPushRef.current = now;
 		updateLocationApi(userLocation.latitude, userLocation.longitude).catch((err: unknown) => {
 			console.warn("Update location failed", err);
@@ -110,9 +130,9 @@ export function useNearbySession(userId: string | undefined): void {
 			});
 		},
 		enabled: canFetch,
-		staleTime: 2 * 60 * 1000,
+		staleTime: 30_000,
 		gcTime: 10 * 60 * 1000,
-		refetchInterval: 5 * 60 * 1000,
+		refetchInterval: 30_000,
 		refetchOnWindowFocus: false,
 		placeholderData: (previous) => previous,
 	});
