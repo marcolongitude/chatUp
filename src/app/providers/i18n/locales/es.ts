@@ -29,6 +29,8 @@ export const es = {
 		continueWithGoogle: "Continuar con Google",
 		continueWithFacebook: "Continuar con Facebook",
 		googleSignInFailed: "No se pudo iniciar sesión con Google",
+		googleSignInConfigError:
+			"Google Sign-In mal configurado en este APK (SHA-1). Actualice el cliente Android en Google Cloud Console.",
 		googleClientIdMissing: "Google OAuth no está configurado",
 		dontHaveAccount: "¿No tiene una cuenta? ",
 		alreadyHaveAccount: "¿Ya tiene una cuenta? ",
@@ -66,7 +68,6 @@ export const es = {
 	// Perfil
 	profile: {
 		title: "Perfil",
-		userId: "ID de Usuario",
 		email: "Correo Electrónico",
 		displayName: "Nombre de Visualización",
 		phoneNumber: "Teléfono",
@@ -89,13 +90,19 @@ export const es = {
 	conversations: {
 		title: "Conversaciones",
 		searching: "Buscando usuarios cercanos...",
+		refreshing: "Actualizando lista...",
 		noUsersFound: "No se encontraron usuarios cercanos",
-		usersWithin2km: "Los usuarios dentro de 2km aparecerán aquí automáticamente",
+		usersWithin2km: "Los usuarios dentro de {{km}} km aparecerán aquí automáticamente",
 		locationPermissionError: "Para ver usuarios cercanos, es necesario permitir el acceso a la ubicación.",
 		locationError: "Verifique si la ubicación está habilitada e intente nuevamente.",
 		openSettings: "Abrir Configuración",
+		enableLocation: "Permitir ubicación",
+		requestingPermission: "Solicitando...",
 		searchPlaceholder: "Buscar usuarios por nombre o email...",
 		noResultsFound: "No se encontraron usuarios para su búsqueda.",
+		sectionFamily: "Familia",
+		sectionNearby: "Cerca de ti",
+		familyGraceHint: "Fuera de alcance — permanece un tiempo",
 	},
 
 	// Chat
@@ -106,6 +113,15 @@ export const es = {
 		noMessages: "Aún no hay mensajes.\n¡Comience a chatear!",
 		messagePlaceholder: "Escriba un mensaje...",
 		sending: "Enviando...",
+		send: "Enviar",
+	},
+
+	notifications: {
+		title: "ChatUp",
+		fallbackSender: "Alguien",
+		singleOne: "1 mensaje de {{name}}",
+		singleMany: "{{count}} mensajes de {{name}}",
+		multiple: "{{messages}} mensajes de {{contacts}} personas",
 	},
 
 	// Configuración
@@ -113,14 +129,53 @@ export const es = {
 		title: "Configuración",
 		language: "Idioma",
 		languageDescription: "Elija el idioma de la aplicación",
+		perimeter: "Alcance de descubrimiento",
+		perimeterDescription: "Elija hasta cuántos kilómetros buscar personas cercanas",
+		perimeterKm: "{{km}} km",
 		appVersion: "Versión de la Aplicación",
-		versionCode: "Version Code",
-		runtimeVersion: "Versión del Runtime",
-		channel: "Canal",
 		selectLanguage: "Seleccionar Idioma",
 		portuguese: "Português (Brasil)",
 		english: "English",
 		spanish: "Español",
+		permissions: "Permisos de la aplicación",
+		permissionsDescription:
+			"Revise y vuelva a conceder ubicación y notificaciones en cualquier momento, sin cerrar sesión.",
+		permissionLocation: "Ubicación",
+		permissionNotifications: "Notificaciones",
+		permissionGranted: "Permitida",
+		permissionDenied: "Denegada",
+		permissionLocationHint:
+			"Necesaria para listar contactos cercanos automáticamente en Conversaciones.",
+		permissionNotificationsHint: "Necesaria para avisar cuando llegue un mensaje nuevo.",
+		permissionEnableLocation: "Permitir ubicación",
+		permissionRefreshLocation: "Actualizar ubicación ahora",
+		permissionEnableNotifications: "Permitir notificaciones",
+		permissionRefreshNotifications: "Verificar notificaciones",
+		permissionOpenSystemSettings: "Abrir configuración del sistema",
+	},
+
+	family: {
+		title: "Modo familia",
+		description:
+			"Vínculo con consentimiento mutuo. Sin ubicación aceptada por ambos, el contacto permanece en la lista hasta 30 minutos después de salir del perímetro — sin mostrar dónde está.",
+		searchPlaceholder: "Buscar por nombre o correo",
+		invite: "Invitar",
+		empty: "Aún no hay vínculos familiares",
+		accept: "Aceptar",
+		decline: "Rechazar",
+		revoke: "Quitar vínculo",
+		cancelInvite: "Cancelar invitación",
+		shareMyLocation: "Compartir mi ubicación con este contacto",
+		peerSharesLocation: "La otra persona también compartió ubicación",
+		peerDoesNotShareLocation: "La otra persona aún no compartió ubicación",
+		statusAcceptedWithLocation: "Aceptado · ubicación activa entre ustedes",
+		statusAcceptedNoLocation: "Aceptado · solo control de lista (gracia 30 min)",
+		statusPendingOutgoing: "Invitación enviada · esperando aceptación",
+		statusPendingIncoming: "Invitación recibida · acepta para activar",
+		inviteSentTitle: "Invitación enviada",
+		inviteSentMessage: "Invitación familiar enviada a {{name}}",
+		inviteFailed: "No se pudo enviar la invitación familiar",
+		peerNotFound: "No se encontró un usuario para invitar",
 	},
 
 	// Errores generales

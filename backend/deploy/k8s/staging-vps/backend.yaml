@@ -1,0 +1,153 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-go-config
+  namespace: chatup
+  labels:
+    app: backend-go
+    app.kubernetes.io/part-of: chatup
+    env: staging
+data:
+  PORT: "3000"
+  CORS_ORIGIN: "*"
+  JWT_ACCESS_TTL: "30"
+  JWT_TTL: "30"
+  JWT_REFRESH_TTL_DAYS: "30"
+  UPLOAD_DIR: "/tmp/uploads"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "alloy.observability.svc.cluster.local:4317"
+  OTEL_SERVICE_NAME: "chatup-backend-go"
+  FAMILY_GRACE_SECONDS: "1800"
+  LOCATION_STALE_SECONDS: "300"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backend-go-secrets
+  namespace: chatup
+  labels:
+    app: backend-go
+    app.kubernetes.io/part-of: chatup
+    env: staging
+type: Opaque
+stringData:
+  DATABASE_URL: "postgres://admin:password@postgres:5432/chatup?sslmode=disable"
+  JWT_SECRET: "181b2246922adfbdd1f1774fd1de2cec30b769ccea26f1eb"
+  # Audiences aceitos no id_token (Web + Android nativo)
+  GOOGLE_CLIENT_ID: "510679848324-uicijmb0d26ebf3rlo0qil5pjuk9d1ea.apps.googleusercontent.com"
+  GOOGLE_ANDROID_CLIENT_ID: "510679848324-4nfiam1u85fciohe6t8p6n2rdtdkq5kk.apps.googleusercontent.com"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-go
+  namespace: chatup
+  labels:
+    app: backend-go
+    app.kubernetes.io/name: backend-go
+    app.kubernetes.io/part-of: chatup
+    env: staging
+    service: backend
+    observability: enabled
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend-go
+  template:
+    metadata:
+      labels:
+        app: backend-go
+        app.kubernetes.io/name: backend-go
+        app.kubernetes.io/part-of: chatup
+        env: staging
+        service: backend
+        observability: enabled
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "3000"
+    spec:
+      containers:
+        - name: backend-go
+          image: docker.io/marcotecmar/chatup-backend-go:20260813-nearby-stale-observer
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: backend-go-config
+            - secretRef:
+                name: backend-go-secrets
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+          volumeMounts:
+            - name: uploads
+              mountPath: /tmp/uploads
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+      volumes:
+        - name: uploads
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-go
+  namespace: chatup
+  labels:
+    app: backend-go
+    app.kubernetes.io/part-of: chatup
+    env: staging
+spec:
+  selector:
+    app: backend-go
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: backend-go
+  namespace: chatup
+  labels:
+    app: backend-go
+    app.kubernetes.io/part-of: chatup
+    env: staging
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: chatup-api.147.15.92.201.sslip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: backend-go
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - chatup-api.147.15.92.201.sslip.io
+      secretName: chatup-api-tls

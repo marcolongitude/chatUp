@@ -1,14 +1,15 @@
 import React, { useState } from "react";
-import { ActivityIndicator, Alert, Platform } from "react-native";
+import { ActivityIndicator, Alert, View } from "react-native";
 import { useTheme } from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import Constants from "expo-constants";
-import * as Updates from "expo-updates";
 import styled from "styled-components/native";
 import { Card } from "@/shared/ui";
 import { useTranslation } from "@/app/providers/i18n";
 import { saveLanguage } from "@/app/providers/i18n";
+import { PERIMETER_OPTIONS_KM, usePerimeter, type PerimeterKm, AppPermissionsSection } from "@/features/location";
+import { FamilySettingsSection } from "@/features/family";
 
 const Container = styled.ScrollView`
 	flex: 1;
@@ -69,26 +70,11 @@ const LanguageOptionText = styled.Text`
 	color: ${(props) => props.theme.colors.text.primary};
 `;
 
-const VersionInfo = styled.View`
-	padding: ${(props) => props.theme.spacing.xs}px;
-`;
-
-const VersionRow = styled.View`
-	flex-direction: row;
-	justify-content: space-between;
-	align-items: center;
-	margin-bottom: ${(props) => props.theme.spacing.xs}px;
-`;
-
-const VersionLabel = styled.Text`
-	font-size: ${(props) => props.theme.typography.fontSize.base}px;
-	color: ${(props) => props.theme.colors.text.secondary};
-`;
-
 const VersionValue = styled.Text`
 	font-size: ${(props) => props.theme.typography.fontSize.base}px;
 	color: ${(props) => props.theme.colors.text.primary};
 	font-weight: ${(props) => props.theme.typography.fontWeight.semibold};
+	padding: ${(props) => props.theme.spacing.xs}px;
 `;
 
 const LoadingContainer = styled.View`
@@ -107,6 +93,8 @@ export function SettingsPage() {
 	const theme = useTheme();
 	const { t: translate, currentLanguage } = useTranslation();
 	const [isChangingLanguage, setIsChangingLanguage] = useState(false);
+	const [isChangingPerimeter, setIsChangingPerimeter] = useState(false);
+	const { perimeterKm, updatePerimeterKm } = usePerimeter();
 
 	const languages: LanguageOption[] = [
 		{ code: "pt-BR", label: translate("settings.portuguese") },
@@ -128,15 +116,24 @@ export function SettingsPage() {
 		}
 	};
 
-	const appVersion = Constants.expoConfig?.version || "1.0.0";
-	const versionCode = Constants.expoConfig?.android?.versionCode || 1;
-	const runtimeVersion =
-		Updates.isEnabled && Updates.runtimeVersion ? Updates.runtimeVersion : __DEV__ ? "Development" : "N/A";
-	const channel = Updates.isEnabled && Updates.channel ? Updates.channel : __DEV__ ? "Development" : "N/A";
-	const isAndroid = Platform.OS === "android";
-	const isDev = __DEV__;
+	const handlePerimeterChange = async (km: PerimeterKm) => {
+		if (km === perimeterKm) return;
+		setIsChangingPerimeter(true);
+		try {
+			await updatePerimeterKm(km);
+		} catch (error) {
+			console.error("Erro ao alterar perímetro:", error);
+			Alert.alert(translate("errors.generic"), translate("errors.generic"));
+		} finally {
+			setIsChangingPerimeter(false);
+		}
+	};
+
+	const appVersion =
+		Constants.nativeAppVersion || Constants.expoConfig?.version || "1.0.0";
 
 	return (
+		<View style={{ flex: 1 }} testID="e2e.settings.screen" accessibilityLabel="e2e.settings.screen">
 		<Container>
 			<Header>
 				<Logo source={require("~/assets/logo-chatup.png")} contentFit="contain" cachePolicy="memory-disk" />
@@ -166,34 +163,49 @@ export function SettingsPage() {
 					)}
 				</Section>
 
-				{isAndroid && (
-					<Section>
-						<SectionTitle>{translate("settings.appVersion")}</SectionTitle>
-						<VersionInfo>
-							<VersionRow>
-								<VersionLabel>{translate("settings.appVersion")}</VersionLabel>
-								<VersionValue>{appVersion}</VersionValue>
-							</VersionRow>
-							{isDev && (
-								<>
-									<VersionRow>
-										<VersionLabel>{translate("settings.versionCode")}</VersionLabel>
-										<VersionValue>{versionCode}</VersionValue>
-									</VersionRow>
-									<VersionRow>
-										<VersionLabel>{translate("settings.runtimeVersion")}</VersionLabel>
-										<VersionValue>{runtimeVersion}</VersionValue>
-									</VersionRow>
-									<VersionRow>
-										<VersionLabel>{translate("settings.channel")}</VersionLabel>
-										<VersionValue>{channel}</VersionValue>
-									</VersionRow>
-								</>
+				<Section>
+					<SectionTitle>{translate("settings.perimeter")}</SectionTitle>
+					<SectionDescription>{translate("settings.perimeterDescription")}</SectionDescription>
+					{PERIMETER_OPTIONS_KM.map((km) => (
+						<LanguageOption
+							key={km}
+							isSelected={perimeterKm === km}
+							onPress={() => handlePerimeterChange(km)}
+							disabled={isChangingPerimeter}
+							activeOpacity={0.7}
+						>
+							<LanguageOptionText>
+								{translate("settings.perimeterKm", { km })}
+							</LanguageOptionText>
+							{perimeterKm === km && (
+								<Ionicons name="checkmark-circle" size={24} color={theme.colors.button.primary} />
 							)}
-						</VersionInfo>
-					</Section>
-				)}
+						</LanguageOption>
+					))}
+					{isChangingPerimeter && (
+						<LoadingContainer>
+							<ActivityIndicator size="small" color={theme.colors.button.primary} />
+						</LoadingContainer>
+					)}
+				</Section>
+
+				<Section>
+					<SectionTitle>{translate("settings.permissions")}</SectionTitle>
+					<SectionDescription>{translate("settings.permissionsDescription")}</SectionDescription>
+					<AppPermissionsSection />
+				</Section>
+
+				<Section>
+					<SectionTitle>{translate("family.title")}</SectionTitle>
+					<FamilySettingsSection />
+				</Section>
+
+				<Section>
+					<SectionTitle>{translate("settings.appVersion")}</SectionTitle>
+					<VersionValue>{appVersion}</VersionValue>
+				</Section>
 			</Content>
 		</Container>
+		</View>
 	);
 }

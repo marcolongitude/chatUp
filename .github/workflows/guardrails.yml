@@ -1,0 +1,73 @@
+name: Guardrails (security + flows)
+
+on:
+  pull_request:
+    branches: [developer, main]
+  push:
+    branches: [developer, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: guardrails-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: Unit guardrails (Go + Jest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache-dependency-path: backend-go/go.sum
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install JS deps
+        run: npm ci --legacy-peer-deps
+
+      - name: Go app tests
+        working-directory: backend-go
+        run: go test ./internal/app/ -count=1
+
+      - name: Jest ROI suite
+        run: npx jest --testPathPattern='(delivery-status|notifications|MessageStatus|stableLib|perimeter|outbox)' --no-coverage
+
+  family-security-api:
+    name: Family security API (staging)
+    runs-on: ubuntu-latest
+    needs: unit
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install JS deps (scripts only)
+        run: npm ci --legacy-peer-deps
+
+      - name: Setup Python e2e venv
+        working-directory: e2e
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install -U pip
+          .venv/bin/pip install -r requirements.txt
+
+      - name: Family anti-leak suite
+        env:
+          # Override in repo Variables as CHATUP_E2E_API_URL when needed.
+          CHATUP_E2E_API_URL: ${{ vars.CHATUP_E2E_API_URL }}
+          CHATUP_E2E_AUTO_PAIR: "0"
+        run: |
+          export CHATUP_E2E_API_URL="${CHATUP_E2E_API_URL:-https://chatup-api.147.15.92.201.sslip.io}"
+          npm run e2e:family:security

@@ -239,8 +239,10 @@ async function pbkdf2(password: string, salt: string, iterations: number, keyLen
 	try {
 		const QuickCrypto = require("react-native-quick-crypto");
 		if (QuickCrypto && QuickCrypto.pbkdf2Sync) {
+			// Salt no storage é Base64; CryptoJS faz parse Base64 — espelhar aqui
+			const saltBytes = Buffer.from(salt, "base64");
 			console.log("🚀 [CRYPTO] Usando Quick-Crypto nativo para PBKDF2...");
-			const derivedKey = QuickCrypto.pbkdf2Sync(password, salt, iterations, keyLength, "sha256");
+			const derivedKey = QuickCrypto.pbkdf2Sync(password, saltBytes, iterations, keyLength, "sha256");
 			return derivedKey.buffer.slice(derivedKey.byteOffset, derivedKey.byteOffset + derivedKey.byteLength);
 		}
 	} catch (error) {
@@ -701,10 +703,8 @@ async function getOrCreateChatKey(chatId: string, userId: string): Promise<Array
 }
 
 /**
- * Criptografa uma mensagem
- * Tenta usar Signal Protocol primeiro (mais seguro)
- * Se falhar por falta de bundle, usa E2EE legado (ECDH) como fallback
- * Isso garante que mensagens sejam enviadas mesmo se destinatário estiver offline
+ * Criptografa uma mensagem com StableLib (único path de envio).
+ * Formato: STB:...
  */
 export async function encryptMessage(
 	plaintext: string,
@@ -721,7 +721,6 @@ export async function encryptMessage(
 
 	const startedAt = Date.now();
 
-	// Tentar Stablelib (novo padrão estável)
 	try {
 		const encrypted = await encryptWithStable(userId, receiverId, plaintext);
 		cacheOwnMessage(encrypted, plaintext);
@@ -736,42 +735,18 @@ export async function encryptMessage(
 		});
 
 		return encrypted;
-	} catch (error: any) {
-		console.warn("⚠️ StableCrypto failed, using fallback E2EE:", error.message);
-
-		const fallbackStartTime = Date.now();
-		try {
-			// Usar método E2EE legado que só precisa de chaves públicas (já em cache)
-			const { encryptMessageE2EE } = await import("./e2ee");
-			const encrypted = await encryptMessageE2EE(plaintext, chatId, userId, receiverId);
-			cacheOwnMessage(encrypted, plaintext);
-
-			const fallbackDuration = Date.now() - fallbackStartTime;
-			trackEncryptionEvent({
+	} catch (error: unknown) {
+		trackEncryptionError(
+			{
 				stage: "encrypt",
-				result: "success",
 				userId,
 				chatId,
 				receiverId,
 				durationMs: Date.now() - startedAt,
-			});
-
-			console.log(`✅ Mensagem criptografada com fallback E2EE em ${fallbackDuration}ms`);
-			return encrypted;
-		} catch (fallbackError: any) {
-			console.error("❌ Erro ao criptografar com fallback E2EE:", fallbackError);
-			trackEncryptionError(
-				{
-					stage: "encrypt",
-					userId,
-					chatId,
-					receiverId,
-					durationMs: Date.now() - startedAt,
-				},
-				error
-			);
-			throw error;
-		}
+			},
+			error
+		);
+		throw error;
 	}
 }
 
@@ -791,30 +766,41 @@ export async function decryptMessage(
 		const normalizedSenderId = String(senderId || "").trim();
 		const normalizedUserId = String(userId || "").trim();
 		const isOwnMessage = normalizedSenderId && normalizedUserId && normalizedSenderId === normalizedUserId;
+		// 1. StableLib (STB:) — path principal; mensagens próprias usam o mesmo segredo com o peer.
+		if (encryptedText.startsWith("STB:")) {
+			const startedAt = Date.now();
+			const peerId = isOwnMessage ? receiverId : senderId;
+			try {
+				const plaintext = await decryptWithStable(userId, peerId, encryptedText);
+				if (isOwnMessage) {
+					cacheOwnMessage(encryptedText, plaintext);
+				}
+				trackEncryptionEvent({
+					stage: "decrypt",
+					result: "success",
+					userId,
+					chatId,
+					receiverId: peerId,
+					durationMs: Date.now() - startedAt,
+				});
+				return plaintext;
+			} catch (stableError) {
+				const cachedOwnPlaintext = isOwnMessage ? getOwnMessage(encryptedText) : null;
+				if (cachedOwnPlaintext) {
+					return cachedOwnPlaintext;
+				}
+				if (isOwnMessage) {
+					return "[Mensagem sua]";
+				}
+				throw stableError;
+			}
+		}
+
 		if (isOwnMessage) {
 			const cachedOwnPlaintext = getOwnMessage(encryptedText);
 			if (cachedOwnPlaintext) {
 				return cachedOwnPlaintext;
 			}
-			if (encryptedText.startsWith("STB:")) {
-				return "[Mensagem sua]";
-			}
-		}
-
-		// 1. Tentar Stablelib (prefixo STB:)
-		if (encryptedText.startsWith("STB:")) {
-			const startedAt = Date.now();
-			const plaintext = await decryptWithStable(userId, senderId, encryptedText);
-
-			trackEncryptionEvent({
-				stage: "decrypt",
-				result: "success",
-				userId,
-				chatId,
-				receiverId: senderId,
-				durationMs: Date.now() - startedAt,
-			});
-			return plaintext;
 		}
 
 		// 2. Verificar se é uma mensagem criptografada legada (ENC:)

@@ -86,7 +86,7 @@ export function ChatWindow({ contactId }: ChatWindowProps) {
 							) : null
 						}
 						inverted
-						removeClippedSubviews={Platform.OS === "android"}
+						removeClippedSubviews={false}
 					/>
 				)}
 			</MessagesListContainer>

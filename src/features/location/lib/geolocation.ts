@@ -49,5 +49,6 @@ export function calculateBoundingBox(
   };
 }
 
-// Temporary radius for internal tests. Revert when production-ready.
-export const NEARBY_RADIUS_METERS = 500000;
+/** Default discovery radius (1 km). Prefer user preference via usePerimeter. */
+export const DEFAULT_NEARBY_RADIUS_KM = 1;
+export const NEARBY_RADIUS_METERS = DEFAULT_NEARBY_RADIUS_KM * 1000;

@@ -1,12 +1,14 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Image } from "expo-image";
+import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "styled-components/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocation, useParams, useSearch } from "@tanstack/react-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "@/app/providers/i18n";
 import { useHeaderRightSlot } from "@/app/contexts/HeaderRightSlotContext";
+import { userApi } from "@/entities/user";
 
 export function Header() {
 	const theme = useTheme();
@@ -16,11 +18,22 @@ export function Header() {
 	const location = useLocation();
 
 	// No TanStack Router, podemos pegar params e search do contexto se estiverem disponíveis
-	const search = useSearch({ strict: false }) as any;
+	const search = useSearch({ strict: false }) as { initialName?: string; initialAvatar?: string };
+	const params = useParams({ strict: false }) as { chatId?: string };
 
 	const isChat = location.pathname.startsWith("/chat");
-	const contactName = search?.initialName;
-	const contactAvatar = search?.initialAvatar;
+	const chatId = isChat ? params?.chatId : undefined;
+	const needsContactProfile = isChat && !!chatId && (!search?.initialName || !search?.initialAvatar);
+
+	const { data: contactProfile } = useQuery({
+		queryKey: ["userProfile", chatId],
+		queryFn: () => userApi.getUserById(chatId!),
+		enabled: needsContactProfile,
+		staleTime: 1000 * 60 * 5,
+	});
+
+	const contactName = search?.initialName || contactProfile?.displayName;
+	const contactAvatar = search?.initialAvatar || contactProfile?.photoURL;
 
 	// Logic to determine title and back button
 	const getTitle = () => {

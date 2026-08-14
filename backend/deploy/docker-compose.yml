@@ -25,7 +25,9 @@ services:
       NODE_ENV: development
       JWT_SECRET: dev-secret-key
       PORT: 3000
-      JWT_TTL: 60
+      JWT_ACCESS_TTL: 30
+      JWT_TTL: 30
+      JWT_REFRESH_TTL_DAYS: 30
       UPLOAD_DIR: /data/uploads
       CORS_ORIGIN: "*"
     depends_on:

@@ -85,11 +85,6 @@ export function ProfileInfo() {
 					</ProfileHeader>
 
 					<ProfileSection>
-						<ProfileSectionTitle>{t("profile.userId")}</ProfileSectionTitle>
-						<ProfileSectionContent>{userProfile.id}</ProfileSectionContent>
-					</ProfileSection>
-
-					<ProfileSection>
 						<ProfileSectionTitle>{t("profile.email")}</ProfileSectionTitle>
 						<ProfileSectionContent>{userProfile.email}</ProfileSectionContent>
 					</ProfileSection>

@@ -1,6 +1,7 @@
 import React from "react";
 import { Ionicons } from "@expo/vector-icons";
 import styled, { useTheme } from "styled-components/native";
+import type { MessageDeliveryStatus } from "../model/types";
 
 const StatusContainer = styled.View`
 	margin-left: 4px;
@@ -9,40 +10,76 @@ const StatusContainer = styled.View`
 `;
 
 interface MessageStatusProps {
-	isRead: boolean;
-	isViewed: boolean;
+	status?: MessageDeliveryStatus;
+	isRead?: boolean;
+	isViewed?: boolean;
+	/** Own bubbles sit on primary blue — need on-primary icon colors. */
+	isOwn?: boolean;
+	/** Stable key for e2e (message text token or id). */
+	e2eKey?: string;
 }
 
 /**
- * Componente para exibir o status de uma mensagem (similar ao WhatsApp)
- * - Sem ícone: mensagem enviada mas não recebida
- * - Check simples: mensagem recebida (read: true)
- * - Check duplo cinza: mensagem lida mas não visualizada (read: true && viewedAt === null)
- * - Check duplo azul: mensagem visualizada (viewedAt !== null)
+ * Status de envio (estilo WhatsApp):
+ * - pending: relógio
+ * - sent: check simples
+ * - delivered: check duplo
+ * - read: check duplo em destaque
+ * - failed: alerta
  */
-export const MessageStatus: React.FC<MessageStatusProps> = ({ isRead, isViewed }) => {
+export function MessageStatus({
+	status,
+	isRead,
+	isViewed,
+	isOwn = false,
+	e2eKey,
+}: MessageStatusProps) {
 	const theme = useTheme();
 
-	// Se não foi lida, não mostra ícone
-	if (!isRead) {
-		return null;
-	}
+	const resolved: MessageDeliveryStatus =
+		status ?? (isViewed || isRead ? "read" : "sent");
 
-	// Se foi visualizada, mostra check duplo azul
-	if (isViewed) {
+	const muted = isOwn ? "rgba(255,255,255,0.85)" : theme.colors.text.tertiary;
+	const read = isOwn ? "#FFE082" : theme.colors.status.info;
+	const failed = theme.colors.status.error;
+	const keyPart = (e2eKey || "unknown").slice(0, 48);
+	const testID = `e2e.message.status.${keyPart}.${resolved}`;
+
+	if (resolved === "pending") {
 		return (
-			<StatusContainer>
-				<Ionicons name="checkmark-done" size={16} color={theme.colors.button.primary} />
+			<StatusContainer testID={testID} accessibilityLabel={testID}>
+				<Ionicons name="time-outline" size={16} color={muted} />
 			</StatusContainer>
 		);
 	}
 
-	// Se foi lida mas não visualizada, mostra check duplo cinza
+	if (resolved === "failed") {
+		return (
+			<StatusContainer testID={testID} accessibilityLabel={testID}>
+				<Ionicons name="alert-circle-outline" size={16} color={failed} />
+			</StatusContainer>
+		);
+	}
+
+	if (resolved === "sent") {
+		return (
+			<StatusContainer testID={testID} accessibilityLabel={testID}>
+				<Ionicons name="checkmark" size={16} color={muted} />
+			</StatusContainer>
+		);
+	}
+
+	if (resolved === "delivered") {
+		return (
+			<StatusContainer testID={testID} accessibilityLabel={testID}>
+				<Ionicons name="checkmark-done" size={16} color={muted} />
+			</StatusContainer>
+		);
+	}
+
 	return (
-		<StatusContainer>
-			<Ionicons name="checkmark-done" size={16} color={theme.colors.text.tertiary} />
+		<StatusContainer testID={testID} accessibilityLabel={testID}>
+			<Ionicons name="checkmark-done" size={16} color={read} />
 		</StatusContainer>
 	);
-};
-
-
+}

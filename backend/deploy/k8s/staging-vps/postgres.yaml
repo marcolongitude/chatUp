@@ -1,0 +1,266 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: chatup
+  labels:
+    app: postgres
+    app.kubernetes.io/part-of: chatup
+    env: staging
+spec:
+  selector:
+    app: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+      protocol: TCP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data
+  namespace: chatup
+  labels:
+    app: postgres
+    app.kubernetes.io/part-of: chatup
+    env: staging
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  namespace: chatup
+  labels:
+    app: postgres
+    app.kubernetes.io/part-of: chatup
+    env: staging
+data:
+  0001_init.sql: |
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+    CREATE TABLE IF NOT EXISTS users (
+      id UUID PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      password_hash TEXT,
+      google_id TEXT,
+      display_name TEXT,
+      photo_url TEXT,
+      phone_number TEXT,
+      bio TEXT,
+      latitude DOUBLE PRECISION,
+      longitude DOUBLE PRECISION,
+      public_key TEXT,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS messages (
+      id UUID PRIMARY KEY,
+      sender_id UUID NOT NULL,
+      receiver_id UUID NOT NULL,
+      content TEXT NOT NULL,
+      timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
+      is_delivered BOOLEAN NOT NULL DEFAULT FALSE,
+      is_read BOOLEAN NOT NULL DEFAULT FALSE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_messages_pair_time
+      ON messages (sender_id, receiver_id, timestamp DESC);
+
+    CREATE TABLE IF NOT EXISTS keys (
+      user_id UUID PRIMARY KEY,
+      identity_key TEXT NOT NULL,
+      public_key TEXT,
+      registration_id INTEGER NOT NULL,
+      signed_pre_key JSONB NOT NULL,
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS pre_keys (
+      id UUID PRIMARY KEY,
+      user_id UUID NOT NULL REFERENCES keys(user_id) ON DELETE CASCADE,
+      key_id INTEGER NOT NULL,
+      public_key TEXT NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_pre_keys_user ON pre_keys(user_id);
+
+  0002_message_client_msg_id.sql: |
+    ALTER TABLE messages
+      ADD COLUMN IF NOT EXISTS client_msg_id TEXT;
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_sender_client_msg
+      ON messages (sender_id, client_msg_id)
+      WHERE client_msg_id IS NOT NULL AND client_msg_id <> '';
+
+  0003_message_seq_num.sql: |
+    ALTER TABLE messages
+      ADD COLUMN IF NOT EXISTS seq_num BIGINT;
+
+    WITH ordered AS (
+      SELECT id, ROW_NUMBER() OVER (ORDER BY timestamp ASC, id ASC) AS rn
+      FROM messages
+      WHERE seq_num IS NULL
+    )
+    UPDATE messages m
+    SET seq_num = ordered.rn
+    FROM ordered
+    WHERE m.id = ordered.id;
+
+    CREATE SEQUENCE IF NOT EXISTS messages_seq_num_seq;
+
+    SELECT setval(
+      'messages_seq_num_seq',
+      GREATEST(COALESCE((SELECT MAX(seq_num) FROM messages), 0), 1),
+      true
+    );
+
+    ALTER TABLE messages
+      ALTER COLUMN seq_num SET DEFAULT nextval('messages_seq_num_seq');
+
+    ALTER TABLE messages
+      ALTER COLUMN seq_num SET NOT NULL;
+
+    CREATE INDEX IF NOT EXISTS idx_messages_pair_seq
+      ON messages (
+        LEAST(sender_id::text, receiver_id::text),
+        GREATEST(sender_id::text, receiver_id::text),
+        seq_num
+      );
+
+  0005_user_nearby_radius.sql: |
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS nearby_radius_km SMALLINT NOT NULL DEFAULT 1
+      CHECK (nearby_radius_km IN (1, 2, 3));
+
+  0006_refresh_tokens.sql: |
+    CREATE TABLE IF NOT EXISTS refresh_tokens (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token_hash TEXT NOT NULL UNIQUE,
+      expires_at TIMESTAMPTZ NOT NULL,
+      revoked_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      replaced_by UUID REFERENCES refresh_tokens(id) ON DELETE SET NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
+    CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at)
+      WHERE revoked_at IS NULL;
+  0007_family_links.sql: |
+    CREATE TABLE IF NOT EXISTS family_links (
+      id UUID PRIMARY KEY,
+      user_a_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      user_b_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      requested_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      status TEXT NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'accepted', 'revoked')),
+      location_share_a BOOLEAN NOT NULL DEFAULT FALSE,
+      location_share_b BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      accepted_at TIMESTAMPTZ,
+      CONSTRAINT family_links_ordered CHECK (user_a_id < user_b_id),
+      CONSTRAINT family_links_pair UNIQUE (user_a_id, user_b_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_family_links_user_a ON family_links (user_a_id) WHERE status <> 'revoked';
+    CREATE INDEX IF NOT EXISTS idx_family_links_user_b ON family_links (user_b_id) WHERE status <> 'revoked';
+    CREATE TABLE IF NOT EXISTS nearby_presence (
+      observer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      subject_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      last_inside_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (observer_id, subject_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_nearby_presence_observer_inside
+      ON nearby_presence (observer_id, last_inside_at DESC);
+  0008_location_updated_at.sql: |
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS location_updated_at TIMESTAMPTZ;
+    UPDATE users
+    SET location_updated_at = updated_at
+    WHERE latitude IS NOT NULL
+      AND longitude IS NOT NULL
+      AND location_updated_at IS NULL;
+  # NOTE: 0004_postgis_nearby.sql omitted — needs postgis/postgis image; Haversine fallback remains.
+  # NOTE: 0006/0007/0008 apply only on fresh PVC init; on existing DB run SQL manually / Job.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: chatup
+  labels:
+    app: postgres
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: chatup
+    env: staging
+    observability: enabled
+    service: postgres
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+        app.kubernetes.io/name: postgres
+        app.kubernetes.io/part-of: chatup
+        env: staging
+        observability: enabled
+        service: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: chatup
+            - name: POSTGRES_USER
+              value: admin
+            - name: POSTGRES_PASSWORD
+              value: password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              cpu: 300m
+              memory: 512Mi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "admin", "-d", "chatup"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "admin", "-d", "chatup"]
+            initialDelaySeconds: 20
+            periodSeconds: 20
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: postgres-data
+        - name: init
+          configMap:
+            name: postgres-init

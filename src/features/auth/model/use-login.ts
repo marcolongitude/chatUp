@@ -24,14 +24,23 @@ export function useLogin() {
         getIdToken: async () => response.token,
       };
 
-      await setSession(response.token, backendUser, {
-        id: backendUser.id,
-        email: backendUser.email || "",
-        displayName: backendUser.displayName || "",
-        hasProfile: true,
-      });
+      await setSession(
+        response.token,
+        backendUser,
+        {
+          id: backendUser.id,
+          email: backendUser.email || "",
+          displayName: backendUser.displayName || "",
+          hasProfile: true,
+        },
+        response.refreshToken
+      );
 
-      await initializeCrypto(backendUser.id);
+      try {
+        await initializeCrypto(backendUser.id);
+      } catch (cryptoError) {
+        console.warn("[Auth] Crypto init after login failed", cryptoError);
+      }
       return response;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Login failed";

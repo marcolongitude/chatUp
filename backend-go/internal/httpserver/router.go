@@ -44,16 +44,24 @@ func NewRouter(cfg config.Config, db *pgxpool.Pool, hub *ws.Hub, logger *slog.Lo
 	r.Post("/auth/login", h.login)
 	r.Post("/auth/register", h.register)
 	r.Post("/auth/google", h.google)
+	r.Post("/auth/refresh", h.refresh)
+	r.Post("/auth/logout", h.logout)
 	r.Get("/files/{filename}", h.getFile)
-	r.Get("/ws", hub.ServeWS(cfg.JWTSecret, h.handleWS))
+	r.Get("/ws", hub.ServeWS(cfg.JWTSecret, h.handleWS, h.onWSConnect))
 
 	r.Group(func(pr chi.Router) {
 		pr.Use(authmw.JWT(cfg.JWTSecret))
+		pr.Post("/auth/logout", h.logout) // optional Bearer: revoke all sessions for user
 		pr.Get("/users/search", h.searchUsers)
 		pr.Get("/users/{id}", h.getUser)
 		pr.Put("/users/{id}", h.updateUser)
 		pr.Put("/location", h.updateLocation)
 		pr.Get("/location/nearby", h.nearby)
+		pr.Get("/family/links", h.listFamilyLinks)
+		pr.Post("/family/links", h.requestFamilyLink)
+		pr.Post("/family/links/{id}/accept", h.acceptFamilyLink)
+		pr.Post("/family/links/{id}/revoke", h.revokeFamilyLink)
+		pr.Patch("/family/links/{id}/location-share", h.setFamilyLocationShare)
 		pr.Post("/chat/messages", h.sendMessage)
 		pr.Get("/chat/messages/{contactId}", h.getMessages)
 		pr.Post("/keys", h.uploadKeys)
@@ -68,4 +76,10 @@ func (h *Handlers) handleWS(userID string, env ws.Envelope) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	h.svc.HandleWSMessage(ctx, userID, env)
+}
+
+func (h *Handlers) onWSConnect(userID string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
+	h.svc.SyncNearbyOnConnect(ctx, userID)
 }

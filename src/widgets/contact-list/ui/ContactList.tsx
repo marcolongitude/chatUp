@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect } from "react";
-import { ActivityIndicator, FlatList } from "react-native";
+import React, { useCallback, useEffect, useMemo } from "react";
+import { ActivityIndicator, SectionList } from "react-native";
 import { useTheme } from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "@/shared/ui";
@@ -18,7 +18,17 @@ import {
 	ErrorIcon,
 	ErrorButtonContainer,
 	LoadingContainer,
+	SectionHeader,
+	RefreshHint,
 } from "./styled";
+
+type ListContact = {
+	id: string;
+	name: string;
+	avatar?: string;
+	unreadCount?: number;
+	inGrace?: boolean;
+};
 
 /**
  * Widget que exibe a lista de contatos próximos e permite busca
@@ -29,15 +39,21 @@ export function ContactList() {
 	const { setContent } = useHeaderRightSlot();
 
 	const {
-		contacts,
+		familyContacts,
+		discoveryContacts,
+		isEmpty,
 		isLoading,
+		isRefreshing,
 		searchQuery,
 		setSearchQuery,
 		searchPromise,
 		nearbyError,
 		isLocationPermissionError,
+		needsLocationPermission,
+		isRequestingPermission,
 		isSearchingMode,
-		openSettings,
+		perimeterKm,
+		handleEnableLocation,
 		handleContactPress,
 	} = useContactList();
 
@@ -49,37 +65,64 @@ export function ContactList() {
 			/>
 		);
 		return () => setContent(null);
-	}, [setContent, t]);
+	}, [setContent, t, setSearchQuery]);
+
+	const sections = useMemo(() => {
+		const next: { key: string; title: string; data: ListContact[] }[] = [];
+		if (familyContacts.length > 0) {
+			next.push({
+				key: "family",
+				title: t("conversations.sectionFamily"),
+				data: familyContacts,
+			});
+		}
+		if (discoveryContacts.length > 0) {
+			next.push({
+				key: "discovery",
+				title: t("conversations.sectionNearby"),
+				data: discoveryContacts,
+			});
+		}
+		return next;
+	}, [familyContacts, discoveryContacts, t]);
 
 	const renderContact = useCallback(
-		({ item }: { item: any }) => (
-			<ContactListItem 
+		({ item }: { item: ListContact }) => (
+			<ContactListItem
 				contact={{
 					id: item.id,
-					name: item.displayName || item.name,
-					avatar: item.photoURL || item.avatar,
-					unreadCount: item.unreadCount
-				}} 
-				onPress={() => handleContactPress(item.id, item.displayName || item.name, item.photoURL || item.avatar)} 
+					name: item.name,
+					avatar: item.avatar,
+					unreadCount: item.unreadCount,
+					subtitle: item.inGrace ? t("conversations.familyGraceHint") : undefined,
+				}}
+				onPress={() => handleContactPress(item.id, item.name, item.avatar)}
 			/>
 		),
-		[handleContactPress]
+		[handleContactPress, t]
 	);
 
-	const keyExtractor = useCallback((item: any) => item.id, []);
+	const keyExtractor = useCallback((item: ListContact) => item.id, []);
+
+	const renderSectionHeader = useCallback(
+		({ section }: { section: { title: string } }) => <SectionHeader>{section.title}</SectionHeader>,
+		[]
+	);
 
 	return (
-		<Container>
+		<Container testID="e2e.conversations.screen">
 			{isSearchingMode && searchPromise ? (
-				<React.Suspense fallback={
-					<LoadingContainer>
-						<ActivityIndicator size="small" color={theme.colors.button.primary} />
-						<EmptyText style={{ marginTop: theme.spacing.sm }}>{t("conversations.searching")}</EmptyText>
-					</LoadingContainer>
-				}>
-					<SearchResultsList 
-						promise={searchPromise} 
-						renderItem={renderContact} 
+				<React.Suspense
+					fallback={
+						<LoadingContainer>
+							<ActivityIndicator size="small" color={theme.colors.button.primary} />
+							<EmptyText style={{ marginTop: theme.spacing.sm }}>{t("conversations.searching")}</EmptyText>
+						</LoadingContainer>
+					}
+				>
+					<SearchResultsList
+						promise={searchPromise}
+						renderItem={renderContact}
 						keyExtractor={keyExtractor}
 						t={t}
 					/>
@@ -92,43 +135,63 @@ export function ContactList() {
 							<EmptyText style={{ marginTop: theme.spacing.md }}>{t("conversations.searching")}</EmptyText>
 						</LoadingContainer>
 					) : (
-						<FlatList
-							data={contacts}
-							renderItem={renderContact}
-							keyExtractor={keyExtractor}
-							contentContainerStyle={contacts.length === 0 ? { flex: 1 } : undefined}
-							ListEmptyComponent={
-								<EmptyContainer>
-									{nearbyError ? (
-										<>
-											{isLocationPermissionError && (
-												<ErrorIcon>
-													<Ionicons name="location-outline" size={64} color={theme.colors.status.error} />
-												</ErrorIcon>
-											)}
-											<ErrorText>{nearbyError}</ErrorText>
-											<EmptyText>
-												{isLocationPermissionError
-													? t("conversations.locationPermissionError")
-													: t("conversations.locationError")}
-											</EmptyText>
-											{isLocationPermissionError && (
-												<ErrorButtonContainer>
-													<Button title={t("conversations.openSettings")} onPress={openSettings} variant="primary" />
-												</ErrorButtonContainer>
-											)}
-										</>
-									) : (
-										<>
-											<EmptyText>{t("conversations.noUsersFound")}</EmptyText>
-											<EmptyText style={{ marginTop: theme.spacing.sm, fontSize: 14 }}>
-												{t("conversations.usersWithin2km")}
-											</EmptyText>
-										</>
-									)}
-								</EmptyContainer>
-							}
-						/>
+						<>
+							{isRefreshing ? <RefreshHint>{t("conversations.refreshing")}</RefreshHint> : null}
+							<SectionList
+								sections={sections}
+								renderItem={renderContact}
+								keyExtractor={keyExtractor}
+								renderSectionHeader={renderSectionHeader}
+								stickySectionHeadersEnabled
+								contentContainerStyle={isEmpty ? { flex: 1 } : undefined}
+								ListEmptyComponent={
+									<EmptyContainer>
+										{isLocationPermissionError || nearbyError ? (
+											<>
+												{(isLocationPermissionError || needsLocationPermission) && (
+													<ErrorIcon>
+														<Ionicons
+															name="location-outline"
+															size={64}
+															color={theme.colors.status.error}
+														/>
+													</ErrorIcon>
+												)}
+												<ErrorText>
+													{nearbyError || t("conversations.locationPermissionError")}
+												</ErrorText>
+												<EmptyText>
+													{isLocationPermissionError
+														? t("conversations.locationPermissionError")
+														: t("conversations.locationError")}
+												</EmptyText>
+												{isLocationPermissionError && (
+													<ErrorButtonContainer>
+														<Button
+															title={
+																isRequestingPermission
+																	? t("conversations.requestingPermission")
+																	: t("conversations.enableLocation")
+															}
+															onPress={handleEnableLocation}
+															variant="primary"
+															disabled={isRequestingPermission}
+														/>
+													</ErrorButtonContainer>
+												)}
+											</>
+										) : (
+											<>
+												<EmptyText>{t("conversations.noUsersFound")}</EmptyText>
+												<EmptyText style={{ marginTop: theme.spacing.sm, fontSize: 14 }}>
+													{t("conversations.usersWithin2km", { km: perimeterKm })}
+												</EmptyText>
+											</>
+										)}
+									</EmptyContainer>
+								}
+							/>
+						</>
 					)}
 				</>
 			)}

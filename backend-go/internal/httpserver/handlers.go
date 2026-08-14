@@ -98,15 +98,23 @@ func (h *Handlers) register(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	writeJSON(w, 201, map[string]any{
-		"accessToken": result.AccessToken,
+	writeJSON(w, 201, authResponse(result, h.cfg.JWTTTLMinutes*60))
+}
+
+func authResponse(result app.AuthResult, expiresInSec int) map[string]any {
+	return map[string]any{
+		"accessToken":  result.AccessToken,
+		"refreshToken": result.RefreshToken,
+		"tokenType":    "Bearer",
+		"expiresIn":    expiresInSec,
 		"user": map[string]any{
 			"id":          result.User.ID,
 			"username":    result.User.Email,
 			"email":       result.User.Email,
 			"displayName": result.User.DisplayName,
+			"photoURL":    result.User.PhotoURL,
 		},
-	})
+	}
 }
 
 func (h *Handlers) login(w http.ResponseWriter, r *http.Request) {
@@ -132,14 +140,52 @@ func (h *Handlers) login(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	writeJSON(w, 200, map[string]any{
-		"accessToken": result.AccessToken,
-		"user": map[string]any{
-			"id":          result.User.ID,
-			"email":       result.User.Email,
-			"displayName": result.User.DisplayName,
-		},
-	})
+	writeJSON(w, 200, authResponse(result, h.cfg.JWTTTLMinutes*60))
+}
+
+func (h *Handlers) refresh(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		RefreshToken string `json:"refreshToken"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	result, err := h.svc.Refresh(r.Context(), req.RefreshToken)
+	if err != nil {
+		switch {
+		case errors.Is(err, app.ErrRefreshInvalid):
+			http.Error(w, "invalid refresh token", http.StatusUnauthorized)
+		case errors.Is(err, app.ErrDatabaseDown):
+			http.Error(w, "database unavailable", http.StatusServiceUnavailable)
+		default:
+			http.Error(w, "internal error", http.StatusInternalServerError)
+		}
+		return
+	}
+	writeJSON(w, 200, authResponse(result, h.cfg.JWTTTLMinutes*60))
+}
+
+func (h *Handlers) logout(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		RefreshToken string `json:"refreshToken"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	userID := ""
+	if v := r.Context().Value(authmw.UserIDKey); v != nil {
+		if s, ok := v.(string); ok {
+			userID = s
+		}
+	}
+	if err := h.svc.Logout(r.Context(), userID, req.RefreshToken); err != nil {
+		if errors.Is(err, app.ErrDatabaseDown) {
+			http.Error(w, "database unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, 200, map[string]any{"success": true})
 }
 
 func (h *Handlers) google(w http.ResponseWriter, r *http.Request) {
@@ -159,14 +205,7 @@ func (h *Handlers) google(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, 200, map[string]any{
-		"accessToken": result.AccessToken,
-		"user": map[string]any{
-			"id":          result.User.ID,
-			"email":       result.User.Email,
-			"displayName": result.User.DisplayName,
-		},
-	})
+	writeJSON(w, 200, authResponse(result, h.cfg.JWTTTLMinutes*60))
 }
 
 func (h *Handlers) searchUsers(w http.ResponseWriter, r *http.Request) {
@@ -200,15 +239,16 @@ func (h *Handlers) getUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]any{
-		"id":          user.ID,
-		"email":       user.Email,
-		"displayName": user.DisplayName,
-		"photoURL":    user.PhotoURL,
-		"phoneNumber": user.PhoneNumber,
-		"bio":         user.Bio,
-		"publicKey":   user.PublicKey,
-		"createdAt":   user.CreatedAt,
-		"updatedAt":   user.UpdatedAt,
+		"id":             user.ID,
+		"email":          user.Email,
+		"displayName":    user.DisplayName,
+		"photoURL":       user.PhotoURL,
+		"phoneNumber":    user.PhoneNumber,
+		"bio":            user.Bio,
+		"publicKey":      user.PublicKey,
+		"nearbyRadiusKm": user.NearbyRadiusKm,
+		"createdAt":      user.CreatedAt,
+		"updatedAt":      user.UpdatedAt,
 	})
 }
 
@@ -221,6 +261,11 @@ func (h *Handlers) updateUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid body", http.StatusBadRequest)
 		return
 	}
+	var nearbyRadiusKm *int
+	if raw, ok := body["nearbyRadiusKm"]; ok && raw != nil {
+		km := store.IntFromAny(raw)
+		nearbyRadiusKm = &km
+	}
 	user, err := h.svc.UpdateUser(r.Context(), actorID, id, app.UpdateUserInput{
 		DisplayName: store.PtrStringFromAny(body["displayName"]),
 		PhotoURL:    store.PtrStringFromAny(body["photoURL"]),
@@ -230,6 +275,7 @@ func (h *Handlers) updateUser(w http.ResponseWriter, r *http.Request) {
 			store.PtrStringFromAny(body["publicKey"]),
 			store.PtrStringFromAny(body["public_key"]),
 		),
+		NearbyRadiusKm: nearbyRadiusKm,
 	})
 	if err != nil {
 		switch {
@@ -237,16 +283,19 @@ func (h *Handlers) updateUser(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "forbidden", http.StatusForbidden)
 		case errors.Is(err, app.ErrNotFound):
 			http.Error(w, "User not found", http.StatusNotFound)
+		case errors.Is(err, app.ErrInvalidBody):
+			http.Error(w, "invalid body", http.StatusBadRequest)
 		default:
 			http.Error(w, "query error", http.StatusInternalServerError)
 		}
 		return
 	}
 	writeJSON(w, 200, map[string]any{
-		"id":          user.ID,
-		"email":       user.Email,
-		"displayName": user.DisplayName,
-		"photoURL":    user.PhotoURL,
+		"id":             user.ID,
+		"email":          user.Email,
+		"displayName":    user.DisplayName,
+		"photoURL":       user.PhotoURL,
+		"nearbyRadiusKm": user.NearbyRadiusKm,
 		"phoneNumber": user.PhoneNumber,
 		"bio":         user.Bio,
 		"publicKey":   user.PublicKey,
@@ -258,14 +307,15 @@ func (h *Handlers) updateUser(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) sendMessage(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(authmw.UserIDKey).(string)
 	var body struct {
-		ReceiverID string `json:"receiverId"`
-		Content    string `json:"content"`
+		ReceiverID  string `json:"receiverId"`
+		Content     string `json:"content"`
+		ClientMsgID string `json:"clientMsgId"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid body", http.StatusBadRequest)
 		return
 	}
-	msg, err := h.svc.SendMessage(r.Context(), userID, body.ReceiverID, body.Content)
+	msg, err := h.svc.SendMessage(r.Context(), userID, body.ReceiverID, body.Content, body.ClientMsgID)
 	if err != nil {
 		http.Error(w, "query error", http.StatusInternalServerError)
 		return
@@ -275,6 +325,8 @@ func (h *Handlers) sendMessage(w http.ResponseWriter, r *http.Request) {
 		"senderId":    msg.SenderID,
 		"receiverId":  msg.ReceiverID,
 		"content":     msg.Content,
+		"clientMsgId": msg.ClientMsgID,
+		"seqNum":      msg.SeqNum,
 		"timestamp":   msg.Timestamp,
 		"isDelivered": msg.IsDelivered,
 		"isRead":      msg.IsRead,
@@ -297,6 +349,8 @@ func (h *Handlers) getMessages(w http.ResponseWriter, r *http.Request) {
 			"id":          msg.ID,
 			"senderId":    msg.SenderID,
 			"receiverId":  msg.ReceiverID,
+			"clientMsgId": msg.ClientMsgID,
+			"seqNum":      msg.SeqNum,
 			"content":     msg.Content,
 			"timestamp":   msg.Timestamp,
 			"isDelivered": msg.IsDelivered,
@@ -396,7 +450,7 @@ func (h *Handlers) nearby(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(authmw.UserIDKey).(string)
 	lat := app.ParseFloat(r.URL.Query().Get("latitude"), 0)
 	lng := app.ParseFloat(r.URL.Query().Get("longitude"), 0)
-	radius := app.ParseFloat(r.URL.Query().Get("radius"), 2)
+	radius := app.ParseFloat(r.URL.Query().Get("radius"), 1)
 	users, err := h.svc.Nearby(r.Context(), userID, lat, lng, radius)
 	if err != nil {
 		http.Error(w, "query error", http.StatusInternalServerError)
@@ -404,16 +458,22 @@ func (h *Handlers) nearby(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]map[string]any, 0, len(users))
 	for _, user := range users {
-		out = append(out, map[string]any{
-			"id":     user.ID,
-			"name":   user.Name,
-			"avatar": user.Avatar,
-			"location": map[string]any{
+		item := map[string]any{
+			"id":              user.ID,
+			"name":            user.Name,
+			"avatar":          user.Avatar,
+			"distance":        user.DistanceM,
+			"locationVisible": user.LocationVisible,
+			"inGrace":         user.InGrace,
+			"familyLink":      user.FamilyLink,
+		}
+		if user.LocationVisible {
+			item["location"] = map[string]any{
 				"latitude":  user.Latitude,
 				"longitude": user.Longitude,
-			},
-			"distance": user.DistanceM,
-		})
+			}
+		}
+		out = append(out, item)
 	}
 	writeJSON(w, 200, out)
 }

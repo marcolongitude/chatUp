@@ -1,7 +1,7 @@
 import React from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Outlet, useLocation, useNavigate } from "@tanstack/react-router";
+import { Outlet, useLocation, useRouter } from "@tanstack/react-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "styled-components/native";
 import { useTranslation } from "@/app/providers/i18n";
@@ -22,14 +22,14 @@ export function BottomTabLayout() {
 	const insets = useSafeAreaInsets();
 	const { t: translate } = useTranslation();
 	const location = useLocation();
-	const navigate = useNavigate();
+	const router = useRouter();
 
 	const tabs = [
 		{ name: "conversations", path: "/main/conversations", icon: "chatbubbles" as const },
 		{ name: "profile", path: "/main/profile", icon: "person" as const },
 		{ name: "settings", path: "/main/settings", icon: "settings" as const },
 		{ name: "logout", path: "/main/logout", icon: "log-out" as const },
-	];
+	] as const;
 
 	const tabBarBg = theme.colors?.background?.secondary ?? fallbackColors.tabBarBg;
 	const tabBarBorder = theme.colors?.border?.secondary ?? fallbackColors.tabBarBorder;
@@ -64,10 +64,14 @@ export function BottomTabLayout() {
 								: (theme.colors?.text?.tertiary ?? fallbackColors.inactive);
 
 							return (
-								<Pressable
+								<TouchableOpacity
 									key={tab.name}
-									onPress={() => navigate({ to: tab.path })}
-									style={({ pressed }) => [styles.tabItem, pressed && styles.tabItemPressed]}
+									testID={`e2e.tab.${tab.name}`}
+									onPress={() => {
+										void router.navigate({ to: tab.path });
+									}}
+									style={styles.tabItem}
+									activeOpacity={0.7}
 									accessibilityRole="button"
 									accessibilityLabel={translate(`navigation.${tab.name}`)}
 								>
@@ -75,7 +79,7 @@ export function BottomTabLayout() {
 									<Text style={[styles.tabLabel, { color }]} numberOfLines={1}>
 										{translate(`navigation.${tab.name}`)}
 									</Text>
-								</Pressable>
+								</TouchableOpacity>
 							);
 						})}
 					</View>
@@ -106,9 +110,6 @@ const styles = StyleSheet.create({
 		alignItems: "center",
 		justifyContent: "center",
 		minHeight: 44,
-	},
-	tabItemPressed: {
-		opacity: 0.7,
 	},
 	tabLabel: {
 		fontSize: 11,

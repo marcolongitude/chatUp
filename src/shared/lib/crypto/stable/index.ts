@@ -7,3 +7,4 @@ export const bootstrapStableAccount = (userId: string) => StableLibSessionManage
 export const ensureStableSession = (userId: string, contactId: string) => StableLibSessionManager.ensureSession(userId, contactId);
 export const encryptWithStable = (userId: string, contactId: string, text: string) => StableLibSessionManager.encrypt(userId, contactId, text);
 export const decryptWithStable = (userId: string, contactId: string, data: string) => StableLibSessionManager.decrypt(userId, contactId, data);
+export const clearStableLocalCrypto = (userId: string) => StableLibSessionManager.clearLocalCrypto(userId);

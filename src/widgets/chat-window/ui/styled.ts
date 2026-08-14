@@ -13,7 +13,10 @@ export const MessagesListContainer = styled.View`
     padding: ${(props) => props.theme.spacing.md}px;
 `;
 
-export const MessageBubble = styled.View<{ isOwn: boolean }>`
+export const MessageBubble = styled.View.attrs<{ isOwn: boolean; testID?: string }>((props) => ({
+    testID: props.testID,
+    accessibilityLabel: props.testID,
+}))<{ isOwn: boolean; testID?: string }>`
     max-width: 75%;
     padding: ${(props) => props.theme.spacing.sm}px ${(props) => props.theme.spacing.md}px;
     margin-bottom: ${(props) => props.theme.spacing.sm}px;
@@ -21,12 +24,17 @@ export const MessageBubble = styled.View<{ isOwn: boolean }>`
     align-self: ${(props) => (props.isOwn ? "flex-end" : "flex-start")};
     background-color: ${(props) =>
         props.isOwn ? props.theme.colors.button.primary : props.theme.colors.background.card};
+    overflow: visible;
 `;
 
-export const MessageText = styled.Text<{ isOwn: boolean }>`
+export const MessageText = styled.Text.attrs(() => ({
+    // Android often under-measures shrink-wrapped Text width and clips the last glyph.
+    includeFontPadding: false,
+}))<{ isOwn: boolean }>`
     font-size: 16px;
     color: ${(props) => (props.isOwn ? props.theme.colors.text.primary : props.theme.colors.text.primary)};
     line-height: 20px;
+    padding-right: 4px;
 `;
 
 export const MessageFooter = styled.View<{ isOwn: boolean }>`
@@ -37,10 +45,13 @@ export const MessageFooter = styled.View<{ isOwn: boolean }>`
     gap: 4px;
 `;
 
-export const MessageTime = styled.Text<{ isOwn: boolean }>`
+export const MessageTime = styled.Text.attrs(() => ({
+    includeFontPadding: false,
+}))<{ isOwn: boolean }>`
     font-size: 11px;
-    color: ${(props) => (props.isOwn ? props.theme.colors.text.secondary : props.theme.colors.text.tertiary)};
-    opacity: 0.7;
+    color: ${(props) => (props.isOwn ? "rgba(255,255,255,0.85)" : props.theme.colors.text.tertiary)};
+    opacity: ${(props) => (props.isOwn ? 1 : 0.8)};
+    padding-right: 2px;
 `;
 
 export const InputContainer = styled.View<{ bottomInset: number; keyboardHeight: number }>`

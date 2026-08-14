@@ -71,7 +71,7 @@ jobs:
             ${{ steps.vars.outputs.image_full }}
             ${{ steps.vars.outputs.image_repo }}:developer-latest
 
-      - name: Update development manifests image
+      - name: Update Kubernetes manifests image
         env:
           IMAGE_REPO: ${{ steps.vars.outputs.image_repo }}
           IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
@@ -80,6 +80,13 @@ jobs:
 
           perl -0777 -i -pe "s|(^\\s*-\\s*name:\\s*backend-go\\s*\\n)\\s*image:\\s*.*|\\1          image: ${new_image}|m" \
             "backend/deploy/k8s/development/backend-go-k8s.yaml"
+
+          # Staging VPS (Rancher Amazon) — imagePullPolicy Always
+          if [ -f "backend/deploy/k8s/staging-vps/backend.yaml" ]; then
+            sed -i -E "s|(image:\\s*)docker.io/.*/chatup-backend-go:.*|\\1${new_image}|" \
+              "backend/deploy/k8s/staging-vps/backend.yaml"
+            echo "Updated backend/deploy/k8s/staging-vps/backend.yaml -> ${new_image}"
+          fi
 
           echo "Updated backend/deploy/k8s/development/backend-go-k8s.yaml -> ${new_image}"
 
@@ -91,7 +98,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add backend/deploy/k8s/development/backend-go-k8s.yaml
+          git add \
+            backend/deploy/k8s/development/backend-go-k8s.yaml \
+            backend/deploy/k8s/staging-vps/backend.yaml
 
           if git diff --cached --quiet; then
             echo "No manifest changes to commit."
