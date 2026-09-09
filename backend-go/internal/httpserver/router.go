@@ -62,6 +62,9 @@ func NewRouter(cfg config.Config, db *pgxpool.Pool, hub *ws.Hub, logger *slog.Lo
 		pr.Post("/family/links/{id}/accept", h.acceptFamilyLink)
 		pr.Post("/family/links/{id}/revoke", h.revokeFamilyLink)
 		pr.Patch("/family/links/{id}/location-share", h.setFamilyLocationShare)
+		pr.Patch("/family/links/{id}/map-share", h.setFamilyMapShare)
+		pr.Patch("/family/links/{id}/map-monitor", h.setFamilyMapMonitor)
+		pr.Get("/family/map", h.getFamilyMap)
 		pr.Post("/chat/messages", h.sendMessage)
 		pr.Get("/chat/messages/{contactId}", h.getMessages)
 		pr.Post("/keys", h.uploadKeys)
@@ -82,4 +85,5 @@ func (h *Handlers) onWSConnect(userID string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
 	h.svc.SyncNearbyOnConnect(ctx, userID)
+	h.svc.SyncFamilyMapOnConnect(ctx, userID)
 }

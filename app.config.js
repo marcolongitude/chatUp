@@ -35,7 +35,7 @@ module.exports = () => {
 		expo: {
 			name: "chatUp",
 			slug: "chatUp",
-			version: "1.0.9",
+			version: "1.0.10",
 			orientation: "portrait",
 			// Ícone do app (iOS, Android, splash) – assets/logoIcon.png
 			icon: "./assets/logoIcon.png",
@@ -50,6 +50,9 @@ module.exports = () => {
 			ios: {
 				supportsTablet: true,
 				bundleIdentifier: "com.chatup.app",
+				config: {
+					googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || "",
+				},
 				infoPlist: {
 					NSLocationWhenInUseUsageDescription:
 						"O ChatUp usa sua localização para listar contatos dentro do perímetro configurado.",
@@ -64,9 +67,14 @@ module.exports = () => {
 					backgroundColor: "#ffffff",
 				},
 				package: "com.chatup.app",
-				versionCode: 10,
+				versionCode: 11,
 				edgeToEdgeEnabled: true,
 				predictiveBackGestureEnabled: false,
+				config: {
+					googleMaps: {
+						apiKey: process.env.GOOGLE_MAPS_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || "",
+					},
+				},
 				permissions: [
 					"ACCESS_FINE_LOCATION",
 					"ACCESS_COARSE_LOCATION",
@@ -125,7 +133,7 @@ module.exports = () => {
 				fallbackToCacheTimeout: 0,
 				url: "https://u.expo.dev/d662ef19-e2a8-4cf3-b18a-564a4faa4a3d",
 			},
-			runtimeVersion: "1.0.9",
+			runtimeVersion: "1.0.10",
 			extra: {
 				router: {
 					origin: false,

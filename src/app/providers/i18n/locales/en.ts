@@ -6,6 +6,7 @@ export const en = {
 		logout: "Logout",
 		chat: "Chat",
 		settings: "Settings",
+		familyMap: "Map",
 	},
 
 	// Authentication
@@ -181,6 +182,25 @@ export const en = {
 		inviteSentMessage: "Family invite sent to {{name}}",
 		inviteFailed: "Could not send the family invite",
 		peerNotFound: "No user found to invite",
+		openMap: "Open family map",
+		mapShareToggle: "Share my position on the family map",
+		mapShareHint: "The chef only sees your pin with this consent and while you are inside the perimeter.",
+		mapMonitorToggle: "Monitor this member on the map",
+		mapTrackingActive: "Map active · both consented",
+		mapTrackingInactive: "Map inactive · missing member or monitor consent",
+		mapConsentTitle: "Map consent (privacy)",
+		mapConsentBody:
+			"Purpose: family safety. Data: live position while the link and consents stay active. No trip history in this version. You can revoke anytime in settings; the pin disappears immediately.",
+		mapConsentCancel: "Cancel",
+		mapConsentConfirm: "I agree",
+		mapConsentFailed: "Could not update map consent",
+	},
+
+	familyMap: {
+		empty: "No eligible members on the map yet. Enable consents in settings.",
+		loadError: "Could not load the family map.",
+		graceBanner: "{{count}} member(s) in grace (outside perimeter) — no live pin.",
+		distanceMeters: "{{meters}} m",
 	},
 
 	// General errors

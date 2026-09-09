@@ -6,6 +6,7 @@ export const ptBR = {
 		logout: "Sair",
 		chat: "Chat",
 		settings: "Configurações",
+		familyMap: "Mapa",
 	},
 
 	// Autenticação
@@ -181,6 +182,25 @@ export const ptBR = {
 		inviteSentMessage: "Convite família enviado para {{name}}",
 		inviteFailed: "Não foi possível enviar o convite família",
 		peerNotFound: "Nenhum usuário encontrado para convidar",
+		openMap: "Abrir mapa familiar",
+		mapShareToggle: "Compartilhar minha posição no mapa familiar",
+		mapShareHint: "O chefe só vê seu pin com este aceite e se você estiver no perímetro.",
+		mapMonitorToggle: "Monitorar este membro no mapa",
+		mapTrackingActive: "Mapa ativo · ambos consentiram",
+		mapTrackingInactive: "Mapa inativo · falta consentimento do membro ou do monitor",
+		mapConsentTitle: "Consentimento de mapa (LGPD)",
+		mapConsentBody:
+			"Finalidade: segurança familiar. Dados: posição ao vivo enquanto o vínculo e os consentimentos estiverem ativos. Sem histórico de trajetos nesta versão. Você pode revogar a qualquer momento nas configurações; o pin some na hora.",
+		mapConsentCancel: "Cancelar",
+		mapConsentConfirm: "Concordo",
+		mapConsentFailed: "Não foi possível atualizar o consentimento de mapa",
+	},
+
+	familyMap: {
+		empty: "Nenhum membro elegível no mapa ainda. Ative os consentimentos nas configurações.",
+		loadError: "Não foi possível carregar o mapa familiar.",
+		graceBanner: "{{count}} membro(s) em graça (fora do perímetro) — sem pin ao vivo.",
+		distanceMeters: "{{meters}} m",
 	},
 
 	// Erros gerais

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthSession } from "@/features/auth";
 import {
@@ -7,6 +7,8 @@ import {
 	requestFamilyLinkApi,
 	revokeFamilyLinkApi,
 	setFamilyLocationShareApi,
+	setFamilyMapMonitorApi,
+	setFamilyMapShareApi,
 } from "../api/family.api";
 
 export const familyLinksQueryKey = ["familyLinks"] as const;
@@ -26,6 +28,7 @@ export function useFamilyLinks() {
 	const invalidate = useCallback(() => {
 		void queryClient.invalidateQueries({ queryKey: familyLinksQueryKey });
 		void queryClient.invalidateQueries({ queryKey: ["nearbyUsers"] });
+		void queryClient.invalidateQueries({ queryKey: ["familyMap"] });
 	}, [queryClient]);
 
 	const requestMutation = useMutation({
@@ -53,9 +56,29 @@ export function useFamilyLinks() {
 		onError: (err: Error) => setActionError(err.message),
 	});
 
+	const mapShareMutation = useMutation({
+		mutationFn: ({ linkId, enabled }: { linkId: string; enabled: boolean }) =>
+			setFamilyMapShareApi(linkId, enabled),
+		onSuccess: invalidate,
+		onError: (err: Error) => setActionError(err.message),
+	});
+
+	const mapMonitorMutation = useMutation({
+		mutationFn: ({ linkId, enabled }: { linkId: string; enabled: boolean }) =>
+			setFamilyMapMonitorApi(linkId, enabled),
+		onSuccess: invalidate,
+		onError: (err: Error) => setActionError(err.message),
+	});
+
+	const isFamilyChef = useMemo(
+		() => (query.data ?? []).some((link) => link.status === "accepted" && link.iAmChef),
+		[query.data],
+	);
+
 	return {
 		links: query.data ?? [],
 		isLoading: query.isLoading,
+		isFamilyChef,
 		error: query.error ? (query.error as Error).message : actionError,
 		clearError: () => setActionError(null),
 		requestLink: (peerId: string) => requestMutation.mutateAsync(peerId),
@@ -63,10 +86,16 @@ export function useFamilyLinks() {
 		revokeLink: (linkId: string) => revokeMutation.mutateAsync(linkId),
 		setLocationShare: (linkId: string, enabled: boolean) =>
 			locationShareMutation.mutateAsync({ linkId, enabled }),
+		setMapShare: (linkId: string, enabled: boolean) =>
+			mapShareMutation.mutateAsync({ linkId, enabled }),
+		setMapMonitor: (linkId: string, enabled: boolean) =>
+			mapMonitorMutation.mutateAsync({ linkId, enabled }),
 		isBusy:
 			requestMutation.isPending ||
 			acceptMutation.isPending ||
 			revokeMutation.isPending ||
-			locationShareMutation.isPending,
+			locationShareMutation.isPending ||
+			mapShareMutation.isPending ||
+			mapMonitorMutation.isPending,
 	};
 }

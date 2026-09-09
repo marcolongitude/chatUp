@@ -122,6 +122,44 @@ class StagingApi:
         r.raise_for_status()
         return r.json()
 
+    def set_family_map_share(self, token: str, link_id: str, enabled: bool) -> dict[str, Any]:
+        r = self.session.patch(
+            f"{self.cfg.api_url}/family/links/{link_id}/map-share",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"enabled": enabled},
+            timeout=30,
+        )
+        r.raise_for_status()
+        return r.json()
+
+    def set_family_map_monitor(self, token: str, link_id: str, enabled: bool) -> dict[str, Any]:
+        r = self.session.patch(
+            f"{self.cfg.api_url}/family/links/{link_id}/map-monitor",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"enabled": enabled},
+            timeout=30,
+        )
+        r.raise_for_status()
+        return r.json()
+
+    def get_family_map(self, token: str) -> dict[str, Any]:
+        r = self.session.get(
+            f"{self.cfg.api_url}/family/map",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=30,
+        )
+        r.raise_for_status()
+        data = r.json()
+        return data if isinstance(data, dict) else {}
+
+    def get_family_map_status(self, token: str) -> int:
+        r = self.session.get(
+            f"{self.cfg.api_url}/family/map",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=30,
+        )
+        return r.status_code
+
     def revoke_all_family_with_peer(self, token: str, peer_id: str) -> None:
         for link in self.list_family_links(token):
             if str(link.get("peerId")) == peer_id:

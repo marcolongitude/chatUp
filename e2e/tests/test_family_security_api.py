@@ -11,6 +11,8 @@ import pytest
 
 from harness.family_security import (
     assert_location_visible,
+    assert_map_member_no_coords,
+    assert_map_member_visible,
     assert_no_destination_leak,
     find_peer,
 )
@@ -193,3 +195,77 @@ def test_revoking_family_removes_grace_path(api, cfg, pair_ids):
     api.revoke_family_link(token_a, link["id"])
     after = find_peer(api.nearby(token_a, radius=3), b_id)
     assert after is None, "revoked family must not remain via grace"
+
+
+def test_family_map_forbidden_for_non_chef(api, cfg, pair_ids):
+    """SECURITY: only requested_by (chef) may GET /family/map."""
+    link = api.ensure_accepted_family(cfg.account_a, cfg.account_b)
+    token_a, token_b = pair_ids["token_a"], pair_ids["token_b"]
+    assert link.get("iAmChef") is True or link.get("requestedBy")
+
+    status_member = api.get_family_map_status(token_b)
+    assert status_member == 403, f"member must get 403, got {status_member}"
+
+    # Chef without chef links after revoke still fails closed elsewhere; with link OK.
+    status_chef = api.get_family_map_status(token_a)
+    assert status_chef == 200, f"chef must get 200, got {status_chef}"
+
+
+def test_family_map_without_consents_never_leaks_coords(api, cfg, pair_ids):
+    """SECURITY: accepted family + no map consents ⇒ no live map coords."""
+    link = api.ensure_accepted_family(cfg.account_a, cfg.account_b)
+    b_id = pair_ids["b"]
+    token_a, token_b = pair_ids["token_a"], pair_ids["token_b"]
+
+    api.set_family_map_share(token_b, link["id"], False)
+    # Chef monitor off (default); ensure explicitly
+    try:
+        api.set_family_map_monitor(token_a, link["id"], False)
+    except Exception:
+        pass
+
+    api.put_location(token_a, cfg.mock_lat, cfg.mock_lng)
+    api.put_location(token_b, cfg.mock_lat + 0.0005, cfg.mock_lng + 0.0005)
+
+    snap = api.get_family_map(token_a)
+    members = snap.get("members") or []
+    peer = next((m for m in members if str(m.get("peerId")) == b_id), None)
+    assert peer is not None, f"chef should see member row: {snap}"
+    assert peer.get("mapTrackingActive") is not True
+    assert_map_member_no_coords(peer, context="family-map-no-consent")
+
+
+def test_family_map_requires_both_map_consents(api, cfg, pair_ids):
+    link = api.ensure_accepted_family(cfg.account_a, cfg.account_b)
+    b_id = pair_ids["b"]
+    token_a, token_b = pair_ids["token_a"], pair_ids["token_b"]
+
+    api.set_family_map_share(token_b, link["id"], True)
+    api.set_family_map_monitor(token_a, link["id"], False)
+
+    api.put_location(token_a, cfg.mock_lat, cfg.mock_lng)
+    api.put_location(token_b, cfg.mock_lat + 0.0005, cfg.mock_lng + 0.0005)
+
+    snap = api.get_family_map(token_a)
+    peer = next((m for m in (snap.get("members") or []) if str(m.get("peerId")) == b_id), None)
+    assert peer is not None
+    assert peer.get("mapTrackingActive") is not True
+    assert_map_member_no_coords(peer, context="family-map-unilateral-consent")
+
+
+def test_family_map_mutual_consent_exposes_coords_inside(api, cfg, pair_ids):
+    link = api.ensure_accepted_family(cfg.account_a, cfg.account_b)
+    b_id = pair_ids["b"]
+    token_a, token_b = pair_ids["token_a"], pair_ids["token_b"]
+
+    api.set_family_map_share(token_b, link["id"], True)
+    api.set_family_map_monitor(token_a, link["id"], True)
+
+    api.put_location(token_a, cfg.mock_lat, cfg.mock_lng)
+    api.put_location(token_b, cfg.mock_lat + 0.0005, cfg.mock_lng + 0.0005)
+
+    snap = api.get_family_map(token_a)
+    peer = next((m for m in (snap.get("members") or []) if str(m.get("peerId")) == b_id), None)
+    assert peer is not None
+    assert peer.get("mapTrackingActive") is True
+    assert_map_member_visible(peer, context="family-map-mutual-consent-inside")

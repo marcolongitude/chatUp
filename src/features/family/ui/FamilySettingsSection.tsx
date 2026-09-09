@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { ActivityIndicator, Alert, Switch } from "react-native";
+import { ActivityIndicator, Alert, Modal, Pressable, Switch } from "react-native";
 import styled from "styled-components/native";
 import { useTheme } from "styled-components/native";
+import { useRouter } from "@tanstack/react-router";
 import { useTranslation } from "@/app/providers/i18n";
 import { useAuthSession } from "@/features/auth";
 import { axiosInstance } from "@/shared/api";
@@ -93,27 +94,70 @@ const EmptyText = styled.Text`
 	color: ${(props) => props.theme.colors.text.secondary};
 `;
 
+const ModalBackdrop = styled.View`
+	flex: 1;
+	background-color: rgba(0, 0, 0, 0.55);
+	justify-content: center;
+	padding: ${(props) => props.theme.spacing.lg}px;
+`;
+
+const ModalCard = styled.View`
+	background-color: ${(props) => props.theme.colors.background.card};
+	border-radius: ${(props) => props.theme.borderRadius.lg}px;
+	padding: ${(props) => props.theme.spacing.lg}px;
+`;
+
+const ModalTitle = styled.Text`
+	font-size: ${(props) => props.theme.typography.fontSize.lg}px;
+	font-weight: 700;
+	color: ${(props) => props.theme.colors.text.primary};
+	margin-bottom: ${(props) => props.theme.spacing.sm}px;
+`;
+
+const ModalBody = styled.Text`
+	font-size: ${(props) => props.theme.typography.fontSize.sm}px;
+	color: ${(props) => props.theme.colors.text.secondary};
+	line-height: 20px;
+	margin-bottom: ${(props) => props.theme.spacing.md}px;
+`;
+
+const ModalActions = styled.View`
+	flex-direction: row;
+	justify-content: flex-end;
+	gap: 12px;
+`;
+
 interface SearchHit {
 	id: string;
 	displayName?: string;
 	email: string;
 }
 
+type PendingMapToggle =
+	| { kind: "share"; linkId: string; enabled: boolean }
+	| { kind: "monitor"; linkId: string; enabled: boolean }
+	| null;
+
 export function FamilySettingsSection() {
 	const theme = useTheme();
 	const { t } = useTranslation();
+	const router = useRouter();
 	const { user } = useAuthSession();
 	const {
 		links,
 		isLoading,
 		isBusy,
+		isFamilyChef,
 		requestLink,
 		acceptLink,
 		revokeLink,
 		setLocationShare,
+		setMapShare,
+		setMapMonitor,
 	} = useFamilyLinks();
 	const [query, setQuery] = useState("");
 	const [isSearching, setIsSearching] = useState(false);
+	const [pendingMapToggle, setPendingMapToggle] = useState<PendingMapToggle>(null);
 
 	const handleInvite = async () => {
 		const term = query.trim();
@@ -138,6 +182,21 @@ export function FamilySettingsSection() {
 		}
 	};
 
+	const confirmMapToggle = async () => {
+		if (!pendingMapToggle) return;
+		const pending = pendingMapToggle;
+		setPendingMapToggle(null);
+		try {
+			if (pending.kind === "share") {
+				await setMapShare(pending.linkId, pending.enabled);
+			} else {
+				await setMapMonitor(pending.linkId, pending.enabled);
+			}
+		} catch {
+			Alert.alert(t("errors.generic"), t("family.mapConsentFailed"));
+		}
+	};
+
 	if (isLoading) {
 		return <ActivityIndicator color={theme.colors.button.primary} />;
 	}
@@ -145,6 +204,15 @@ export function FamilySettingsSection() {
 	return (
 		<>
 			<SectionDescription testID="e2e.family.section">{t("family.description")}</SectionDescription>
+			{isFamilyChef ? (
+				<ActionButton
+					testID="e2e.family.openMap"
+					onPress={() => void router.navigate({ to: "/main/family-map" })}
+					style={{ marginBottom: 12, alignSelf: "flex-start" }}
+				>
+					<ActionButtonText>{t("family.openMap")}</ActionButtonText>
+				</ActionButton>
+			) : null}
 			<SearchRow>
 				<SearchInput
 					testID="e2e.family.search"
@@ -170,6 +238,7 @@ export function FamilySettingsSection() {
 				links.map((link) => {
 					const isIncomingPending = link.status === "pending" && link.requestedBy !== user?.id;
 					const isOutgoingPending = link.status === "pending" && link.requestedBy === user?.id;
+					const isChef = link.iAmChef === true;
 					return (
 						<LinkCard key={link.id} testID={`e2e.family.link.${link.peerId}`}>
 							<LinkName>{link.peerName || t("profile.user")}</LinkName>
@@ -218,6 +287,51 @@ export function FamilySettingsSection() {
 											? t("family.peerSharesLocation")
 											: t("family.peerDoesNotShareLocation")}
 									</LinkMeta>
+
+									{!isChef ? (
+										<>
+											<Row>
+												<RowLabel>{t("family.mapShareToggle")}</RowLabel>
+												<Switch
+													testID={`e2e.family.mapShare.${link.id}`}
+													value={link.myMapShare}
+													onValueChange={(enabled) => {
+														if (enabled) {
+															setPendingMapToggle({ kind: "share", linkId: link.id, enabled });
+															return;
+														}
+														void setMapShare(link.id, false);
+													}}
+													disabled={isBusy}
+												/>
+											</Row>
+											<LinkMeta>{t("family.mapShareHint")}</LinkMeta>
+										</>
+									) : (
+										<>
+											<Row>
+												<RowLabel>{t("family.mapMonitorToggle")}</RowLabel>
+												<Switch
+													testID={`e2e.family.mapMonitor.${link.id}`}
+													value={link.myMapMonitor}
+													onValueChange={(enabled) => {
+														if (enabled) {
+															setPendingMapToggle({ kind: "monitor", linkId: link.id, enabled });
+															return;
+														}
+														void setMapMonitor(link.id, false);
+													}}
+													disabled={isBusy}
+												/>
+											</Row>
+											<LinkMeta>
+												{link.mapTrackingActive
+													? t("family.mapTrackingActive")
+													: t("family.mapTrackingInactive")}
+											</LinkMeta>
+										</>
+									)}
+
 									<GhostButton onPress={() => void revokeLink(link.id)} disabled={isBusy}>
 										<GhostButtonText>{t("family.revoke")}</GhostButtonText>
 									</GhostButton>
@@ -233,6 +347,23 @@ export function FamilySettingsSection() {
 					);
 				})
 			)}
+
+			<Modal visible={pendingMapToggle != null} transparent animationType="fade">
+				<ModalBackdrop>
+					<ModalCard>
+						<ModalTitle>{t("family.mapConsentTitle")}</ModalTitle>
+						<ModalBody>{t("family.mapConsentBody")}</ModalBody>
+						<ModalActions>
+							<Pressable onPress={() => setPendingMapToggle(null)}>
+								<GhostButtonText>{t("family.mapConsentCancel")}</GhostButtonText>
+							</Pressable>
+							<Pressable testID="e2e.family.mapConsentConfirm" onPress={() => void confirmMapToggle()}>
+								<GhostButtonText>{t("family.mapConsentConfirm")}</GhostButtonText>
+							</Pressable>
+						</ModalActions>
+					</ModalCard>
+				</ModalBackdrop>
+			</Modal>
 		</>
 	);
 }

@@ -26,3 +26,17 @@ export async function setFamilyLocationShareApi(linkId: string, enabled: boolean
 	});
 	return response.data;
 }
+
+export async function setFamilyMapShareApi(linkId: string, enabled: boolean): Promise<FamilyLink> {
+	const response = await axiosInstance.patch<FamilyLink>(`/family/links/${linkId}/map-share`, {
+		enabled,
+	});
+	return response.data;
+}
+
+export async function setFamilyMapMonitorApi(linkId: string, enabled: boolean): Promise<FamilyLink> {
+	const response = await axiosInstance.patch<FamilyLink>(`/family/links/${linkId}/map-monitor`, {
+		enabled,
+	});
+	return response.data;
+}

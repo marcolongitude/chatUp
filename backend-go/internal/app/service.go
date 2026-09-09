@@ -67,7 +67,11 @@ type storePort interface {
 	AcceptFamilyLink(ctx context.Context, linkID, actorID string) (store.FamilyLink, error)
 	RevokeFamilyLink(ctx context.Context, linkID, actorID string) error
 	SetFamilyLocationShare(ctx context.Context, linkID, actorID string, enabled bool) (store.FamilyLink, error)
+	SetFamilyMapShare(ctx context.Context, linkID, actorID string, enabled bool) (store.FamilyLink, error)
+	SetFamilyMapMonitor(ctx context.Context, linkID, actorID string, enabled bool) (store.FamilyLink, error)
 	ListFamilyLinksForUser(ctx context.Context, userID string) ([]store.FamilyLink, error)
+	ListAcceptedChefLinks(ctx context.Context, chefID string) ([]store.FamilyLink, error)
+	ListChefsMonitoringMember(ctx context.Context, memberID string) ([]string, error)
 	ListAcceptedFamilyPeers(ctx context.Context, userID string) (map[string]bool, error)
 	TouchNearbyPresence(ctx context.Context, observerID string, subjectIDs []string) error
 	ListFamilyGraceSubjects(ctx context.Context, observerID string, grace time.Duration) ([]store.PresenceGraceRow, error)
@@ -507,6 +511,7 @@ func (s *Service) UpdateLocation(ctx context.Context, userID string, latitude, l
 		return ErrQueryFailed
 	}
 	s.publishNearbyAfterLocationChange(ctx, userID, latitude, longitude)
+	s.publishFamilyMapAfterMemberMove(ctx, userID, latitude, longitude)
 	return nil
 }
 
@@ -533,6 +538,7 @@ func (s *Service) TouchPresence(ctx context.Context, userID string) {
 		return
 	}
 	s.publishNearbyAfterLocationChange(ctx, userID, geo.Latitude, geo.Longitude)
+	s.publishFamilyMapAfterMemberMove(ctx, userID, geo.Latitude, geo.Longitude)
 }
 
 type NearbyUser struct {

@@ -41,6 +41,7 @@ export function Header() {
 		if (location.pathname === "/main/conversations") return translate("navigation.conversations");
 		if (location.pathname === "/main/profile") return translate("navigation.profile");
 		if (location.pathname === "/main/settings") return translate("navigation.settings");
+		if (location.pathname === "/main/family-map") return translate("navigation.familyMap");
 		if (location.pathname === "/main/logout") return translate("navigation.logout");
 		return "ChatUp";
 	};

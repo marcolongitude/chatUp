@@ -116,7 +116,19 @@ func (f *fakeStore) RevokeFamilyLink(ctx context.Context, linkID, actorID string
 func (f *fakeStore) SetFamilyLocationShare(ctx context.Context, linkID, actorID string, enabled bool) (store.FamilyLink, error) {
 	return store.FamilyLink{}, nil
 }
+func (f *fakeStore) SetFamilyMapShare(ctx context.Context, linkID, actorID string, enabled bool) (store.FamilyLink, error) {
+	return store.FamilyLink{}, store.ErrFamilyForbidden
+}
+func (f *fakeStore) SetFamilyMapMonitor(ctx context.Context, linkID, actorID string, enabled bool) (store.FamilyLink, error) {
+	return store.FamilyLink{}, store.ErrFamilyForbidden
+}
 func (f *fakeStore) ListFamilyLinksForUser(ctx context.Context, userID string) ([]store.FamilyLink, error) {
+	return nil, nil
+}
+func (f *fakeStore) ListAcceptedChefLinks(ctx context.Context, chefID string) ([]store.FamilyLink, error) {
+	return nil, nil
+}
+func (f *fakeStore) ListChefsMonitoringMember(ctx context.Context, memberID string) ([]string, error) {
 	return nil, nil
 }
 func (f *fakeStore) ListAcceptedFamilyPeers(ctx context.Context, userID string) (map[string]bool, error) {

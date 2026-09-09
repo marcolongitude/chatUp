@@ -70,3 +70,22 @@ def assert_location_visible(row: dict[str, Any], *, context: str) -> None:
         f"{context}: invalid lat/lng in {loc!r}"
     )
     assert not (lat == 0 and lng == 0), f"{context}: suspicious zero coords {loc!r}"
+
+
+def assert_map_member_no_coords(row: dict[str, Any], *, context: str) -> None:
+    """Family map member must not expose live destination without consent/perimeter."""
+    assert row.get("locationVisible") is not True, f"{context}: locationVisible must not be true, got {row!r}"
+    assert_no_destination_leak(
+        {**row, "locationVisible": False},
+        context=context,
+    )
+
+
+def assert_map_member_visible(row: dict[str, Any], *, context: str) -> None:
+    assert row.get("locationVisible") is True, f"{context}: locationVisible must be true, got {row!r}"
+    lat = row.get("latitude")
+    lng = row.get("longitude")
+    assert isinstance(lat, (int, float)) and isinstance(lng, (int, float)), (
+        f"{context}: invalid flat lat/lng in {row!r}"
+    )
+    assert not (lat == 0 and lng == 0), f"{context}: suspicious zero coords {row!r}"

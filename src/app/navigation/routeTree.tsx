@@ -9,6 +9,7 @@ import { ProfilePage } from '@/app/routes/profile';
 import { SettingsPage } from '@/app/routes/settings';
 import { LogoutPage } from '@/app/routes/logout';
 import { ChatWindowPage } from '@/app/routes/chat-window';
+import FamilyMapPage from '@/app/routes/family-map';
 import { BottomTabLayout } from '@/app/navigation/layouts/BottomTabLayout';
 import { AuthGate, useAuthSession } from '@/features/auth';
 
@@ -122,6 +123,12 @@ export const logoutRoute = createRoute({
   component: LogoutPage,
 });
 
+export const familyMapRoute = createRoute({
+  getParentRoute: () => tabsRoute,
+  path: 'family-map',
+  component: FamilyMapPage,
+});
+
 // Individual Chat Route
 export const chatRoute = createRoute({
   getParentRoute: () => appLayoutRoute,
@@ -143,6 +150,7 @@ export const routeTree = rootRoute.addChildren([
       conversationsRoute,
       profileRoute,
       settingsRoute,
+      familyMapRoute,
       logoutRoute,
     ]),
     chatRoute,

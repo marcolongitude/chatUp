@@ -10,6 +10,12 @@ export interface FamilyLink {
 	myLocationShare: boolean;
 	peerLocationShare: boolean;
 	locationShareActive: boolean;
+	myMapShare: boolean;
+	peerMapShare: boolean;
+	myMapMonitor: boolean;
+	peerMapMonitor: boolean;
+	mapTrackingActive: boolean;
+	iAmChef: boolean;
 	createdAt?: string;
 	updatedAt?: string;
 	acceptedAt?: string;

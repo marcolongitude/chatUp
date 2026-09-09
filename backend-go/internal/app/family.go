@@ -28,6 +28,12 @@ type FamilyLinkView struct {
 	MyLocationShare     bool
 	PeerLocationShare   bool
 	LocationShareActive bool
+	MyMapShare          bool
+	PeerMapShare        bool
+	MyMapMonitor        bool
+	PeerMapMonitor      bool
+	MapTrackingActive   bool
+	IAmChef             bool
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
 	AcceptedAt          *time.Time
@@ -44,6 +50,12 @@ func toFamilyView(link store.FamilyLink) FamilyLinkView {
 		MyLocationShare:     link.MyLocationShare,
 		PeerLocationShare:   link.PeerLocationShare,
 		LocationShareActive: link.LocationShareActive,
+		MyMapShare:          link.MyMapShare,
+		PeerMapShare:        link.PeerMapShare,
+		MyMapMonitor:        link.MyMapMonitor,
+		PeerMapMonitor:      link.PeerMapMonitor,
+		MapTrackingActive:   link.MapTrackingActive,
+		IAmChef:             link.IAmChef,
 		CreatedAt:           link.CreatedAt,
 		UpdatedAt:           link.UpdatedAt,
 		AcceptedAt:          link.AcceptedAt,
@@ -147,6 +159,9 @@ func (s *Service) RevokeFamilyLink(ctx context.Context, actorID, linkID string) 
 	s.refreshNearbyForUser(ctx, actorID)
 	if peerID := familyPeerID(before, actorID); peerID != "" {
 		s.refreshNearbyForUser(ctx, peerID)
+	}
+	if before.RequestedBy != "" {
+		s.pushFamilyMapSnapshot(ctx, before.RequestedBy)
 	}
 	return nil
 }

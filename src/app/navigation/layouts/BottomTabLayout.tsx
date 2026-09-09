@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Outlet, useLocation, useRouter } from "@tanstack/react-router";
@@ -7,6 +7,7 @@ import { useTheme } from "styled-components/native";
 import { useTranslation } from "@/app/providers/i18n";
 import { Header } from "@/app/navigation/components/Header";
 import { HeaderRightSlotProvider } from "@/app/contexts/HeaderRightSlotContext";
+import { useFamilyLinks } from "@/features/family";
 
 const TAB_BAR_HEIGHT = 60;
 
@@ -23,13 +24,25 @@ export function BottomTabLayout() {
 	const { t: translate } = useTranslation();
 	const location = useLocation();
 	const router = useRouter();
+	const { isFamilyChef } = useFamilyLinks();
 
-	const tabs = [
-		{ name: "conversations", path: "/main/conversations", icon: "chatbubbles" as const },
-		{ name: "profile", path: "/main/profile", icon: "person" as const },
-		{ name: "settings", path: "/main/settings", icon: "settings" as const },
-		{ name: "logout", path: "/main/logout", icon: "log-out" as const },
-	] as const;
+	const tabs = useMemo(() => {
+		type Tab = {
+			name: string;
+			path: string;
+			icon: keyof typeof Ionicons.glyphMap;
+		};
+		const base: Tab[] = [
+			{ name: "conversations", path: "/main/conversations", icon: "chatbubbles" },
+			{ name: "profile", path: "/main/profile", icon: "person" },
+			{ name: "settings", path: "/main/settings", icon: "settings" },
+		];
+		if (isFamilyChef) {
+			base.push({ name: "familyMap", path: "/main/family-map", icon: "map" });
+		}
+		base.push({ name: "logout", path: "/main/logout", icon: "log-out" });
+		return base;
+	}, [isFamilyChef]);
 
 	const tabBarBg = theme.colors?.background?.secondary ?? fallbackColors.tabBarBg;
 	const tabBarBorder = theme.colors?.border?.secondary ?? fallbackColors.tabBarBorder;
