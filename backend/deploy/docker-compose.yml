@@ -1,0 +1,44 @@
+services:
+  postgres:
+    build:
+      context: ./docker/postgres
+    environment:
+      POSTGRES_DB: chatup
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d chatup"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend-go:
+    build:
+      context: ../../backend-go
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://admin:password@postgres:5432/chatup
+      NODE_ENV: development
+      JWT_SECRET: dev-secret-key
+      PORT: 3000
+      JWT_ACCESS_TTL: 30
+      JWT_TTL: 30
+      JWT_REFRESH_TTL_DAYS: 30
+      UPLOAD_DIR: /data/uploads
+      CORS_ORIGIN: "*"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    volumes:
+      - backend_uploads:/data/uploads
+    restart: always
+
+volumes:
+  postgres_data:
+  backend_uploads:

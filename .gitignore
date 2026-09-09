@@ -8,6 +8,11 @@ node_modules/
 dist/
 web-build/
 
+# Build artifacts
+build-*.apk
+*.apk
+*.aab
+
 # Native
 *.orig.*
 *.jks
@@ -32,6 +37,12 @@ yarn-error.*
 .env*.local
 .env
 
+# Firebase Service Account (NUNCA commitar!)
+.firebase/
+**/service-account*.json
+**/*-firebase-adminsdk-*.json
+**/*firebase-adminsdk*.json
+
 # typescript
 *.tsbuildinfo
 
@@ -40,7 +51,19 @@ coverage/
 
 # IDE
 .vscode/
+.docs/
+.cursor/**
+!.cursor/hooks.json
+!.cursor/hooks/
+!.cursor/hooks/**
 .idea/
 *.swp
 *.swo
 *~
+
+docs/
+
+# E2E harness
+e2e/.venv/
+e2e/**/__pycache__/
+e2e/.pytest_cache/

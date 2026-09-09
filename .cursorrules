@@ -1,0 +1,1918 @@
+# Regras de Código para ChatUp
+
+## Status de Migração (Atual)
+
+- Backend principal migrado para Go em `backend-go/` (chi + pgx + websocket).
+- O backend NestJS legado foi removido do fluxo principal.
+- A camada ElectricSQL/TanStack DB foi removida do frontend para simplificar o realtime.
+- Para novas implementações, priorizar APIs HTTP + WebSocket do backend Go e armazenamento local simplificado.
+
+## Contexto do Projeto
+
+Este é um aplicativo React Native com TanStack Router para chat em tempo real com criptografia end-to-end, backend Go e realtime via HTTP + WebSocket.
+
+### Stack Tecnológico
+
+#### Frontend (React Native + Expo)
+
+-   **Framework**: Expo ~54.0.0 com React Native 0.81.5
+-   **React**: 19.0.2
+-   **TypeScript**: ~5.9.2 (strict mode habilitado)
+-   **Roteamento**: TanStack Router (memory history)
+-   **Estilização**: styled-components ^6.1.19
+-   **Estado Servidor**: @tanstack/react-query ^5.62.0
+-   **Persistência Local Simplificada**:
+    -   expo-sqlite ~16.0.9
+-   **Formulários**: react-hook-form ^7.66.1
+-   **Criptografia**: 
+    -   expo-crypto ~15.0.7
+    -   libsignal-protocol-typescript ^0.0.18
+    -   react-native-quick-crypto ^1.0.6
+    -   @noble/curves ^2.0.1, @noble/hashes ^2.0.1
+-   **Armazenamento Local**:
+    -   @react-native-async-storage/async-storage ^2.1.0
+    -   react-native-mmkv ^4.0.1
+    -   react-native-keychain ^10.0.0
+    -   expo-secure-store ^15.0.7
+-   **Internacionalização**: expo-localization ^17.0.7, i18next ^25.6.3, react-i18next ^16.3.5
+-   **Networking**: axios ^1.7.9, @react-native-community/netinfo ^11.3.1
+
+#### Backend (NestJS)
+
+-   **Framework**: NestJS ^11.0.1
+-   **Runtime**: Node.js >=20.0.0, npm >=10.0.0
+-   **TypeScript**: ^5.7.3
+-   **Database ORM**: TypeORM ^0.3.28
+-   **Database Driver**: pg ^8.16.3 (PostgreSQL)
+-   **Autenticação**:
+    -   @nestjs/passport ^11.0.5
+    -   @nestjs/jwt ^11.0.2
+    -   passport ^0.7.0
+    -   passport-jwt ^4.0.1
+    -   bcrypt ^6.0.0
+-   **WebSockets**: 
+    -   @nestjs/websockets ^11.1.9
+    -   @nestjs/platform-socket.io ^11.1.9
+    -   socket.io ^4.8.1
+-   **Validação**:
+    -   class-validator ^0.14.3
+    -   class-transformer ^0.5.1
+-   **Criptografia E2E**: libsignal-protocol-typescript ^0.0.18
+-   **Configuração**: @nestjs/config ^4.0.2
+-   **Testing**: Jest ^30.0.0, Supertest ^7.0.0
+
+#### Infraestrutura (Docker)
+
+-   **PostgreSQL**: Custom build com WAL logical replication
+    -   Configurações: wal_level=logical, max_replication_slots=10, max_wal_senders=10
+    -   Porta: 5432
+    -   Database: chatup
+    -   User: admin
+-   **Backend Go**: Serviço HTTP + WebSocket
+    -   Porta: 3000
+    -   Conecta ao PostgreSQL
+    -   Variáveis: DATABASE_URL, JWT_SECRET
+
+### Arquitetura do Projeto
+
+src/
+  app/
+    navigation/        # Configuração do TanStack Router
+    routes/            # Componentes das rotas (Screens)
+src/
+  api/                 # Cliente HTTP (Axios)
+  core/                # Configurações centrais
+    firebase/          # Configuração Firebase
+    hooks/             # Hooks compartilhados
+    i18n/              # Internacionalização (i18n)
+      locales/         # Arquivos de tradução (pt-BR, en, es)
+      hooks/           # Hooks de tradução
+      I18nProvider.tsx # Provider de i18n
+    queryClient.ts     # Configuração React Query
+    security/          # Criptografia E2E
+    theme/             # Sistema de temas
+  modules/             # Módulos de funcionalidade
+    auth/              # Autenticação
+    chat/              # Chat e mensagens
+    location/          # Geolocalização
+    profile/           # Perfil do usuário
+  services/            # Serviços compartilhados
+  shared/              # Componentes e utilitários compartilhados
+  tests/               # Configuração de testes
+```
+
+### Feature-Sliced Design (FSD) - Arquitetura Frontend
+
+Este projeto segue a metodologia **Feature-Sliced Design (FSD)** para organização do código frontend. FSD é uma metodologia arquitetural que torna o projeto mais compreensível e estável diante de requisitos de negócio em constante mudança.
+
+**Documentação Oficial**: https://feature-sliced.design/docs/get-started/tutorial
+
+#### Conceitos Fundamentais
+
+##### 1. Layers (Camadas)
+
+As camadas são padronizadas em todos os projetos FSD. Existem 7 camadas (de cima para baixo):
+
+1. **app** — Tudo que faz o app rodar: routing, entrypoints, estilos globais, providers
+2. **processes** (deprecated) — Cenários complexos entre páginas
+3. **pages** — Páginas completas ou grandes partes de uma página em nested routing
+4. **widgets** — Grandes blocos auto-contidos de funcionalidade ou UI, geralmente entregando um caso de uso completo
+5. **features** — Implementações reutilizáveis de funcionalidades completas do produto (ações que trazem valor de negócio ao usuário)
+6. **entities** — Entidades de negócio com as quais o projeto trabalha (ex: user, message, contact)
+7. **shared** — Funcionalidade reutilizável, especialmente quando desacoplada das especificidades do projeto/negócio
+
+**Regra Fundamental**: Módulos em uma camada só podem importar de camadas **estritamente abaixo**.
+
+```typescript
+// ✅ BOM - Feature importando de Entity e Shared
+// src/features/send-message/ui/SendMessageForm.tsx
+import { Message } from "@/entities/message";
+import { Button } from "@/shared/ui";
+
+// ❌ EVITAR - Feature importando de Widget (camada acima)
+import { ChatWidget } from "@/widgets/chat";
+```
+
+##### 2. Slices (Fatias)
+
+Slices particionam o código por **domínio de negócio**. Você é livre para escolher nomes e criar quantas quiser.
+
+- Slices mantêm módulos logicamente relacionados próximos
+- **Slices não podem usar outras slices na mesma camada** (alta coesão, baixo acoplamento)
+- Camadas **app** e **shared** não têm slices, apenas segments
+
+```
+src/
+  entities/
+    user/           # Slice de usuário
+    message/        # Slice de mensagem
+    contact/        # Slice de contato
+  features/
+    send-message/   # Slice de enviar mensagem
+    edit-profile/   # Slice de editar perfil
+```
+
+##### 3. Segments (Segmentos)
+
+Segments agrupam código por **propósito técnico**. Nomes convencionais:
+
+- **ui** — Tudo relacionado a UI: componentes, formatadores, estilos
+- **api** — Interações com backend: funções de request, tipos de dados, mappers
+- **model** — Modelo de dados: schemas, interfaces, stores, lógica de negócio
+- **lib** — Código de biblioteca que outros módulos nesta slice precisam
+- **config** — Arquivos de configuração e feature flags
+
+```
+src/
+  entities/
+    message/
+      ui/           # Componentes de UI de mensagem
+      api/          # API de mensagens
+      model/        # Tipos e lógica de mensagem
+      lib/          # Utilitários de mensagem
+      index.ts      # Public API
+```
+
+#### Estrutura FSD Recomendada para ChatUp
+
+```
+src/
+  app/                          # Layer: App
+    providers/                  # Segment: providers
+      ThemeProvider.tsx
+      I18nProvider.tsx
+      QueryProvider.tsx
+    styles/                     # Segment: styles
+      global.css
+    index.tsx                   # Entrypoint
+
+  pages/                        # Layer: Pages
+    chat/                       # Slice: chat
+      ui/                       # Segment: ui
+        ChatPage.tsx
+      model/                    # Segment: model
+        useChatPage.ts
+      index.ts
+    profile/                    # Slice: profile
+      ui/
+        ProfilePage.tsx
+      index.ts
+
+  widgets/                      # Layer: Widgets
+    chat-header/                # Slice: chat-header
+      ui/
+        ChatHeader.tsx
+      index.ts
+    message-list/               # Slice: message-list
+      ui/
+        MessageList.tsx
+      model/
+        useMessageList.ts
+      index.ts
+
+  features/                     # Layer: Features
+    send-message/               # Slice: send-message
+      ui/
+        SendMessageForm.tsx
+      model/
+        useSendMessage.ts
+      api/
+        sendMessageApi.ts
+      index.ts
+    edit-profile/               # Slice: edit-profile
+      ui/
+        EditProfileForm.tsx
+      model/
+        useEditProfile.ts
+      index.ts
+    encrypt-message/            # Slice: encrypt-message
+      lib/
+        encryption.ts
+      index.ts
+
+  entities/                     # Layer: Entities
+    user/                       # Slice: user
+      ui/
+        UserAvatar.tsx
+      model/
+        types.ts
+        userStore.ts
+      api/
+        userApi.ts
+      index.ts
+    message/                    # Slice: message
+      ui/
+        MessageBubble.tsx
+      model/
+        types.ts
+      lib/
+        formatMessage.ts
+      index.ts
+    contact/                    # Slice: contact
+      ui/
+        ContactCard.tsx
+      model/
+        types.ts
+      index.ts
+
+  shared/                       # Layer: Shared
+    ui/                         # Segment: ui
+      Button/
+      Input/
+      Avatar/
+    api/                        # Segment: api
+      axios.ts
+      client.ts
+    lib/                        # Segment: lib
+      hooks/
+        useDebounce.ts
+      utils/
+        formatTime.ts
+    config/                     # Segment: config
+      constants.ts
+    theme/                      # Segment: theme
+      colors.ts
+      typography.ts
+```
+
+#### Regras de Importação FSD
+
+1. **Public API (index.ts)**
+
+   - Cada slice DEVE ter um `index.ts` que exporta sua API pública
+   - Outros módulos só podem importar através do `index.ts`
+   - Isso garante encapsulamento e facilita refatoração
+
+   ```typescript
+   // ✅ BOM - Importar através do index
+   import { UserAvatar } from "@/entities/user";
+
+   // ❌ EVITAR - Importar diretamente de segments
+   import { UserAvatar } from "@/entities/user/ui/UserAvatar";
+   ```
+
+2. **Regra de Camadas**
+
+   ```typescript
+   // ✅ BOM - Camadas superiores importam de inferiores
+   // pages → widgets, features, entities, shared
+   // widgets → features, entities, shared
+   // features → entities, shared
+   // entities → shared
+
+   // ❌ EVITAR - Camadas inferiores importando de superiores
+   // entities → features (PROIBIDO)
+   // shared → entities (PROIBIDO)
+   ```
+
+3. **Isolamento de Slices**
+
+   ```typescript
+   // ✅ BOM - Slices na mesma camada não se importam
+   // features/send-message não importa de features/edit-profile
+
+   // Se precisar compartilhar, mova para uma camada inferior:
+   // - Lógica compartilhada → entities ou shared
+   // - Componentes compartilhados → shared/ui
+   ```
+
+#### Migração Gradual para FSD
+
+O projeto atual pode ser migrado gradualmente:
+
+1. **Fase 1**: Reorganizar `shared/` seguindo segments (ui, lib, api, config)
+2. **Fase 2**: Extrair entidades de negócio para `entities/` (user, message, contact)
+3. **Fase 3**: Identificar e mover features para `features/` (send-message, edit-profile)
+4. **Fase 4**: Criar widgets compostos em `widgets/` (chat-header, message-list)
+5. **Fase 5**: Organizar pages em `pages/` (já parcialmente feito em `app/`)
+
+#### Benefícios do FSD
+
+- **Escalabilidade**: Estrutura clara mesmo com crescimento do projeto
+- **Manutenibilidade**: Fácil localizar e modificar código
+- **Reusabilidade**: Componentes e lógica bem isolados
+- **Onboarding**: Novos desenvolvedores entendem a estrutura rapidamente
+- **Testabilidade**: Isolamento facilita testes unitários e de integração
+
+#### Ferramentas FSD
+
+- **Linter**: [Steiger](https://github.com/feature-sliced/steiger) - Valida arquitetura FSD
+- **Exemplos**: https://feature-sliced.design/examples
+- **Awesome FSD**: https://github.com/feature-sliced/awesome
+
+## Regras Gerais de Código
+
+### TypeScript
+
+1. **Sempre use TypeScript strict mode**
+
+    - Não use `any` - prefira `unknown` e type guards
+    - Defina tipos explícitos para props, estados e retornos de função
+    - Use interfaces para objetos, types para unions/intersections
+
+2. **Tipos e Interfaces**
+
+    ```typescript
+    // ✅ BOM
+    interface UserProfile {
+    	id: string;
+    	email: string;
+    	displayName: string;
+    }
+
+    type Status = "loading" | "success" | "error";
+
+    // ❌ EVITAR
+    const user: any = {};
+    function process(data) {}
+    ```
+
+3. **Path Aliases**
+
+    - Use `@/` para importar de `src/`
+    - Use `~/` para importar da raiz do projeto
+
+    ```typescript
+    // ✅ BOM
+    import { useAuth } from "@/modules/auth";
+    import { Button } from "@/shared/components";
+
+    // ❌ EVITAR
+    import { useAuth } from "../../../modules/auth";
+    ```
+
+### React e React Native
+
+1. **Componentes Funcionais**
+
+    - Sempre use componentes funcionais com hooks
+    - Use `React.FC` ou tipagem explícita de props
+
+    ```typescript
+    // ✅ BOM
+    interface ButtonProps {
+    	title: string;
+    	onPress: () => void;
+    }
+
+    export function Button({ title, onPress }: ButtonProps) {
+    	// ...
+    }
+    
+    ```
+    // ❌ EVITAR
+    export const Button: React.FC<ButtonProps> = ({ title, onPress }) => {
+    	// ...
+    };
+    - nunca usar emojis em comentarios ou console.logs ou mensagens de debug
+    ```
+
+2. **Hooks**
+
+    - Use hooks customizados para lógica reutilizável
+    - Coloque hooks customizados em `src/modules/{module}/hooks/`
+    - Sempre inclua todas as dependências nos arrays de dependência
+    - Use `useCallback` e `useMemo` quando apropriado para otimização
+
+3. **Estado e Efeitos**
+
+    ```typescript
+    // ✅ BOM - Estado local simples
+    const [message, setMessage] = useState<string>("");
+
+    // ✅ BOM - Estado servidor com React Query
+    const { data, isLoading, error } = useQuery({
+    	queryKey: ["messages", contactId],
+    	queryFn: () => fetchMessages(contactId),
+    });
+
+    // ✅ BOM - Efeitos com cleanup
+    useEffect(() => {
+    	const unsubscribe = onSnapshot(query, callback);
+    	return () => unsubscribe();
+    }, [dependencies]);
+    ```
+
+4. **Performance**
+    - Use `React.memo` para componentes que re-renderizam frequentemente
+    - Use `useCallback` para funções passadas como props
+    - Evite criar objetos/arrays inline em props (use `useMemo`)
+
+### TanStack Router
+
+1. **Estrutura de Rotas**
+
+    - Rotas e layouts são definidos em `src/app/navigation/routeTree.tsx`
+    - Componentes de tela ficam em `src/app/routes/`
+    - Parâmetros dinâmicos são acessados via `useParams`
+
+2. **Navegação**
+
+    ```typescript
+    // ✅ BOM
+    import { useRouter, useParams } from "@tanstack/react-router";
+
+    const router = useRouter();
+    const { chatId } = useParams({ from: '/chat/$chatId' });
+
+    router.navigate({ to: "/main/conversations" });
+    router.navigate({ to: "/auth/login", replace: true });
+    ```
+
+3. **Layouts**
+    - Use `_layout.tsx` para layouts compartilhados
+    - Configure headers e opções de navegação nos layouts
+
+### Styled Components
+
+1. **Criação de Componentes Estilizados**
+
+    ```typescript
+    // ✅ BOM - Tipado com props
+    const Container = styled.View<{ isLoading: boolean }>`
+    	flex: 1;
+    	background-color: ${(props) => props.theme.colors.background.primary};
+    	opacity: ${(props) => (props.isLoading ? 0.5 : 1)};
+    `;
+
+    // ✅ BOM - Usar tema
+    const Text = styled.Text`
+    	font-size: ${(props) => props.theme.typography.fontSize.base}px;
+    	color: ${(props) => props.theme.colors.text.primary};
+    `;
+    ```
+
+2. **Tema**
+
+    - Sempre use `useTheme()` para acessar o tema
+    - Não use valores hardcoded de cores - sempre do tema
+    - Use valores do tema para spacing, borderRadius, etc.
+
+3. **Performance**
+    - Evite criar styled components dentro de componentes funcionais
+    - Defina styled components no nível do módulo
+
+### React Query (TanStack Query)
+
+1. **Queries**
+
+    ```typescript
+    // ✅ BOM
+    const { data, isLoading, error } = useQuery({
+    	queryKey: ["messages", contactId],
+    	queryFn: () => fetchMessages(contactId),
+    	staleTime: 1000 * 60 * 5, // 5 minutos
+    	enabled: !!contactId, // Só executa se contactId existir
+    });
+    ```
+
+2. **Mutations**
+
+    ```typescript
+    // ✅ BOM
+    const mutation = useMutation({
+    	mutationFn: (data: CreateMessageData) => sendMessage(data),
+    	onSuccess: () => {
+    		queryClient.invalidateQueries({ queryKey: ["messages"] });
+    	},
+    });
+    ```
+
+3. **Query Keys**
+    - Use arrays consistentes para query keys
+    - Inclua todos os parâmetros relevantes
+    - Use `queryClient.invalidateQueries` após mutations
+
+### Criptografia e Segurança
+
+1. **Mensagens**
+    - SEMPRE criptografe mensagens antes de enviar ao Firestore
+    - Use `encryptMessage(plaintext, chatId, userId)` antes de `addDoc`
+    - Use `decryptMessage(encryptedText, chatId, userId)` ao receber
+    - Nunca armazene texto plano de mensagens
+
+2. **Chaves**
+    - Chaves são derivadas do `chatId` (mesma chave para ambos usuários)
+    - Chaves são armazenadas localmente via AsyncStorage
+    - Limpe chaves no logout usando `clearAllKeys()`
+
+3. **Validação**
+    - Valide todas as entradas do usuário
+    - Sanitize dados antes de processar
+    - Trate erros de criptografia graciosamente
+
+### Tratamento de Erros
+
+1. **Error Boundaries**
+    - Use ErrorBoundary no nível raiz (`app/_layout.tsx`)
+    - Capture erros de renderização e inicialização
+
+2. **Tratamento de Erros em Hooks**
+    ```typescript
+    // ✅ BOM
+    try {
+    	await sendMessage(data);
+    } catch (err) {
+    	console.error("Erro ao enviar mensagem:", err);
+    	// Mostrar erro para o usuário (Toast, Alert, etc.)
+    	// Não apenas console.error
+    }
+    ```
+
+### Formulários (React Hook Form)
+
+1. **Uso Básico**
+
+    ```typescript
+    // ✅ BOM
+    const {
+    	control,
+    	handleSubmit,
+    	formState: { errors },
+    } = useForm<FormData>({
+    	defaultValues: { email: "", password: "" },
+    });
+
+    const onSubmit = async (data: FormData) => {
+    	// ...
+    };
+    ```
+
+2. **Validação**
+    - Use validação do react-hook-form
+    - Defina schemas de validação consistentes
+    - Mostre erros de validação próximos aos campos
+
+### Internacionalização (i18n)
+
+1. **Pacotes e Configuração**
+
+    - **expo-localization**: Detecta idioma do sistema (Android/iOS)
+    - **i18next**: Biblioteca core de internacionalização
+    - **react-i18next**: Integração com React
+    - Configuração em `src/core/i18n/index.ts`
+    - Provider em `src/core/i18n/I18nProvider.tsx`
+
+2. **Estrutura de Traduções**
+
+    - Arquivos de tradução em `src/core/i18n/locales/`
+    - Idiomas suportados: `pt-BR.ts`, `en.ts`, `es.ts`
+    - Estrutura hierárquica de chaves (ex: `auth.login`, `profile.title`)
+    - Sempre mantenha todas as traduções sincronizadas entre idiomas
+
+    ```typescript
+    // ✅ BOM - Estrutura de tradução
+    export const ptBR = {
+    	auth: {
+    		login: "Entrar",
+    		email: "Email",
+    		emailRequired: "Email é obrigatório",
+    	},
+    	profile: {
+    		title: "Perfil",
+    		userId: "ID do Usuário",
+    	},
+    };
+    ```
+
+3. **Uso do Hook useTranslation**
+
+    ```typescript
+    // ✅ BOM - Importar e usar
+    import { useTranslation } from "@/core/i18n";
+
+    export default function MyComponent() {
+    	const { t, currentLanguage, changeLanguage } = useTranslation();
+
+    	return (
+    		<View>
+    			<Text>{t("auth.login")}</Text>
+    			<Text>{t("profile.title")}</Text>
+    			<Text>Idioma atual: {currentLanguage}</Text>
+    		</View>
+    	);
+    }
+    ```
+
+4. **Regras de Tradução**
+
+    - **NUNCA use textos hardcoded** - sempre use `t("chave")`
+    - Use chaves descritivas e hierárquicas (ex: `auth.emailRequired` ao invés de `emailError`)
+    - Mantenha consistência na estrutura entre todos os idiomas
+    - Use interpolação para valores dinâmicos quando necessário
+
+    ```typescript
+    // ✅ BOM - Usar tradução
+    const { t } = useTranslation();
+    <Text>{t("auth.login")}</Text>
+
+    // ❌ EVITAR - Texto hardcoded
+    <Text>Entrar</Text>
+    ```
+
+5. **Adicionar Novas Traduções**
+
+    - Adicione a chave em TODOS os arquivos de idioma (`pt-BR.ts`, `en.ts`, `es.ts`)
+    - Mantenha a mesma estrutura hierárquica
+    - Use nomes descritivos e consistentes
+
+    ```typescript
+    // ✅ BOM - Adicionar em todos os idiomas
+    // pt-BR.ts
+    export const ptBR = {
+    	settings: {
+    		newFeature: "Nova Funcionalidade",
+    	},
+    };
+
+    // en.ts
+    export const en = {
+    	settings: {
+    		newFeature: "New Feature",
+    	},
+    };
+
+    // es.ts
+    export const es = {
+    	settings: {
+    		newFeature: "Nueva Funcionalidad",
+    	},
+    };
+    ```
+
+6. **Detecção Automática de Idioma**
+
+    - O sistema detecta automaticamente o idioma do dispositivo
+    - Usa `expo-localization` para obter locale do sistema
+    - Mapeia códigos de idioma para nossos códigos suportados:
+        - `pt` → `pt-BR`
+        - `es` → `es`
+        - Outros → `en` (fallback)
+
+7. **Persistência de Idioma**
+
+    - Idioma selecionado é salvo em AsyncStorage (`@chatup:language`)
+    - Use `saveLanguage(languageCode)` para alterar idioma manualmente
+    - Idioma é carregado na inicialização do app
+
+    ```typescript
+    // ✅ BOM - Alterar idioma
+    import { saveLanguage } from "@/core/i18n";
+    import { useTranslation } from "@/core/i18n";
+
+    const { changeLanguage } = useTranslation();
+    await changeLanguage("pt-BR"); // ou use saveLanguage diretamente
+    ```
+
+8. **Validação de Formulários com Traduções**
+
+    ```typescript
+    // ✅ BOM - Mensagens de validação traduzidas
+    const { t } = useTranslation();
+
+    <Controller
+    	control={control}
+    	rules={{
+    		required: t("auth.emailRequired"),
+    		pattern: {
+    			value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+    			message: t("auth.emailInvalid"),
+    		},
+    	}}
+    	// ...
+    />;
+    ```
+
+9. **Formatação de Datas e Números**
+
+    - Use `toLocaleDateString` e `toLocaleString` com o locale atual
+    - Obtenha o locale do `currentLanguage` do hook
+
+    ```typescript
+    // ✅ BOM - Formatação localizada
+    const { currentLanguage } = useTranslation();
+    const locale = currentLanguage === "pt-BR" ? "pt-BR" : currentLanguage === "es" ? "es-ES" : "en-US";
+    const formattedDate = date.toLocaleDateString(locale);
+    ```
+
+10. **Provider de i18n**
+
+    - `I18nProvider` deve estar no nível raiz (`app/_layout.tsx`)
+    - Deve estar antes do `ThemeProvider` para evitar dependências circulares
+    - Mostra loading durante inicialização assíncrona
+
+    ```typescript
+    // ✅ BOM - Ordem de providers
+    <I18nProvider>
+    	<ThemeProvider>
+    		<QueryClientProvider>{/* App content */}</QueryClientProvider>
+    	</ThemeProvider>
+    </I18nProvider>
+    ```
+
+### Testes
+
+1. **Estrutura**
+
+    - Testes em `src/tests/`
+    - Use `@testing-library/react-native` para testes de componentes
+    - Use `jest` para testes unitários
+
+2. **Cobertura**
+    - Teste hooks customizados
+    - Teste funções de criptografia
+    - Teste lógica de negócio
+
+### Performance e Otimização
+
+1. **Imagens**
+
+    - ✅ **SEMPRE use `expo-image` ao invés de `Image` do React Native**
+    - Use `contentFit` ao invés de `resizeMode`
+    - Configure `cachePolicy="memory-disk"` para cache otimizado
+    - Use `transition` para animações suaves
+
+    ```typescript
+    // ✅ BOM - expo-image otimizado
+    import { Image } from "expo-image";
+
+    <Image source={{ uri: imageUrl }} contentFit="cover" cachePolicy="memory-disk" transition={200} />;
+
+    // ❌ EVITAR - Image do React Native
+    import { Image } from "react-native";
+    ```
+
+2. **Code Splitting e Lazy Loading**
+
+    - Expo Router já faz lazy loading automático de rotas
+    - Use `Suspense` para loading states durante code splitting
+    - Carregue módulos pesados sob demanda
+
+    ```typescript
+    // ✅ BOM - Suspense para lazy loading
+    import { Suspense } from "react";
+    import { ActivityIndicator } from "react-native";
+
+    <Suspense fallback={<ActivityIndicator />}>
+    	<HeavyComponent />
+    </Suspense>;
+    ```
+
+3. **Listas**
+
+    - ✅ **Use `FlatList` do React Native** (compatível com arquitetura antiga)
+    - ⚠️ **FlashList v2 requer `newArchEnabled: true`** - NÃO usar se arquitetura antiga
+    - Implemente `keyExtractor` e `getItemLayout` quando possível
+    - Use `removeClippedSubviews` para melhor performance
+    - Use `maxToRenderPerBatch` e `windowSize` para otimização
+    - Use `inverted` para listas de chat (mensagens mais recentes no final)
+
+    ```typescript
+    // ✅ BOM - FlatList otimizado (arquitetura antiga)
+    <FlatList
+    	data={items}
+    	renderItem={renderItem}
+    	keyExtractor={keyExtractor}
+    	inverted
+    	removeClippedSubviews={true}
+    	maxToRenderPerBatch={10}
+    	windowSize={10}
+    	initialNumToRender={20}
+    	getItemLayout={(data, index) => ({
+    		length: 80,
+    		offset: 80 * index,
+    		index,
+    	})}
+    />
+
+    // ❌ EVITAR - FlashList v2 sem nova arquitetura
+    // FlashList v2.0+ requer newArchEnabled: true
+    // Se newArchEnabled: false, use FlatList
+    ```
+
+4. **Memoização**
+
+    ```typescript
+    // ✅ BOM - Memoizar cálculos caros
+    const sortedMessages = useMemo(() => messages.sort((a, b) => a.timestamp - b.timestamp), [messages]);
+
+    // ✅ BOM - Memoizar callbacks
+    const handleSend = useCallback(async () => {
+    	await sendMessage(messageText);
+    }, [messageText, sendMessage]);
+    ```
+
+5. **Bundle Size**
+
+    - Execute `npm run analyze:bundle` regularmente
+    - Remova dependências não utilizadas
+    - Use tree-shaking efetivamente (já habilitado no TypeScript)
+    - Otimize assets antes de adicionar ao projeto
+
+### Acessibilidade
+
+1. **Labels e Hints**
+
+    - Use `accessibilityLabel` em componentes interativos
+    - Forneça `accessibilityHint` quando necessário
+    - Teste com leitores de tela
+
+2. **Contraste**
+    - Garanta contraste adequado de cores (WCAG AA mínimo)
+    - Use valores do tema que já consideram acessibilidade
+
+### Logging e Debug
+
+1. **Console Logs**
+
+    - Use emojis para categorizar logs (🔍 debug, ✅ success, ❌ error, ⚠️ warning)
+    - Remova logs de debug antes de produção
+    - Use estruturas de log consistentes:
+        ```typescript
+        console.log("🔍 [MODULE] Ação realizada", {
+        	param1: value1,
+        	param2: value2,
+        });
+        ```
+
+2. **Error Logging**
+    - Sempre inclua contexto em erros
+    - Use `console.error` para erros, não `console.log`
+    - Considere integrar serviço de error tracking (Sentry, etc.)
+
+### Convenções de Nomenclatura
+
+1. **Arquivos e Diretórios**
+
+    - Componentes: PascalCase (`Button.tsx`, `ChatScreen.tsx`)
+    - Hooks: camelCase com prefixo `use` (`useAuth.ts`, `useMessages.ts`)
+    - Utilitários: camelCase (`formatTime.ts`, `geolocation.ts`)
+    - Tipos: PascalCase em arquivos `types/index.ts`
+
+2. **Variáveis e Funções**
+
+    - camelCase para variáveis e funções
+    - PascalCase para componentes e tipos
+    - UPPER_CASE para constantes
+
+3. **Props e Estados**
+    - Props: PascalCase para tipos, camelCase para nomes
+    - Estados: camelCase com prefixo apropriado (`isLoading`, `hasError`)
+
+### Imports
+
+1. **Ordem de Imports**
+
+    ```typescript
+    // 1. React e React Native
+    import React, { useState, useEffect } from "react";
+    import { View, Text } from "react-native";
+
+    // 2. Bibliotecas de terceiros
+    import { useRouter } from "expo-router";
+    import styled from "styled-components/native";
+
+    // 3. Imports do projeto (usando aliases)
+    import { useAuth } from "@/modules/auth";
+    import { Button } from "@/shared/components";
+
+    // 4. Tipos
+    import type { Message } from "@/modules/chat/types";
+    ```
+
+2. **Agrupamento**
+    - Agrupe imports por categoria
+    - Use linha em branco entre grupos
+    - Use `type` para imports de tipos apenas
+
+### Comentários e Documentação
+
+1. **JSDoc para Funções Complexas**
+
+    ```typescript
+    /**
+     * Criptografa uma mensagem usando chave derivada do chatId
+     * @param plaintext - Texto da mensagem a ser criptografado
+     * @param chatId - ID único do chat
+     * @param userId - ID do usuário atual
+     * @returns Mensagem criptografada com prefixo ENC:
+     */
+    export async function encryptMessage(plaintext: string, chatId: string, userId: string): Promise<string> {
+    	// ...
+    }
+    ```
+
+2. **Comentários Inline**
+    - Use comentários para explicar "por quê", não "o quê"
+    - Evite comentários óbvios
+    - Documente decisões arquiteturais importantes
+
+### Git e Versionamento
+
+1. **Commits**
+
+    - Use mensagens descritivas
+    - Agrupe mudanças relacionadas
+    - Não commite arquivos de build ou node_modules
+
+2. **Branches**
+    - Use `developer` como branch principal de desenvolvimento
+    - Crie branches feature para novas funcionalidades
+
+## Docker e Infraestrutura
+
+### Estrutura de Containers
+
+O projeto usa Docker Compose com 3 serviços principais:
+
+1. **PostgreSQL** - Banco de dados principal
+2. **Backend Go** - API HTTP e WebSockets
+
+### PostgreSQL Container
+
+1. **Configuração Obrigatória**
+
+    - Use healthcheck para garantir disponibilidade antes de outros serviços
+
+    ```yaml
+    # ✅ BOM - PostgreSQL com healthcheck
+    postgres:
+        build:
+            context: ./docker/postgres
+        environment:
+            POSTGRES_DB: chatup
+            POSTGRES_USER: admin
+            POSTGRES_PASSWORD: password
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U admin -d chatup"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+    ```
+
+2. **Volumes**
+    - Use volumes nomeados para persistência de dados
+    - NUNCA delete volumes em produção sem backup
+
+### Backend Container
+
+1. **Dockerfile**
+
+    - Use multi-stage builds para otimizar tamanho
+    - Instale apenas dependências de produção na imagem final
+    - Configure NODE_ENV corretamente
+
+    ```dockerfile
+    # ✅ BOM - Multi-stage build
+    FROM node:20-alpine AS builder
+    WORKDIR /app
+    COPY package*.json ./
+    RUN npm ci
+    COPY . .
+    RUN npm run build
+
+    FROM node:20-alpine
+    WORKDIR /app
+    COPY --from=builder /app/dist ./dist
+    COPY --from=builder /app/node_modules ./node_modules
+    COPY package*.json ./
+    CMD ["node", "dist/main"]
+    ```
+
+2. **Variáveis de Ambiente**
+
+    - `DATABASE_URL`: Conexão PostgreSQL
+    - `JWT_SECRET`: Chave secreta para tokens
+    - `PORT`: Porta do servidor (padrão 3000)
+    - `NODE_ENV`: development | production
+
+### Docker Compose - Boas Práticas
+
+1. **Ordem de Inicialização**
+
+    ```yaml
+    # ✅ BOM - Ordem correta com healthchecks
+    services:
+        postgres:
+            # ... configuração
+            healthcheck: # OBRIGATÓRIO
+                test: ["CMD-SHELL", "pg_isready"]
+
+        backend:
+            depends_on:
+                - postgres
+    ```
+
+2. **Networking**
+
+    - Serviços no mesmo docker-compose se comunicam pelo nome do serviço
+    - Use `postgres:5432` não `localhost:5432` entre containers
+    - Exponha portas apenas quando necessário acesso externo
+
+3. **Comandos Úteis**
+
+    ```bash
+    # Iniciar todos os serviços
+    docker-compose up -d
+
+    # Ver logs de um serviço específico
+    docker-compose logs -f backend
+
+    # Reiniciar um serviço
+    docker-compose restart backend
+
+    # Parar e remover containers (mantém volumes)
+    docker-compose down
+
+    # Parar e remover TUDO incluindo volumes (CUIDADO!)
+    docker-compose down -v
+    ```
+
+## Backend NestJS
+
+### Estrutura do Projeto Backend
+
+```
+backend/
+  src/
+    modules/          # Módulos de funcionalidade
+      auth/           # Autenticação e autorização
+      users/          # Gestão de usuários
+      messages/       # Mensagens e chat
+      contacts/       # Contatos
+    infra/            # Infraestrutura
+      database/       # TypeORM config e migrations
+      websockets/     # WebSocket gateway
+    shared/           # Código compartilhado
+      decorators/     # Decorators customizados
+      guards/         # Guards de autenticação
+      interceptors/   # Interceptors
+      pipes/          # Pipes de validação
+    main.ts           # Entry point
+```
+
+### NestJS - Princípios Fundamentais
+
+1. **Módulos**
+
+    ```typescript
+    // ✅ BOM - Módulo bem estruturado
+    import { Module } from "@nestjs/common";
+    import { MessagesController } from "./messages.controller";
+    import { MessagesService } from "./messages.service";
+    import { TypeOrmModule } from "@nestjs/typeorm";
+    import { Message } from "./entities/message.entity";
+
+    @Module({
+        imports: [TypeOrmModule.forFeature([Message])],
+        controllers: [MessagesController],
+        providers: [MessagesService],
+        exports: [MessagesService], // Exportar se usado em outros módulos
+    })
+    export class MessagesModule {}
+    ```
+
+2. **Controllers**
+
+    ```typescript
+    // ✅ BOM - Controller com validação e autenticação
+    import {
+        Controller,
+        Get,
+        Post,
+        Body,
+        Param,
+        UseGuards,
+    } from "@nestjs/common";
+    import { JwtAuthGuard } from "@/shared/guards/jwt-auth.guard";
+    import { CurrentUser } from "@/shared/decorators/current-user.decorator";
+    import { CreateMessageDto } from "./dto/create-message.dto";
+
+    @Controller("messages")
+    @UseGuards(JwtAuthGuard) // Proteger todas as rotas
+    export class MessagesController {
+        constructor(private readonly messagesService: MessagesService) {}
+
+        @Post()
+        async create(
+            @Body() createMessageDto: CreateMessageDto,
+            @CurrentUser() user: User
+        ) {
+            return this.messagesService.create(createMessageDto, user.id);
+        }
+
+        @Get(":chatId")
+        async findByChatId(
+            @Param("chatId") chatId: string,
+            @CurrentUser() user: User
+        ) {
+            return this.messagesService.findByChatId(chatId, user.id);
+        }
+    }
+    ```
+
+3. **Services**
+
+    ```typescript
+    // ✅ BOM - Service com injeção de dependências
+    import { Injectable, NotFoundException } from "@nestjs/common";
+    import { InjectRepository } from "@nestjs/typeorm";
+    import { Repository } from "typeorm";
+    import { Message } from "./entities/message.entity";
+
+    @Injectable()
+    export class MessagesService {
+        constructor(
+            @InjectRepository(Message)
+            private messagesRepository: Repository<Message>
+        ) {}
+
+        async create(
+            createMessageDto: CreateMessageDto,
+            userId: string
+        ): Promise<Message> {
+            const message = this.messagesRepository.create({
+                ...createMessageDto,
+                senderId: userId,
+            });
+            return this.messagesRepository.save(message);
+        }
+
+        async findByChatId(
+            chatId: string,
+            userId: string
+        ): Promise<Message[]> {
+            return this.messagesRepository.find({
+                where: { chatId },
+                order: { createdAt: "DESC" },
+            });
+        }
+    }
+    ```
+
+### TypeORM
+
+1. **Entities**
+
+    ```typescript
+    // ✅ BOM - Entity bem definida
+    import {
+        Entity,
+        PrimaryGeneratedColumn,
+        Column,
+        CreateDateColumn,
+        UpdateDateColumn,
+        ManyToOne,
+        Index,
+    } from "typeorm";
+    import { User } from "@/modules/users/entities/user.entity";
+
+    @Entity("messages")
+    @Index(["chatId", "createdAt"]) // Índice para queries frequentes
+    export class Message {
+        @PrimaryGeneratedColumn("uuid")
+        id: string;
+
+        @Column({ name: "chat_id" })
+        chatId: string;
+
+        @Column({ name: "sender_id" })
+        senderId: string;
+
+        @ManyToOne(() => User)
+        sender: User;
+
+        @Column("text")
+        text: string;
+
+        @Column({ default: false })
+        encrypted: boolean;
+
+        @CreateDateColumn({ name: "created_at" })
+        createdAt: Date;
+
+        @UpdateDateColumn({ name: "updated_at" })
+        updatedAt: Date;
+    }
+    ```
+
+2. **Migrations**
+
+    ```typescript
+    // ✅ BOM - Migration
+    import { MigrationInterface, QueryRunner, Table } from "typeorm";
+
+    export class CreateMessagesTable1234567890 implements MigrationInterface {
+        public async up(queryRunner: QueryRunner): Promise<void> {
+            await queryRunner.createTable(
+                new Table({
+                    name: "messages",
+                    columns: [
+                        {
+                            name: "id",
+                            type: "uuid",
+                            isPrimary: true,
+                            generationStrategy: "uuid",
+                            default: "uuid_generate_v4()",
+                        },
+                        {
+                            name: "chat_id",
+                            type: "uuid",
+                        },
+                        {
+                            name: "sender_id",
+                            type: "uuid",
+                        },
+                        {
+                            name: "text",
+                            type: "text",
+                        },
+                        {
+                            name: "encrypted",
+                            type: "boolean",
+                            default: false,
+                        },
+                        {
+                            name: "created_at",
+                            type: "timestamp",
+                            default: "now()",
+                        },
+                        {
+                            name: "updated_at",
+                            type: "timestamp",
+                            default: "now()",
+                        },
+                    ],
+                })
+            );
+
+            // Criar índices
+            await queryRunner.query(
+                `CREATE INDEX idx_messages_chat_id ON messages(chat_id, created_at DESC)`
+            );
+        }
+
+        public async down(queryRunner: QueryRunner): Promise<void> {
+            await queryRunner.dropTable("messages");
+        }
+    }
+    ```
+
+3. **Comandos de Migration**
+    ```bash
+    # Gerar migration a partir de mudanças nas entities
+    npm run migration:generate -- src/infra/database/migrations/MigrationName
+    # Executar migrations pendentes
+    npm run migration:run
+    # Reverter última migration
+    npm run migration:revert
+    ```
+
+### Validação com class-validator
+
+1. **DTOs**
+
+    ```typescript
+    // ✅ BOM - DTO com validação completa
+    import {
+        IsString,
+        IsUUID,
+        IsNotEmpty,
+        MaxLength,
+        IsBoolean,
+        IsOptional,
+    } from "class-validator";
+
+    export class CreateMessageDto {
+        @IsUUID()
+        @IsNotEmpty()
+        chatId: string;
+
+        @IsString()
+        @IsNotEmpty()
+        @MaxLength(10000)
+        text: string;
+
+        @IsBoolean()
+        @IsOptional()
+        encrypted?: boolean;
+    }
+    ```
+
+2. **Validação Global**
+
+    ```typescript
+    // ✅ BOM - Habilitar validação global em main.ts
+    import { ValidationPipe } from "@nestjs/common";
+
+    async function bootstrap() {
+        const app = await NestFactory.create(AppModule);
+
+        app.useGlobalPipes(
+            new ValidationPipe({
+                whitelist: true, // Remove propriedades não definidas no DTO
+                forbidNonWhitelisted: true, // Retorna erro se propriedades extras
+                transform: true, // Transforma tipos automaticamente
+            })
+        );
+
+        await app.listen(3000);
+    }
+    ```
+
+### Autenticação JWT
+
+1. **JWT Strategy**
+
+    ```typescript
+    // ✅ BOM - JWT Strategy
+    import { Injectable } from "@nestjs/common";
+    import { PassportStrategy } from "@nestjs/passport";
+    import { ExtractJwt, Strategy } from "passport-jwt";
+    import { ConfigService } from "@nestjs/config";
+
+    @Injectable()
+    export class JwtStrategy extends PassportStrategy(Strategy) {
+        constructor(private configService: ConfigService) {
+            super({
+                jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+                ignoreExpiration: false,
+                secretOrKey: configService.get<string>("JWT_SECRET"),
+            });
+        }
+
+        async validate(payload: any) {
+            return { id: payload.sub, email: payload.email };
+        }
+    }
+    ```
+
+2. **Auth Guard**
+
+    ```typescript
+    // ✅ BOM - JWT Auth Guard
+    import { Injectable } from "@nestjs/common";
+    import { AuthGuard } from "@nestjs/passport";
+
+    @Injectable()
+    export class JwtAuthGuard extends AuthGuard("jwt") {}
+    ```
+
+3. **Current User Decorator**
+
+    ```typescript
+    // ✅ BOM - Decorator para obter usuário atual
+    import { createParamDecorator, ExecutionContext } from "@nestjs/common";
+
+    export const CurrentUser = createParamDecorator(
+        (data: unknown, ctx: ExecutionContext) => {
+            const request = ctx.switchToHttp().getRequest();
+            return request.user;
+        }
+    );
+    ```
+
+### WebSockets (Socket.IO)
+
+1. **Gateway**
+
+    ```typescript
+    // ✅ BOM - WebSocket Gateway
+    import {
+        WebSocketGateway,
+        WebSocketServer,
+        SubscribeMessage,
+        OnGatewayConnection,
+        OnGatewayDisconnect,
+    } from "@nestjs/websockets";
+    import { Server, Socket } from "socket.io";
+    import { UseGuards } from "@nestjs/common";
+    import { WsJwtGuard } from "@/shared/guards/ws-jwt.guard";
+
+    @WebSocketGateway({
+        cors: {
+            origin: "*", // Configure apropriadamente em produção
+        },
+    })
+    @UseGuards(WsJwtGuard)
+    export class ChatGateway
+        implements OnGatewayConnection, OnGatewayDisconnect
+    {
+        @WebSocketServer()
+        server: Server;
+
+        handleConnection(client: Socket) {
+            console.log(`Client connected: ${client.id}`);
+        }
+
+        handleDisconnect(client: Socket) {
+            console.log(`Client disconnected: ${client.id}`);
+        }
+
+        @SubscribeMessage("sendMessage")
+        async handleMessage(client: Socket, payload: any) {
+            // Processar mensagem
+            const message = await this.messagesService.create(payload);
+
+            // Emitir para outros usuários no chat
+            this.server.to(payload.chatId).emit("newMessage", message);
+
+            return { success: true, message };
+        }
+
+        @SubscribeMessage("joinChat")
+        handleJoinChat(client: Socket, chatId: string) {
+            client.join(chatId);
+            return { success: true };
+        }
+    }
+    ```
+
+2. **WebSocket Auth Guard**
+
+    ```typescript
+    // ✅ BOM - Guard para WebSockets
+    import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
+    import { JwtService } from "@nestjs/jwt";
+
+    @Injectable()
+    export class WsJwtGuard implements CanActivate {
+        constructor(private jwtService: JwtService) {}
+
+        canActivate(context: ExecutionContext): boolean {
+            const client = context.switchToWs().getClient();
+            const token = client.handshake?.auth?.token;
+
+            if (!token) {
+                return false;
+            }
+
+            try {
+                const payload = this.jwtService.verify(token);
+                client.user = payload;
+                return true;
+            } catch {
+                return false;
+            }
+        }
+    }
+    ```
+
+### Configuração (ConfigModule)
+
+1. **Variáveis de Ambiente**
+
+    ```typescript
+    // ✅ BOM - ConfigModule em AppModule
+    import { Module } from "@nestjs/common";
+    import { ConfigModule } from "@nestjs/config";
+
+    @Module({
+        imports: [
+            ConfigModule.forRoot({
+                isGlobal: true, // Disponível em todos os módulos
+                envFilePath: ".env",
+            }),
+            // ... outros módulos
+        ],
+    })
+    export class AppModule {}
+    ```
+
+2. **Uso de Configurações**
+
+    ```typescript
+    // ✅ BOM - Injetar ConfigService
+    import { Injectable } from "@nestjs/common";
+    import { ConfigService } from "@nestjs/config";
+
+    @Injectable()
+    export class SomeService {
+        constructor(private configService: ConfigService) {}
+
+        someMethod() {
+            const dbUrl = this.configService.get<string>("DATABASE_URL");
+            const jwtSecret = this.configService.get<string>("JWT_SECRET");
+            // ...
+        }
+    }
+    ```
+
+### Tratamento de Erros
+
+1. **Exception Filters**
+
+    ```typescript
+    // ✅ BOM - Global exception filter
+    import {
+        ExceptionFilter,
+        Catch,
+        ArgumentsHost,
+        HttpException,
+        HttpStatus,
+    } from "@nestjs/common";
+
+    @Catch()
+    export class AllExceptionsFilter implements ExceptionFilter {
+        catch(exception: unknown, host: ArgumentsHost) {
+            const ctx = host.switchToHttp();
+            const response = ctx.getResponse();
+            const request = ctx.getRequest();
+
+            const status =
+                exception instanceof HttpException
+                    ? exception.getStatus()
+                    : HttpStatus.INTERNAL_SERVER_ERROR;
+
+            const message =
+                exception instanceof HttpException
+                    ? exception.getResponse()
+                    : "Internal server error";
+
+            console.error("Exception:", exception);
+
+            response.status(status).json({
+                statusCode: status,
+                timestamp: new Date().toISOString(),
+                path: request.url,
+                message,
+            });
+        }
+    }
+    ```
+
+2. **Usar Exceptions Apropriadas**
+
+    ```typescript
+    // ✅ BOM - Usar exceptions do NestJS
+    import {
+        NotFoundException,
+        BadRequestException,
+        UnauthorizedException,
+        ForbiddenException,
+    } from "@nestjs/common";
+
+    async findOne(id: string) {
+        const message = await this.messagesRepository.findOne({
+            where: { id },
+        });
+
+        if (!message) {
+            throw new NotFoundException(`Message with ID ${id} not found`);
+        }
+
+        return message;
+    }
+    ```
+
+### Testing
+
+1. **Unit Tests**
+
+    ```typescript
+    // ✅ BOM - Unit test de service
+    import { Test, TestingModule } from "@nestjs/testing";
+    import { MessagesService } from "./messages.service";
+    import { getRepositoryToken } from "@nestjs/typeorm";
+    import { Message } from "./entities/message.entity";
+
+    describe("MessagesService", () => {
+        let service: MessagesService;
+        let mockRepository: any;
+
+        beforeEach(async () => {
+            mockRepository = {
+                create: jest.fn(),
+                save: jest.fn(),
+                find: jest.fn(),
+            };
+
+            const module: TestingModule = await Test.createTestingModule({
+                providers: [
+                    MessagesService,
+                    {
+                        provide: getRepositoryToken(Message),
+                        useValue: mockRepository,
+                    },
+                ],
+            }).compile();
+
+            service = module.get<MessagesService>(MessagesService);
+        });
+
+        it("should create a message", async () => {
+            const dto = {
+                chatId: "chat-1",
+                text: "Hello",
+            };
+            const userId = "user-1";
+
+            mockRepository.create.mockReturnValue(dto);
+            mockRepository.save.mockResolvedValue({ id: "msg-1", ...dto });
+
+            const result = await service.create(dto, userId);
+
+            expect(result).toHaveProperty("id");
+            expect(mockRepository.create).toHaveBeenCalledWith({
+                ...dto,
+                senderId: userId,
+            });
+        });
+    });
+    ```
+
+2. **E2E Tests**
+
+    ```typescript
+    // ✅ BOM - E2E test
+    import { Test, TestingModule } from "@nestjs/testing";
+    import { INestApplication } from "@nestjs/common";
+    import * as request from "supertest";
+    import { AppModule } from "./../src/app.module";
+
+    describe("MessagesController (e2e)", () => {
+        let app: INestApplication;
+        let authToken: string;
+
+        beforeAll(async () => {
+            const moduleFixture: TestingModule =
+                await Test.createTestingModule({
+                    imports: [AppModule],
+                }).compile();
+
+            app = moduleFixture.createNestApplication();
+            await app.init();
+
+            // Login para obter token
+            const loginResponse = await request(app.getHttpServer())
+                .post("/auth/login")
+                .send({ email: "test@test.com", password: "password" });
+
+            authToken = loginResponse.body.access_token;
+        });
+
+        it("/messages (POST)", () => {
+            return request(app.getHttpServer())
+                .post("/messages")
+                .set("Authorization", `Bearer ${authToken}`)
+                .send({
+                    chatId: "chat-1",
+                    text: "Test message",
+                })
+                .expect(201)
+                .expect((res) => {
+                    expect(res.body).toHaveProperty("id");
+                    expect(res.body.text).toBe("Test message");
+                });
+        });
+
+        afterAll(async () => {
+            await app.close();
+        });
+    });
+    ```
+
+### Performance e Otimização Backend
+
+1. **Database Queries**
+
+    ```typescript
+    // ✅ BOM - Usar select específico e joins eficientes
+    const messages = await this.messagesRepository
+        .createQueryBuilder("message")
+        .select(["message.id", "message.text", "message.createdAt"])
+        .leftJoinAndSelect("message.sender", "sender")
+        .where("message.chatId = :chatId", { chatId })
+        .orderBy("message.createdAt", "DESC")
+        .limit(50)
+        .getMany();
+
+    // ❌ EVITAR - Carregar tudo
+    const messages = await this.messagesRepository.find({
+        where: { chatId },
+    });
+    ```
+
+2. **Caching**
+
+    ```typescript
+    // ✅ BOM - Cache com Redis (se disponível)
+    import { CACHE_MANAGER } from "@nestjs/cache-manager";
+    import { Inject, Injectable } from "@nestjs/common";
+    import { Cache } from "cache-manager";
+
+    @Injectable()
+    export class MessagesService {
+        constructor(
+            @Inject(CACHE_MANAGER) private cacheManager: Cache,
+            @InjectRepository(Message)
+            private messagesRepository: Repository<Message>
+        ) {}
+
+        async findByChatId(chatId: string): Promise<Message[]> {
+            const cacheKey = `messages:${chatId}`;
+            const cached = await this.cacheManager.get<Message[]>(cacheKey);
+
+            if (cached) {
+                return cached;
+            }
+
+            const messages = await this.messagesRepository.find({
+                where: { chatId },
+            });
+
+            await this.cacheManager.set(cacheKey, messages, 300); // 5 min TTL
+
+            return messages;
+        }
+    }
+    ```
+
+3. **Pagination**
+
+    ```typescript
+    // ✅ BOM - Paginação eficiente
+    async findAll(page: number = 1, limit: number = 20) {
+        const [items, total] = await this.messagesRepository.findAndCount({
+            skip: (page - 1) * limit,
+            take: limit,
+            order: { createdAt: 'DESC' },
+        });
+
+        return {
+            items,
+            meta: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
+            },
+        };
+    }
+    ```
+
+### Segurança Backend
+
+1. **Helmet e CORS**
+
+    ```typescript
+    // ✅ BOM - Configurar segurança em main.ts
+    import helmet from "helmet";
+
+    async function bootstrap() {
+        const app = await NestFactory.create(AppModule);
+
+        // Helmet para headers de segurança
+        app.use(helmet());
+
+        // CORS configurado apropriadamente
+        app.enableCors({
+            origin: process.env.FRONTEND_URL || "http://localhost:8081",
+            credentials: true,
+        });
+
+        await app.listen(3000);
+    }
+    ```
+
+2. **Rate Limiting**
+
+    ```typescript
+    // ✅ BOM - Rate limiting
+    import { ThrottlerModule } from "@nestjs/throttler";
+
+    @Module({
+        imports: [
+            ThrottlerModule.forRoot([
+                {
+                    ttl: 60000, // 1 minuto
+                    limit: 10, // 10 requisições
+                },
+            ]),
+        ],
+    })
+    export class AppModule {}
+    ```
+
+3. **Sanitização de Inputs**
+    ```typescript
+    // ✅ BOM - Sanitizar inputs
+    import { Transform } from "class-transformer";
+    import { IsString } from "class-validator";
+
+    export class CreateMessageDto {
+        @IsString()
+        @Transform(({ value }) => value.trim()) // Remove espaços
+        text: string;
+    }
+    ```
+
+
+## Checklist Antes de Commitar
+
+### Frontend
+
+-   [ ] Código compila sem erros TypeScript
+-   [ ] Não há warnings do linter
+-   [ ] Mensagens são criptografadas antes de salvar
+-   [ ] Erros são tratados e mostrados ao usuário
+-   [ ] Imports estão organizados corretamente
+-   [ ] Tipos estão definidos explicitamente
+-   [ ] Logs de debug foram removidos (ou marcados para remoção)
+-   [ ] Performance foi considerada (memoização quando necessário)
+-   [ ] Acessibilidade foi verificada
+-   [ ] Código segue as convenções de nomenclatura
+-   [ ] **Todos os textos estão traduzidos** (não há textos hardcoded)
+-   [ ] **Traduções foram adicionadas em todos os idiomas** (pt-BR, en, es)
+-   [ ] **Chaves de tradução seguem estrutura hierárquica consistente**
+
+### Backend
+
+-   [ ] DTOs têm validação com class-validator
+-   [ ] Rotas protegidas usam JwtAuthGuard
+-   [ ] Migrations foram criadas para mudanças de schema
+-   [ ] Testes unitários passam (`npm run test`)
+-   [ ] Testes E2E passam (`npm run test:e2e`)
+-   [ ] Exceptions apropriadas são lançadas (NotFoundException, etc.)
+-   [ ] Queries de banco têm índices e são otimizadas
+-   [ ] Variáveis de ambiente estão documentadas
+
+### Docker
+
+-   [ ] PostgreSQL tem `wal_level=logical` configurado
+-   [ ] Variáveis de ambiente estão corretas em docker-compose.yml
+-   [ ] Volumes estão configurados para persistência de dados
+-   [ ] docker-compose up funciona sem erros
+
+## Recursos e Referências
+
+### Frontend
+
+-   Expo Router Docs: https://docs.expo.dev/router/introduction/
+-   React Query Docs: https://tanstack.com/query/latest
+-   Styled Components: https://styled-components.com/docs
+-   React Native Performance: https://reactnative.dev/docs/performance
+-   i18next Docs: https://www.i18next.com/
+-   react-i18next Docs: https://react.i18next.com/
+-   expo-localization Docs: https://docs.expo.dev/versions/latest/sdk/localization/
+-   expo-sqlite Docs: https://docs.expo.dev/versions/latest/sdk/sqlite/
+-   **Feature-Sliced Design (FSD)**: https://feature-sliced.design/docs/get-started/tutorial
+-   **FSD Overview**: https://feature-sliced.design/docs/get-started/overview
+-   **FSD Examples**: https://feature-sliced.design/examples
+-   **FSD Linter (Steiger)**: https://github.com/feature-sliced/steiger
+
+### Backend (NestJS)
+
+-   NestJS Docs: https://docs.nestjs.com/
+-   TypeORM Docs: https://typeorm.io/
+-   NestJS Authentication: https://docs.nestjs.com/security/authentication
+-   NestJS WebSockets: https://docs.nestjs.com/websockets/gateways
+-   class-validator: https://github.com/typestack/class-validator
+-   Passport JWT: http://www.passportjs.org/packages/passport-jwt/
+
+### Docker
+
+-   Docker Compose Docs: https://docs.docker.com/compose/
+-   PostgreSQL Docker: https://hub.docker.com/_/postgres
+-   Docker Best Practices: https://docs.docker.com/develop/dev-best-practices/
+

@@ -1,0 +1,50 @@
+{
+    "cli": {
+        "version": ">= 5.2.0",
+        "appVersionSource": "local"
+    },
+    "build": {
+        "development": {
+            "developmentClient": true,
+            "distribution": "internal"
+        },
+        "preview": {
+            "distribution": "internal",
+            "channel": "preview",
+            "android": {
+                "buildType": "apk"
+            },
+            "env": {
+                "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "510679848324-uicijmb0d26ebf3rlo0qil5pjuk9d1ea.apps.googleusercontent.com",
+                "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "510679848324-4nfiam1u85fciohe6t8p6n2rdtdkq5kk.apps.googleusercontent.com",
+                "EXPO_PUBLIC_API_URL": "https://chatup-api.147.15.92.201.sslip.io"
+            }
+        },
+        "production": {
+            "channel": "production",
+            "android": {
+                "buildType": "apk"
+            },
+            "env": {
+                "NODE_ENV": "production",
+                "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "510679848324-uicijmb0d26ebf3rlo0qil5pjuk9d1ea.apps.googleusercontent.com",
+                "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "510679848324-4nfiam1u85fciohe6t8p6n2rdtdkq5kk.apps.googleusercontent.com",
+                "EXPO_PUBLIC_API_URL": "https://chatup-api.147.15.92.201.sslip.io"
+            }
+        },
+        "production-aab": {
+            "android": {
+                "buildType": "app-bundle"
+            },
+            "env": {
+                "NODE_ENV": "production",
+                "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "510679848324-uicijmb0d26ebf3rlo0qil5pjuk9d1ea.apps.googleusercontent.com",
+                "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "510679848324-4nfiam1u85fciohe6t8p6n2rdtdkq5kk.apps.googleusercontent.com",
+                "EXPO_PUBLIC_API_URL": "https://chatup-api.147.15.92.201.sslip.io"
+            }
+        }
+    },
+    "submit": {
+        "production": {}
+    }
+}

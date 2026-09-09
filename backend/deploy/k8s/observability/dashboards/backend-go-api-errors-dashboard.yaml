@@ -1,0 +1,194 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-go-api-errors-dashboard
+  namespace: observability
+  labels:
+    grafana_dashboard: "1"
+data:
+  backend-go-api-errors.json: |
+    {
+      "annotations": {"list": []},
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "liveNow": false,
+      "refresh": "30s",
+      "schemaVersion": 39,
+      "tags": ["chatup", "backend-go", "errors", "http"],
+      "templating": {
+        "list": [
+          {
+            "allValue": ".*",
+            "current": {"selected": true, "text": "All", "value": "$__all"},
+            "datasource": {"type": "prometheus", "uid": "prometheus"},
+            "hide": 0,
+            "includeAll": true,
+            "label": "Route (filtro nos logs)",
+            "multi": false,
+            "name": "route",
+            "options": [],
+            "query": "label_values(chatup_http_requests_total, route)",
+            "refresh": 2,
+            "regex": "",
+            "skipUrlSync": false,
+            "sort": 1,
+            "type": "query"
+          }
+        ]
+      },
+      "time": {"from": "now-6h", "to": "now"},
+      "timezone": "",
+      "title": "Backend Go - Erros HTTP (4xx/5xx)",
+      "uid": "chatup-backend-go-api-errors",
+      "version": 2,
+      "panels": [
+        {
+          "collapsed": false,
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+          "id": 100,
+          "panels": [],
+          "title": "Resumo",
+          "type": "row"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "reqps", "decimals": 3}, "overrides": []},
+          "gridPos": {"h": 5, "w": 8, "x": 0, "y": 1},
+          "id": 1,
+          "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+          "targets": [
+            {
+              "expr": "(sum(rate(chatup_http_requests_total{status=~\"4..\"}[5m])) or vector(0))",
+              "legendFormat": "4xx/s",
+              "refId": "A"
+            }
+          ],
+          "title": "Taxa 4xx (req/s)",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "reqps", "decimals": 3}, "overrides": []},
+          "gridPos": {"h": 5, "w": 8, "x": 8, "y": 1},
+          "id": 2,
+          "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+          "targets": [
+            {
+              "expr": "(sum(rate(chatup_http_requests_total{status=~\"5..\"}[5m])) or vector(0))",
+              "legendFormat": "5xx/s",
+              "refId": "A"
+            }
+          ],
+          "title": "Taxa 5xx (req/s)",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"unit": "percent", "decimals": 2}, "overrides": []},
+          "gridPos": {"h": 5, "w": 8, "x": 16, "y": 1},
+          "id": 3,
+          "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+          "targets": [
+            {
+              "expr": "100 * (sum(rate(chatup_http_requests_total{status=~\"4..|5..\"}[5m])) or vector(0)) / clamp_min(sum(rate(chatup_http_requests_total[5m])), 0.000001)",
+              "legendFormat": "% erros",
+              "refId": "A"
+            }
+          ],
+          "title": "% respostas 4xx/5xx sobre o total",
+          "type": "stat"
+        },
+        {
+          "collapsed": false,
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 6},
+          "id": 101,
+          "panels": [],
+          "title": "Série temporal",
+          "type": "row"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {"defaults": {"custom": {"drawStyle": "line", "fillOpacity": 25, "lineWidth": 1, "stacking": {"group": "A", "mode": "normal"}}, "unit": "reqps"}, "overrides": []},
+          "gridPos": {"h": 9, "w": 24, "x": 0, "y": 7},
+          "id": 4,
+          "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true, "calcs": ["mean", "max"]}},
+          "targets": [
+            {
+              "expr": "sum by (status) (rate(chatup_http_requests_total{status=~\"4..|5..\"}[5m]))",
+              "legendFormat": "{{status}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Requisições com erro por código HTTP (taxa)",
+          "type": "timeseries"
+        },
+        {
+          "collapsed": false,
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 16},
+          "id": 102,
+          "panels": [],
+          "title": "Ranking no intervalo do dashboard (mais frequente primeiro)",
+          "type": "row"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {"custom": {"align": "auto", "displayMode": "auto", "inspect": false}, "mappings": [], "unit": "short"},
+            "overrides": []
+          },
+          "gridPos": {"h": 11, "w": 24, "x": 0, "y": 17},
+          "id": 5,
+          "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true},
+          "targets": [
+            {
+              "expr": "sum by (route, method, status) (increase(chatup_http_requests_total{status=~\"4..|5..\"}[$__range]))",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "__auto",
+              "refId": "A"
+            }
+          ],
+          "title": "Combinações route + method + status (ordenado por ocorrências)",
+          "transformations": [
+            {"id": "organize", "options": {"excludeByName": {"Time": true}, "indexByName": {}, "renameByName": {"Value": "Ocorrências (intervalo)"}}},
+            {"id": "sortBy", "options": {"fields": {}, "sort": [{"field": "Ocorrências (intervalo)", "desc": true}]}}
+          ],
+          "type": "table"
+        },
+        {
+          "collapsed": false,
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 28},
+          "id": 103,
+          "panels": [],
+          "title": "Logs de erro (Loki) — use o filtro \"Route\" acima para focar um endpoint",
+          "type": "row"
+        },
+        {
+          "datasource": {"type": "loki", "uid": "loki"},
+          "gridPos": {"h": 14, "w": 24, "x": 0, "y": 29},
+          "id": 6,
+          "options": {
+            "dedupStrategy": "none",
+            "enableLogDetails": true,
+            "prettifyLogMessage": false,
+            "showCommonLabels": false,
+            "showLabels": true,
+            "showTime": true,
+            "sortOrder": "Descending",
+            "wrapLogMessage": true
+          },
+          "targets": [
+            {
+              "expr": "{job=\"loki.source.kubernetes.pods\", instance=~\"chatup/backend-go.*\"} |= \"http_request\" | json | status_code >= 400 | route=~\"$route\"",
+              "queryType": "range",
+              "refId": "A"
+            }
+          ],
+          "title": "Linhas de log http_request com status_code >= 400",
+          "type": "logs"
+        }
+      ]
+    }

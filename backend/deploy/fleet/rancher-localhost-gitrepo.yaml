@@ -1,0 +1,12 @@
+apiVersion: fleet.cattle.io/v1alpha1
+kind: GitRepo
+metadata:
+  name: chatup-backend-go-dev
+  namespace: fleet-local
+spec:
+  repo: https://github.com/marcolongitude/chatUp.git
+  branch: developer
+  paths:
+    - backend/deploy/k8s/development
+  targets:
+    - clusterName: local

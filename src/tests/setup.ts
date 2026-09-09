@@ -17,21 +17,29 @@ jest.mock('@react-native-community/netinfo', () => ({
   },
 }));
 
-// Mock do Expo Router
-jest.mock('expo-router', () => ({
+// Mock do TanStack Router
+jest.mock('@tanstack/react-router', () => ({
   useRouter: () => ({
-    push: jest.fn(),
-    replace: jest.fn(),
-    back: jest.fn(),
+    navigate: jest.fn(),
+    history: {
+      push: jest.fn(),
+      replace: jest.fn(),
+      back: jest.fn(),
+    },
   }),
-  useLocalSearchParams: () => ({}),
-  useGlobalSearchParams: () => ({}),
-  Link: ({ children, ...props }: any) => children,
-  Stack: ({ children }: any) => children,
-  Tabs: ({ children }: any) => children,
-  useFocusEffect: jest.fn((callback) => callback()),
-  usePathname: () => '/',
-  useSegments: () => [],
+  useParams: () => ({}),
+  useSearch: () => ({}),
+  Link: ({ children }: any) => children,
+  Outlet: ({ children }: any) => children,
+  Navigate: ({ to }: any) => null,
+  createRoute: jest.fn(() => ({
+    addChildren: jest.fn(),
+    update: jest.fn(),
+  })),
+  createRootRoute: jest.fn(() => ({
+    addChildren: jest.fn(),
+  })),
+  createRouter: jest.fn(() => ({})),
 }));
 
 // Mock do SafeAreaProvider

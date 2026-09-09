@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backend-secret
+  namespace: chatup-prod
+type: Opaque
+data:
+  # postgresql://admin:password@postgres:5432/chatup em base64
+  database_url: cG9zdGdyZXNxbDovL2FkbWluOnBhc3N3b3JkQHBvc3RncmVzOjU0MzIvY2hhdHVw
+  # sua-chave-secreta-longa em base64
+  jwt_secret: c3VhLWNoYXZlLXNlY3JldGEtbG9uZ2E=
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-go
+  namespace: chatup-prod
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: backend-go
+  template:
+    metadata:
+      labels:
+        app: backend-go
+    spec:
+      containers:
+      - name: backend-go
+        image: chatup-backend-go:latest
+        imagePullPolicy: Always
+        resources:
+          limits:
+            cpu: "1"
+            memory: "1Gi"
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+        ports:
+        - containerPort: 3000
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: backend-secret
+              key: database_url
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: backend-secret
+              key: jwt_secret
+        - name: NODE_ENV
+          value: "production"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-go
+  namespace: chatup-prod
+spec:
+  selector:
+    app: backend-go
+  ports:
+  - port: 80
+    targetPort: 3000
+  type: LoadBalancer # Rancher facilitará a visualização do IP externo
