@@ -143,7 +143,14 @@ export const en = {
 		permissionNotifications: "Notifications",
 		permissionGranted: "Allowed",
 		permissionDenied: "Denied",
-		permissionLocationHint: "Required to list nearby contacts automatically on Conversations.",
+		permissionLocationHint:
+			"Required to list nearby contacts. Allow “Always”/background so the perimeter keeps working when another app is open.",
+		permissionBackgroundLocation: "Background location",
+		permissionBackgroundGranted: "Allowed (always)",
+		permissionBackgroundDenied: "Only while using the app",
+		permissionBackgroundHint:
+			"With ChatUp in the background, GPS keeps updating the perimeter. On Android a discreet location notification may appear.",
+		permissionEnableBackgroundLocation: "Allow in background",
 		permissionNotificationsHint: "Required to alert you when a new message arrives.",
 		permissionEnableLocation: "Allow location",
 		permissionRefreshLocation: "Refresh location now",

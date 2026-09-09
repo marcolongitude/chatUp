@@ -6,10 +6,13 @@ import styled from "styled-components/native";
 import { useTranslation } from "react-i18next";
 
 import {
+	ensureBackgroundLocationPermission,
 	ensureLocationPermission,
+	getBackgroundLocationPermissionStatus,
 	getLocationPermissionStatus,
 	openAppSystemSettings,
 } from "../lib/ensure-location-permission";
+import { startBackgroundLocationTracking } from "../lib/background-location-task";
 import {
 	refreshSessionLocation,
 	requestSessionLocationPermission,
@@ -91,15 +94,18 @@ export function AppPermissionsSection() {
 	const theme = useTheme();
 	const { t } = useTranslation();
 	const [location, setLocation] = useState<PermissionState | null>(null);
+	const [backgroundLocation, setBackgroundLocation] = useState<PermissionState | null>(null);
 	const [notifications, setNotifications] = useState<PermissionState | null>(null);
-	const [busy, setBusy] = useState<"location" | "notifications" | null>(null);
+	const [busy, setBusy] = useState<"location" | "background" | "notifications" | null>(null);
 
 	const refresh = useCallback(async () => {
-		const [loc, notif] = await Promise.all([
+		const [loc, bg, notif] = await Promise.all([
 			getLocationPermissionStatus(),
+			getBackgroundLocationPermissionStatus(),
 			getNotificationPermissionStatus(),
 		]);
 		setLocation(loc);
+		setBackgroundLocation(bg);
 		setNotifications(notif);
 	}, []);
 
@@ -118,6 +124,8 @@ export function AppPermissionsSection() {
 			const current = await getLocationPermissionStatus();
 			if (current.granted) {
 				await refreshSessionLocation();
+				await ensureBackgroundLocationPermission();
+				await startBackgroundLocationTracking();
 				await refresh();
 				return;
 			}
@@ -128,6 +136,8 @@ export function AppPermissionsSection() {
 					if (!fallback.granted) await openAppSystemSettings();
 				} else {
 					await refreshSessionLocation();
+					await ensureBackgroundLocationPermission();
+					await startBackgroundLocationTracking();
 				}
 			} else {
 				await openAppSystemSettings();
@@ -137,6 +147,26 @@ export function AppPermissionsSection() {
 			setBusy(null);
 		}
 	}, [refresh]);
+
+	const handleBackgroundLocation = useCallback(async () => {
+		setBusy("background");
+		try {
+			const foreground = await getLocationPermissionStatus();
+			if (!foreground.granted) {
+				await handleLocation();
+				return;
+			}
+			const bg = await ensureBackgroundLocationPermission();
+			if (!bg.granted) {
+				await openAppSystemSettings();
+			} else {
+				await startBackgroundLocationTracking();
+			}
+			await refresh();
+		} finally {
+			setBusy(null);
+		}
+	}, [handleLocation, refresh]);
 
 	const handleNotifications = useCallback(async () => {
 		setBusy("notifications");
@@ -191,6 +221,36 @@ export function AppPermissionsSection() {
 							? t("settings.permissionRefreshLocation")
 							: t("settings.permissionEnableLocation")}
 					</ActionText>
+				</ActionButton>
+			</Row>
+
+			<Row>
+				<RowHeader>
+					<RowTitle>{t("settings.permissionBackgroundLocation")}</RowTitle>
+					{backgroundLocation ? (
+						<StatusText granted={backgroundLocation.granted}>
+							{backgroundLocation.granted
+								? t("settings.permissionBackgroundGranted")
+								: t("settings.permissionBackgroundDenied")}
+						</StatusText>
+					) : (
+						<ActivityIndicator size="small" color={theme.colors.button.primary} />
+					)}
+				</RowHeader>
+				<Hint>{t("settings.permissionBackgroundHint")}</Hint>
+				<ActionButton
+					onPress={handleBackgroundLocation}
+					disabled={busy === "background"}
+					activeOpacity={0.7}
+				>
+					<ActionIconWrap>
+						{busy === "background" ? (
+							<ActivityIndicator size="small" color={theme.colors.text.primary} />
+						) : (
+							<Ionicons name="navigate-outline" size={18} color={theme.colors.text.primary} />
+						)}
+					</ActionIconWrap>
+					<ActionText>{t("settings.permissionEnableBackgroundLocation")}</ActionText>
 				</ActionButton>
 			</Row>
 

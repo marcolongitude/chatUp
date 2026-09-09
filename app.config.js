@@ -35,7 +35,7 @@ module.exports = () => {
 		expo: {
 			name: "chatUp",
 			slug: "chatUp",
-			version: "1.0.8",
+			version: "1.0.9",
 			orientation: "portrait",
 			// Ícone do app (iOS, Android, splash) – assets/logoIcon.png
 			icon: "./assets/logoIcon.png",
@@ -52,9 +52,10 @@ module.exports = () => {
 				bundleIdentifier: "com.chatup.app",
 				infoPlist: {
 					NSLocationWhenInUseUsageDescription:
-						"Este app precisa da sua localização para mostrar usuários próximos a você.",
+						"O ChatUp usa sua localização para listar contatos dentro do perímetro configurado.",
 					NSLocationAlwaysAndWhenInUseUsageDescription:
-						"Este app precisa da sua localização para mostrar usuários próximos a você.",
+						"O ChatUp precisa da localização também em segundo plano para manter o perímetro ativo quando você abrir outro app.",
+					UIBackgroundModes: ["location"],
 				},
 			},
 			android: {
@@ -63,14 +64,20 @@ module.exports = () => {
 					backgroundColor: "#ffffff",
 				},
 				package: "com.chatup.app",
-				versionCode: 9,
+				versionCode: 10,
 				edgeToEdgeEnabled: true,
 				predictiveBackGestureEnabled: false,
 				permissions: [
 					"ACCESS_FINE_LOCATION",
 					"ACCESS_COARSE_LOCATION",
+					"ACCESS_BACKGROUND_LOCATION",
+					"FOREGROUND_SERVICE",
+					"FOREGROUND_SERVICE_LOCATION",
 					"android.permission.ACCESS_COARSE_LOCATION",
 					"android.permission.ACCESS_FINE_LOCATION",
+					"android.permission.ACCESS_BACKGROUND_LOCATION",
+					"android.permission.FOREGROUND_SERVICE",
+					"android.permission.FOREGROUND_SERVICE_LOCATION",
 					"android.permission.POST_NOTIFICATIONS",
 					"POST_NOTIFICATIONS",
 				],
@@ -84,11 +91,15 @@ module.exports = () => {
 					"expo-location",
 					{
 						locationAlwaysAndWhenInUsePermission:
-							"Este app precisa da sua localização para mostrar usuários próximos a você.",
+							"O ChatUp precisa da localização também em segundo plano para manter o perímetro ativo quando você abrir outro app.",
 						locationWhenInUsePermission:
-							"Este app precisa da sua localização para mostrar usuários próximos a você.",
+							"O ChatUp usa sua localização para listar contatos dentro do perímetro configurado.",
+						isIosBackgroundLocationEnabled: true,
+						isAndroidBackgroundLocationEnabled: true,
+						isAndroidForegroundServiceEnabled: true,
 					},
 				],
+				"expo-task-manager",
 				"expo-font",
 				"expo-localization",
 				"expo-web-browser",
@@ -114,7 +125,7 @@ module.exports = () => {
 				fallbackToCacheTimeout: 0,
 				url: "https://u.expo.dev/d662ef19-e2a8-4cf3-b18a-564a4faa4a3d",
 			},
-			runtimeVersion: "1.0.8",
+			runtimeVersion: "1.0.9",
 			extra: {
 				router: {
 					origin: false,

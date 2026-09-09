@@ -46,11 +46,11 @@
       <true/>
     </dict>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>Este app precisa da sua localização para mostrar usuários próximos a você.</string>
+    <string>O ChatUp precisa da localização também em segundo plano para manter o perímetro ativo quando você abrir outro app.</string>
     <key>NSLocationAlwaysUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your location</string>
+    <string>O ChatUp precisa da localização também em segundo plano para manter o perímetro ativo quando você abrir outro app.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
-    <string>Este app precisa da sua localização para mostrar usuários próximos a você.</string>
+    <string>O ChatUp usa sua localização para listar contatos dentro do perímetro configurado.</string>
     <key>NSUserActivityTypes</key>
     <array>
       <string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>
@@ -81,6 +81,10 @@
     </array>
     <key>UIUserInterfaceStyle</key>
     <string>Light</string>
+    <key>UIBackgroundModes</key>
+    <array>
+      <string>location</string>
+    </array>
     <key>UIViewControllerBasedStatusBarAppearance</key>
     <false/>
   </dict>

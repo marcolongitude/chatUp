@@ -144,7 +144,13 @@ export const ptBR = {
 		permissionGranted: "Permitida",
 		permissionDenied: "Negada",
 		permissionLocationHint:
-			"Necessária para listar contatos próximos automaticamente na tela Conversas.",
+			"Necessária para listar contatos próximos. Aceite “Sempre”/segundo plano para o perímetro continuar com o app aberto em outro app.",
+		permissionBackgroundLocation: "Localização em segundo plano",
+		permissionBackgroundGranted: "Permitida (sempre)",
+		permissionBackgroundDenied: "Só com o app aberto",
+		permissionBackgroundHint:
+			"Com o ChatUp em segundo plano, o GPS continua atualizando o perímetro. No Android pode aparecer uma notificação discreta de localização.",
+		permissionEnableBackgroundLocation: "Permitir em segundo plano",
 		permissionNotificationsHint: "Necessária para avisar quando chegar mensagem nova.",
 		permissionEnableLocation: "Permitir localização",
 		permissionRefreshLocation: "Atualizar localização agora",
