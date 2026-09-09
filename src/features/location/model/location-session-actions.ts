@@ -28,8 +28,16 @@ export function getLocationSessionActions(): LocationSessionActions | null {
 
 export async function requestSessionLocationPermission(): Promise<boolean> {
 	if (actions) return actions.requestPermission();
-	const { ensureLocationPermission } = await import("../lib/ensure-location-permission");
+	const {
+		ensureBackgroundLocationPermission,
+		ensureLocationPermission,
+	} = await import("../lib/ensure-location-permission");
+	const { startBackgroundLocationTracking } = await import("../lib/background-location-task");
 	const result = await ensureLocationPermission();
+	if (result.granted) {
+		await ensureBackgroundLocationPermission();
+		await startBackgroundLocationTracking();
+	}
 	return result.granted;
 }
 

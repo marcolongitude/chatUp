@@ -4,10 +4,12 @@ import * as Location from "expo-location";
 import Constants from "expo-constants";
 
 import {
+	ensureBackgroundLocationPermission,
 	ensureLocationPermission,
 	getLocationPermissionStatus,
 	openAppSystemSettings,
 } from "../lib/ensure-location-permission";
+import { startBackgroundLocationTracking } from "../lib/background-location-task";
 import { openLocationSettings } from "../lib/open-location-settings";
 import { registerLocationSessionActions } from "./location-session-actions";
 import type { LocationModel, LocationPermissionStatus } from "./location";
@@ -70,7 +72,11 @@ export function useLocation() {
 		}
 		const result = await ensureLocationPermission();
 		const granted = applyPermission(result);
-		if (granted) setError(null);
+		if (granted) {
+			setError(null);
+			await ensureBackgroundLocationPermission();
+			await startBackgroundLocationTracking();
+		}
 		return granted;
 	}, [applyPermission]);
 
@@ -228,6 +234,8 @@ export function useLocation() {
 				try {
 					await readCurrentPosition();
 					await startWatch();
+					await ensureBackgroundLocationPermission();
+					await startBackgroundLocationTracking();
 				} catch (err: unknown) {
 					const message = err instanceof Error ? err.message : "Erro ao obter localização.";
 					setError(message);

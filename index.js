@@ -17,6 +17,9 @@ try {
 // 3. Carregar Polyfills (Buffer, URL, getRandomValues)
 require('./src/app/config/polyfills/index');
 
+// 3b. Task de GPS em background (defineTask deve rodar no boot, fora do React)
+require('./src/features/location/lib/background-location-task');
+
 // TanStack Router scroll helpers assume DOM; no-op on React Native/Hermes.
 (() => {
   const noopScrollTo = function scrollTo() {};
