@@ -1,0 +1,20 @@
+settings:
+  log_monitors:
+    - /config/kernel-monitor.json
+    - /config/docker-monitor.json
+    - /config/readonly-monitor.json
+
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    additionalLabels:
+      release: kps
+
+resources:
+  requests:
+    cpu: 20m
+    memory: 40Mi
+  limits:
+    cpu: 100m
+    memory: 100Mi
