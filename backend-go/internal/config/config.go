@@ -24,7 +24,8 @@ type Config struct {
 	FamilyGraceSeconds int
 	// LocationStaleSeconds: exclude peers whose GPS/presence was not refreshed within this window
 	// from geometric discovery (anti stale "other city"). Default 900 (15m). Family grace unaffected.
-	// Clients keep freshness via WS presence.ping (~2m), not HTTP heartbeats.
+	// Foreground clients refresh via WS presence.ping (~2m). Background clients cannot run JS
+	// timers, so they PUT /location from the native location task (~90s) to stay on the list.
 	LocationStaleSeconds int
 }
 

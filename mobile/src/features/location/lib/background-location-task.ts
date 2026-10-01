@@ -1,15 +1,19 @@
 import * as Location from "expo-location";
 import * as TaskManager from "expo-task-manager";
 
+import { requestNotificationPermissions } from "@/shared/lib/notifications";
+
 import { updateLocationApi } from "../api/update-location.api";
+import {
+	BG_LOCATION_TIME_INTERVAL_MS,
+	shouldPushBackgroundLocation,
+} from "./background-location-policy";
 
 /** Nome estável da task — deve bater com startLocationUpdatesAsync. */
 export const BACKGROUND_LOCATION_TASK = "chatup-background-location";
 
-/** Intervalo mínimo entre PUTs no background (anti-enxurrada). */
-const BG_PUT_MIN_INTERVAL_MS = 45_000;
-/** Só reenvia se andou pelo menos isto (metros), salvo se o intervalo mínimo passou. */
-const BG_PUT_MIN_MOVE_M = 25;
+/** Bump ao mudar opções nativas: task já iniciada é reiniciada uma vez. */
+const LOCATION_TASK_OPTIONS_VERSION = 2;
 
 let lastBgPushAt = 0;
 let lastBgCoords: { latitude: number; longitude: number } | null = null;
@@ -45,16 +49,13 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
 	const movedM = prev
 		? haversineMeters(prev.latitude, prev.longitude, latitude, longitude)
 		: Number.POSITIVE_INFINITY;
-	const dueByTime = now - lastBgPushAt >= BG_PUT_MIN_INTERVAL_MS;
-	const dueByMove = movedM >= BG_PUT_MIN_MOVE_M;
 
-	if (!(dueByTime || dueByMove)) return;
-
-	lastBgPushAt = now;
-	lastBgCoords = { latitude, longitude };
+	if (!shouldPushBackgroundLocation({ now, lastPushAt: lastBgPushAt, movedMeters: movedM })) return;
 
 	try {
 		await updateLocationApi(latitude, longitude);
+		lastBgPushAt = now;
+		lastBgCoords = { latitude, longitude };
 	} catch (err: unknown) {
 		console.warn("[BackgroundLocation] PUT /location failed:", err);
 	}
@@ -73,6 +74,8 @@ export async function isBackgroundLocationRunning(): Promise<boolean> {
  * Requer permissão de background quando possível; no Android o FGS cobre
  * o caso “app aberto em segundo plano” mesmo sem Always em alguns OEMs.
  */
+let appliedOptionsVersion = 0;
+
 export async function startBackgroundLocationTracking(): Promise<boolean> {
 	try {
 		const foreground = await Location.getForegroundPermissionsAsync();
@@ -81,23 +84,31 @@ export async function startBackgroundLocationTracking(): Promise<boolean> {
 		const servicesOn = await Location.hasServicesEnabledAsync();
 		if (!servicesOn) return false;
 
+		// Android 13+ não sobe o foreground service sem permissão de notificação.
+		await requestNotificationPermissions();
+
 		const already = await isBackgroundLocationRunning();
-		if (already) return true;
+		if (already && appliedOptionsVersion === LOCATION_TASK_OPTIONS_VERSION) return true;
+		if (already) {
+			await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
+		}
 
 		await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
 			accuracy: Location.Accuracy.Balanced,
-			timeInterval: 60_000,
-			distanceInterval: BG_PUT_MIN_MOVE_M,
-			deferredUpdatesInterval: 60_000,
-			deferredUpdatesDistance: BG_PUT_MIN_MOVE_M,
+			// 0 m: no Android timeInterval só vale se distanceInterval não exigir deslocamento.
+			// Com 25 m o app parado em segundo plano deixava de atualizar e sumia da lista.
+			timeInterval: BG_LOCATION_TIME_INTERVAL_MS,
+			distanceInterval: 0,
 			showsBackgroundLocationIndicator: true,
 			pausesUpdatesAutomatically: false,
+			activityType: Location.ActivityType.OtherNavigation,
 			foregroundService: {
 				notificationTitle: "ChatUp",
 				notificationBody: "Monitorando proximidade com contatos próximos.",
 				notificationColor: "#5b9bd5",
 			},
 		});
+		appliedOptionsVersion = LOCATION_TASK_OPTIONS_VERSION;
 		return true;
 	} catch (err: unknown) {
 		console.warn("[BackgroundLocation] start failed:", err);

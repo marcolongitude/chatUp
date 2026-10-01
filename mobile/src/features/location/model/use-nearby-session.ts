@@ -175,9 +175,22 @@ export function useNearbySession(userId: string | undefined): void {
 		scheduleNext();
 
 		const onAppState = (next: AppStateStatus) => {
-			if (next !== "active") return;
-			sendSocketEvent("presence.ping", {});
 			const coords = locationCoordsRef.current;
+			if (next !== "active") {
+				// JS congela em background: carimba presença agora e segura o GPS nativo.
+				void import("../lib/background-location-task").then(({ startBackgroundLocationTracking }) =>
+					startBackgroundLocationTracking()
+				);
+				if (!coords) return;
+				if (Date.now() - lastLocationPushRef.current < LOCATION_MOVE_MIN_INTERVAL_MS) return;
+				lastLocationPushRef.current = Date.now();
+				lastPushedCoordsRef.current = coords;
+				updateLocationApi(coords.latitude, coords.longitude).catch((err: unknown) => {
+					console.warn("Background location push failed", err);
+				});
+				return;
+			}
+			sendSocketEvent("presence.ping", {});
 			if (!coords) return;
 			// Foreground: um PUT real de GPS (posição pode ter mudado em background).
 			lastLocationPushRef.current = Date.now();
@@ -216,7 +229,8 @@ export function useNearbySession(userId: string | undefined): void {
 		staleTime: NEARBY_HTTP_REFETCH_MS,
 		gcTime: 10 * 60 * 1000,
 		refetchInterval: NEARBY_HTTP_REFETCH_MS,
-		refetchOnWindowFocus: false,
+		// Ao voltar do segundo plano, relê a lista (focusManager marca active).
+		refetchOnWindowFocus: true,
 		placeholderData: (previous) => previous,
 	});
 

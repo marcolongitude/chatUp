@@ -51,7 +51,8 @@ export function NearbySessionBridge() {
 		void (async () => {
 			const unsub = await subscribeSocket((event) => {
 				if (!String(event.type ?? "").startsWith("nearby.")) return;
-				const allowDiscovery = getNearbyStoreState().permissionGranted === true;
+				// null = permissão ainda não lida (resume/kill). Só bloqueia se foi negada.
+				const allowDiscovery = getNearbyStoreState().permissionGranted !== false;
 				applyNearbyWsEvent(event, { allowDiscovery });
 			});
 			if (cancelled) {
