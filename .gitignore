@@ -43,6 +43,12 @@ yarn-error.*
 **/*-firebase-adminsdk-*.json
 **/*firebase-adminsdk*.json
 
+# OAuth / secrets locais
+client_secret_*.json
+**/client_secret_*.json
+deploy/.env*
+deploy/.env.backend-legacy
+
 # typescript
 *.tsbuildinfo
 

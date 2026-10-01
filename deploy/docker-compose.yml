@@ -18,7 +18,7 @@ services:
 
   backend-go:
     build:
-      context: ../../backend-go
+      context: ../backend-go
       dockerfile: Dockerfile
     environment:
       DATABASE_URL: postgresql://admin:password@postgres:5432/chatup

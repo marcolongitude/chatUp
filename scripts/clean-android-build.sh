@@ -5,11 +5,12 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+MOBILE_DIR="$PROJECT_ROOT/mobile"
 
 echo "🧹 Limpando build Android e caches do Gradle..."
 echo ""
 
-cd "$PROJECT_ROOT"
+cd "$MOBILE_DIR"
 
 # Limpar diretórios de build locais
 if [ -d "android" ]; then

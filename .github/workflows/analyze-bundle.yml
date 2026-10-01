@@ -30,19 +30,22 @@ jobs:
               with:
                   node-version: "18"
                   cache: "npm"
+                  cache-dependency-path: mobile/package-lock.json
 
             - name: Install dependencies
+              working-directory: mobile
               run: npm ci
 
             - name: Run bundle analysis
-              run: npm run analyze:bundle
+              run: ./scripts/analyze-bundle.sh
 
             - name: Check for large files
               run: |
                   echo "📊 Checking for large files..."
-                  find assets -type f -size +500k -exec ls -lh {} \; || echo "No large files found"
+                  find mobile/assets -type f -size +500k -exec ls -lh {} \; || echo "No large files found"
 
             - name: Check dependencies
+              working-directory: mobile
               run: |
                   echo "📦 Checking dependencies..."
                   npm ls --depth=0 || true
@@ -60,7 +63,7 @@ jobs:
                       comment += '- Review large assets (>500KB)\n';
                       comment += '- Check for unused dependencies\n';
                       comment += '- Optimize images before committing\n\n';
-                      comment += 'Run `npm run analyze:bundle` locally for detailed analysis.';
+                      comment += 'Run `./scripts/analyze-bundle.sh` locally for detailed analysis.';
 
                       github.rest.issues.createComment({
                         issue_number: context.issue.number,

@@ -30,8 +30,10 @@ jobs:
         with:
           node-version: "20"
           cache: npm
+          cache-dependency-path: mobile/package-lock.json
 
       - name: Install JS deps
+        working-directory: mobile
         run: npm ci --legacy-peer-deps
 
       - name: Go app tests
@@ -39,6 +41,7 @@ jobs:
         run: go test ./internal/app/ -count=1
 
       - name: Jest ROI suite
+        working-directory: mobile
         run: npx jest --testPathPattern='(delivery-status|notifications|MessageStatus|stableLib|perimeter|outbox)' --no-coverage
 
   family-security-api:
@@ -52,8 +55,10 @@ jobs:
         with:
           node-version: "20"
           cache: npm
+          cache-dependency-path: mobile/package-lock.json
 
       - name: Install JS deps (scripts only)
+        working-directory: mobile
         run: npm ci --legacy-peer-deps
 
       - name: Setup Python e2e venv
@@ -70,4 +75,4 @@ jobs:
           CHATUP_E2E_AUTO_PAIR: "0"
         run: |
           export CHATUP_E2E_API_URL="${CHATUP_E2E_API_URL:-https://chatup-api.147.15.92.201.sslip.io}"
-          npm run e2e:family:security
+          ./e2e/run-api.sh tests/test_family_security_api.py

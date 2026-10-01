@@ -7,9 +7,14 @@ echo "📦 Analisando Bundle Size do ChatUp"
 echo "===================================="
 echo ""
 
-# Verificar se estamos no diretório correto
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+MOBILE_DIR="$PROJECT_ROOT/mobile"
+cd "$MOBILE_DIR"
+
+# Verificar se estamos no diretório do app
 if [ ! -f "package.json" ]; then
-    echo "❌ Erro: Execute este script a partir da raiz do projeto"
+    echo "❌ Erro: package.json do mobile não encontrado em $MOBILE_DIR"
     exit 1
 fi
 

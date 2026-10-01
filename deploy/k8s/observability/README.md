@@ -10,13 +10,13 @@ This folder contains a development-grade observability stack for Kubernetes:
 ## Install
 
 ```bash
-./backend/deploy/k8s/observability/install.sh
+./deploy/k8s/observability/install.sh
 ```
 
 ## Uninstall
 
 ```bash
-./backend/deploy/k8s/observability/uninstall.sh
+./deploy/k8s/observability/uninstall.sh
 ```
 
 ## Local URLs

@@ -5,6 +5,8 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+DEPLOY_DIR="$PROJECT_ROOT/deploy"
+MOBILE_DIR="$PROJECT_ROOT/mobile"
 
 echo "🚀 Iniciando ambiente de testes..."
 echo ""
@@ -26,9 +28,9 @@ echo "📡 IP Local: $LOCAL_IP"
 echo ""
 
 # Iniciar Docker Compose
-echo "🐳 Iniciando Docker Compose (serviços backend)..."
-cd "$PROJECT_ROOT/backend"
-if docker compose ps | grep -q "chatup_postgres.*Up"; then
+echo "🐳 Iniciando Docker Compose (postgres + backend-go)..."
+cd "$DEPLOY_DIR"
+if docker compose ps | grep -q "Up"; then
   echo "✅ Docker Compose já está rodando"
 else
   docker compose up -d
@@ -43,10 +45,9 @@ echo "📋 Informações:"
 echo "   - Backend: http://$LOCAL_IP:3000"
 echo "   - Health Check: http://$LOCAL_IP:3000/health"
 echo ""
-echo "🚀 Para iniciar o backend, execute em outro terminal:"
-echo "   cd backend && npm run start:dev"
+echo "🚀 Compose (API Go + Postgres):"
+echo "   cd deploy && docker compose up -d"
 echo ""
-echo "📱 Para gerar o APK:"
-echo "   npm run build:android:dev"
+echo "📱 App Expo:"
+echo "   cd mobile && npm start"
 echo ""
-

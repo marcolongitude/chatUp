@@ -4,6 +4,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+MOBILE="$ROOT/mobile"
 cd "$ROOT"
 
 MODE="full"
@@ -39,7 +40,7 @@ else
 fi
 
 section "Jest ROI (notify / status / crypto / perimeter / outbox)"
-if npx jest --testPathPattern='(delivery-status|notifications|MessageStatus|stableLib|perimeter|outbox)' --no-coverage; then
+if (cd "$MOBILE" && npx jest --testPathPattern='(delivery-status|notifications|MessageStatus|stableLib|perimeter|outbox)' --no-coverage); then
   echo "OK jest"
 else
   echo "FAIL jest"
@@ -48,7 +49,7 @@ fi
 
 if [[ "$MODE" == "full" ]]; then
   section "Family security API (anti destination leak)"
-  if npm run e2e:family:security; then
+  if (cd "$MOBILE" && npm run e2e:family:security); then
     echo "OK family-security"
   else
     echo "FAIL family-security"

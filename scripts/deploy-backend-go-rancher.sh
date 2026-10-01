@@ -43,11 +43,11 @@ echo "📤 Push da imagem ${FULL_IMAGE}"
 docker push "${FULL_IMAGE}"
 
 if [[ "${ENVIRONMENT}" == "development" ]]; then
-  MANIFEST="${ROOT_DIR}/backend/deploy/k8s/development/backend.yaml"
+  MANIFEST="${ROOT_DIR}/deploy/k8s/development/backend-go-k8s.yaml"
   DEPLOYMENT="backend-go"
   NAMESPACE="chatup-dev"
 else
-  MANIFEST="${ROOT_DIR}/backend/deploy/k8s/production/backend.yaml"
+  MANIFEST="${ROOT_DIR}/deploy/k8s/production/backend.yaml"
   DEPLOYMENT="backend-go"
   NAMESPACE="chatup-prod"
 fi

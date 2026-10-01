@@ -18,9 +18,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+MOBILE="${MOBILE:-$ROOT/mobile}"
 AVD_NAME="${AVD_NAME:-ChatUp_E2E}"
 PACKAGE="${PACKAGE:-com.chatup.app}"
-APK="${APK:-$ROOT/android/app/build/outputs/apk/debug/app-debug.apk}"
+APK="${APK:-$MOBILE/android/app/build/outputs/apk/debug/app-debug.apk}"
 METRO_PORT="${METRO_PORT:-8081}"
 
 # Prefer system SDK emulator if present (Ubuntu package /usr/lib/android-sdk)

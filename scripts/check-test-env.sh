@@ -36,15 +36,15 @@ if curl -s -f "http://localhost:3000/health" > /dev/null 2>&1 || curl -s -f "htt
   echo "✅ Backend está rodando na porta 3000"
 else
   echo "❌ Backend não está respondendo na porta 3000"
-  echo "   Execute: cd backend && npm run start:dev"
+  echo "   Execute: cd deploy && docker compose up -d"
 fi
 
 # Verificar se o PostgreSQL está rodando
-if docker ps | grep -q chatup_postgres; then
-  echo "✅ PostgreSQL está rodando"
+if docker ps | grep -qE 'chatup|postgres'; then
+  echo "✅ PostgreSQL/container parece estar rodando"
 else
   echo "❌ PostgreSQL não está rodando"
-  echo "   Execute: cd backend && docker compose up -d"
+  echo "   Execute: cd deploy && docker compose up -d"
 fi
 
 echo ""

@@ -5,6 +5,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+MOBILE_DIR="$PROJECT_ROOT/mobile"
 
 echo "🔧 Atualizando variáveis de ambiente no eas.json..."
 echo ""
@@ -24,7 +25,7 @@ echo ""
 echo "📝 Atualizando eas.json..."
 
 # Atualizar eas.json usando Node.js para manipular JSON de forma segura
-cd "$PROJECT_ROOT"
+cd "$MOBILE_DIR"
 node <<EOF
 const fs = require('fs');
 const path = require('path');

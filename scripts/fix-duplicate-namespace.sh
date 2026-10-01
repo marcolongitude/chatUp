@@ -5,11 +5,12 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+MOBILE_DIR="$PROJECT_ROOT/mobile"
 
 echo "🔧 Corrigindo conflito de namespace..."
 echo ""
 
-cd "$PROJECT_ROOT"
+cd "$MOBILE_DIR"
 
 # Remover node_modules e reinstalar
 echo "📦 Removendo node_modules e reinstalando dependências..."
@@ -32,6 +33,5 @@ echo ""
 echo "✅ Limpeza concluída!"
 echo ""
 echo "🚀 Agora você pode tentar gerar o APK novamente:"
-echo "   npm run build:android:dev"
+echo "   cd mobile && npm run build:android:dev"
 echo ""
-

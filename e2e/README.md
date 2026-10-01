@@ -11,28 +11,30 @@ Password (both): `E2eTest123!`
 
 ## Prerequisites
 
-1. Metro on `:8081` (`npx expo start --port 8081`)
+1. Metro on `:8081` (`cd mobile && npx expo start --port 8081`)
 2. Debug APKs installed:
-   - USB: arm64 (`npx expo run:android` / existing debug)
-   - Emulator: x86_64 (`cd android && ./gradlew assembleDebug -PreactNativeArchitectures=x86_64`)
-3. Pair helper: `npm run pair:usb-emulator -- --start-emu --launch`
+   - USB: arm64 (`cd mobile && npx expo run:android` / existing debug)
+   - Emulator: x86_64 (`cd mobile/android && ./gradlew assembleDebug -PreactNativeArchitectures=x86_64`)
+3. Pair helper: `./scripts/pair-usb-emulator.sh --start-emu --launch`
 4. JS bundle with `e2e.*` testIDs (served by Metro)
 
 ## Run
 
-```bash
-npm run test:guardrails      # REQUIRED gate: Go + Jest ROI + family security API
-npm run test:guardrails:unit # fast local (no staging network)
-npm run hooks:install        # enable git pre-push guardrails
+(Comandos a partir da raiz do monorepo. App npm fica em `mobile/`.)
 
-npm run e2e:pair          # smoke + pair tests
-npm run e2e:pair:smoke    # smoke only
-npm run e2e:pair:notify   # notification + delivery ticks (high ROI)
-npm run e2e:family:security  # API-only family privacy (anti destination leak)
-npm run e2e:family:ui        # dual-device opens Modo família in Settings
-npm run test:family          # Go unit: nearby family strip/grace contracts
-npm run e2e:pair -- -k reply   # subset
-npm run test:notify       # unit: status mapping + local notification logic
+```bash
+./scripts/test-guardrails.sh --full   # REQUIRED gate: Go + Jest ROI + family security API
+./scripts/test-guardrails.sh --unit   # fast local (no staging network)
+git config core.hooksPath .githooks && chmod +x .githooks/pre-push scripts/test-guardrails.sh
+
+./e2e/run.sh -m pair                 # smoke + pair tests
+./e2e/run.sh -m smoke                # smoke only
+./e2e/run.sh tests/test_pair_notify_delivery.py
+./e2e/run-api.sh tests/test_family_security_api.py
+./e2e/run.sh tests/test_family_ui_pair.py
+(cd backend-go && go test ./internal/app/ -count=1 -run 'Family|Nearby')
+./e2e/run.sh -m pair -k reply
+(cd mobile && npm run test:notify)
 ```
 
 ### Automatic gates
