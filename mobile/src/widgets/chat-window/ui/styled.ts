@@ -1,6 +1,10 @@
 import styled from "styled-components/native";
-import { Platform } from "react-native";
+import { Dimensions, Platform } from "react-native";
 import { TouchableOpacity } from "react-native";
+
+// Percent max-width collapses on Android Fabric: the bubble width becomes the
+// first word and everything after the first space is clipped.
+const BUBBLE_MAX_WIDTH = Math.round(Dimensions.get("window").width * 0.78);
 
 // --- Styled Components ---
 export const ContainerWrapper = styled.View`
@@ -16,8 +20,11 @@ export const MessagesListContainer = styled.View`
 export const MessageBubble = styled.View.attrs<{ isOwn: boolean; testID?: string }>((props) => ({
     testID: props.testID,
     accessibilityLabel: props.testID,
+    collapsable: false,
 }))<{ isOwn: boolean; testID?: string }>`
-    max-width: 75%;
+    max-width: ${BUBBLE_MAX_WIDTH}px;
+    flex-direction: row;
+    flex-shrink: 1;
     padding: ${(props) => props.theme.spacing.sm}px ${(props) => props.theme.spacing.md}px;
     margin-bottom: ${(props) => props.theme.spacing.sm}px;
     border-radius: ${(props) => props.theme.borderRadius.md}px;
@@ -27,13 +34,18 @@ export const MessageBubble = styled.View.attrs<{ isOwn: boolean; testID?: string
     overflow: visible;
 `;
 
+export const MessageColumn = styled.View`
+    flex-shrink: 1;
+    flex-direction: column;
+`;
+
 export const MessageText = styled.Text.attrs(() => ({
-    // Android often under-measures shrink-wrapped Text width and clips the last glyph.
     includeFontPadding: false,
 }))<{ isOwn: boolean }>`
+    flex-shrink: 1;
     font-size: 16px;
     color: ${(props) => (props.isOwn ? props.theme.colors.text.primary : props.theme.colors.text.primary)};
-    line-height: 20px;
+    line-height: 22px;
     padding-right: 4px;
 `;
 

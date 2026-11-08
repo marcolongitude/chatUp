@@ -61,7 +61,8 @@ export const ptBR = {
 		bioMinLength: "Biografia deve ter no mínimo 10 caracteres",
 		photoURL: "Foto de Perfil",
 		saving: "Salvando...",
-		error: "Erro ao autenticar",
+		invalidCredentials: "E-mail ou senha incorretos. Confira os dados ou cadastre-se.",
+		error: "Não foi possível entrar. Tente de novo.",
 		loggingOut: "Saindo...",
 		completeProfileButton: "Completar Perfil",
 	},
@@ -206,7 +207,7 @@ export const ptBR = {
 	// Erros gerais
 	errors: {
 		generic: "Ocorreu um erro",
-		network: "Erro de conexão",
+		network: "Sem conexão com o servidor. Confira o Wi-Fi e tente de novo.",
 		unknown: "Erro desconhecido",
 		loadingError: "Erro ao carregar",
 	},

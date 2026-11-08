@@ -61,7 +61,8 @@ export const es = {
 		bioMinLength: "La biografía debe tener al menos 10 caracteres",
 		photoURL: "Foto de Perfil",
 		saving: "Guardando...",
-		error: "Error de autenticación",
+		invalidCredentials: "Correo o contraseña incorrectos. Revise los datos o regístrese.",
+		error: "No se pudo iniciar sesión. Inténtelo de nuevo.",
 		loggingOut: "Saliendo...",
 		completeProfileButton: "Completar Perfil",
 	},
@@ -207,7 +208,7 @@ export const es = {
 	// Errores generales
 	errors: {
 		generic: "Ocurrió un error",
-		network: "Error de conexión",
+		network: "Sin conexión con el servidor. Revise el Wi-Fi e inténtelo de nuevo.",
 		unknown: "Error desconocido",
 		loadingError: "Error al cargar",
 	},

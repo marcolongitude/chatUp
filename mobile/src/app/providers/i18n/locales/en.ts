@@ -61,7 +61,8 @@ export const en = {
 		bioMinLength: "Biography must be at least 10 characters",
 		photoURL: "Profile Photo",
 		saving: "Saving...",
-		error: "Authentication error",
+		invalidCredentials: "Incorrect email or password. Check your details or sign up.",
+		error: "Could not sign in. Please try again.",
 		loggingOut: "Logging out...",
 		completeProfileButton: "Complete Profile",
 	},
@@ -206,7 +207,7 @@ export const en = {
 	// General errors
 	errors: {
 		generic: "An error occurred",
-		network: "Connection error",
+		network: "Could not reach the server. Check Wi-Fi and try again.",
 		unknown: "Unknown error",
 		loadingError: "Error loading",
 	},

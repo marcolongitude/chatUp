@@ -53,7 +53,7 @@ export function LoginPage() {
 		}
 	}, [isAuthenticated, hasCompleteProfile, isPending, isAuthLoading, router]);
 
-	const displayError = formError || resolveAuthError(authError, t);
+	const displayError = resolveAuthError(formError, t) || resolveAuthError(authError, t);
 
 	return (
 		<Container>

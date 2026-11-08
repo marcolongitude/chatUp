@@ -219,15 +219,49 @@ class StagingApi:
         *,
         minutes: int = 31,
     ) -> None:
-        """Force grace expiry via staging postgres (kubectl)."""
+        """Force grace expiry in postgres (local container or staging kubectl)."""
         import os
+        import re
         from pathlib import Path
+
+        if not re.fullmatch(r"[0-9a-fA-F-]{36}", observer_id) or not re.fullmatch(
+            r"[0-9a-fA-F-]{36}", subject_id
+        ):
+            raise RuntimeError("refusing to backdate non-uuid ids")
 
         sql = (
             "UPDATE nearby_presence "
             f"SET last_inside_at = NOW() - interval '{int(minutes)} minutes' "
             f"WHERE observer_id = '{observer_id}' AND subject_id = '{subject_id}';"
         )
+        container = os.environ.get("CHATUP_E2E_POSTGRES_CONTAINER", "").strip()
+        if container:
+            proc = subprocess.run(
+                [
+                    "docker",
+                    "exec",
+                    "-i",
+                    container,
+                    "psql",
+                    "-U",
+                    "admin",
+                    "-d",
+                    "chatup",
+                    "-v",
+                    "ON_ERROR_STOP=1",
+                    "-c",
+                    sql,
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if proc.returncode != 0:
+                raise RuntimeError(
+                    f"backdate presence failed: {proc.stderr or proc.stdout or proc.returncode}"
+                )
+            return
+
         cmd = [
             "kubectl",
             "--insecure-skip-tls-verify",

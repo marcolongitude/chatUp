@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { loginApi } from "../api/login.api";
+import { authFailureKey } from "../lib/auth-error";
 import { initializeCrypto } from "../lib/crypto-init";
 import { AuthUser, useAuthSession } from "./use-auth-session";
 
@@ -43,9 +44,9 @@ export function useLogin() {
       }
       return response;
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Login failed";
-      setError(message);
-      throw err;
+      const key = authFailureKey(err);
+      setError(key);
+      throw new Error(key);
     } finally {
       setIsLoading(false);
     }
