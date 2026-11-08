@@ -2,8 +2,9 @@ import styled from "styled-components/native";
 import { Dimensions, Platform } from "react-native";
 import { TouchableOpacity } from "react-native";
 
-// Percent max-width collapses on Android Fabric: the bubble width becomes the
-// first word and everything after the first space is clipped.
+// Own bubbles used align-self flex-end. On Android that width collapses to the
+// first word, so the sender sees "teste" while the receiver sees "teste a".
+// Alignment lives on a full-width row; the bubble only has a pixel max width.
 const BUBBLE_MAX_WIDTH = Math.round(Dimensions.get("window").width * 0.78);
 
 // --- Styled Components ---
@@ -17,34 +18,33 @@ export const MessagesListContainer = styled.View`
     padding: ${(props) => props.theme.spacing.md}px;
 `;
 
+export const MessageRow = styled.View<{ isOwn: boolean }>`
+    width: 100%;
+    flex-direction: row;
+    justify-content: ${(props) => (props.isOwn ? "flex-end" : "flex-start")};
+`;
+
 export const MessageBubble = styled.View.attrs<{ isOwn: boolean; testID?: string }>((props) => ({
     testID: props.testID,
     accessibilityLabel: props.testID,
     collapsable: false,
 }))<{ isOwn: boolean; testID?: string }>`
     max-width: ${BUBBLE_MAX_WIDTH}px;
-    flex-direction: row;
     flex-shrink: 1;
     padding: ${(props) => props.theme.spacing.sm}px ${(props) => props.theme.spacing.md}px;
     margin-bottom: ${(props) => props.theme.spacing.sm}px;
     border-radius: ${(props) => props.theme.borderRadius.md}px;
-    align-self: ${(props) => (props.isOwn ? "flex-end" : "flex-start")};
     background-color: ${(props) =>
         props.isOwn ? props.theme.colors.button.primary : props.theme.colors.background.card};
     overflow: visible;
 `;
 
-export const MessageColumn = styled.View`
-    flex-shrink: 1;
-    flex-direction: column;
-`;
-
 export const MessageText = styled.Text.attrs(() => ({
     includeFontPadding: false,
 }))<{ isOwn: boolean }>`
-    flex-shrink: 1;
+    align-self: stretch;
     font-size: 16px;
-    color: ${(props) => (props.isOwn ? props.theme.colors.text.primary : props.theme.colors.text.primary)};
+    color: ${(props) => props.theme.colors.text.primary};
     line-height: 22px;
     padding-right: 4px;
 `;

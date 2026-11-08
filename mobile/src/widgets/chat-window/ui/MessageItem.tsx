@@ -1,6 +1,6 @@
 import React from "react";
 import { Message, MessageStatus } from "@/entities/message";
-import { MessageBubble, MessageColumn, MessageText, MessageFooter, MessageTime } from "./styled";
+import { MessageRow, MessageBubble, MessageText, MessageFooter, MessageTime } from "./styled";
 
 interface MessageItemProps {
 	message: Message;
@@ -17,8 +17,8 @@ export const MessageItem = React.memo(({ message, isOwn }: MessageItemProps) => 
 	const e2eKey = message.text;
 
 	return (
-		<MessageBubble isOwn={isOwn} testID={`e2e.message.row.${e2eKey}`}>
-			<MessageColumn>
+		<MessageRow isOwn={isOwn}>
+			<MessageBubble isOwn={isOwn} testID={`e2e.message.row.${e2eKey}`}>
 				<MessageText isOwn={isOwn}>{message.text}</MessageText>
 				<MessageFooter isOwn={isOwn}>
 					<MessageTime isOwn={isOwn}>{formatTime(new Date(message.timestamp))}</MessageTime>
@@ -32,7 +32,7 @@ export const MessageItem = React.memo(({ message, isOwn }: MessageItemProps) => 
 						/>
 					)}
 				</MessageFooter>
-			</MessageColumn>
-		</MessageBubble>
+			</MessageBubble>
+		</MessageRow>
 	);
 });
